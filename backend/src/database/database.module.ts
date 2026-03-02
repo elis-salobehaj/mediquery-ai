@@ -22,7 +22,7 @@ export const PG_POOL = 'PG_POOL';
           port: configService.get('POSTGRES_PORT'),
           user: configService.get('POSTGRES_USER'),
           password: configService.get('POSTGRES_PASSWORD'),
-          database: configService.get('POSTGRES_DB'),
+          database: configService.get('POSTGRES_DB_NAME'),
         });
       },
     },

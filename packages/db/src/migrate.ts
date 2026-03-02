@@ -2,16 +2,19 @@ import { Pool } from 'pg';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs';
+import { loadDbEnv } from './env';
 
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
+const dbEnv = loadDbEnv();
+
 async function runMigration() {
   const pool = new Pool({
-    host: process.env.POSTGRES_HOST || 'localhost',
-    port: parseInt(process.env.POSTGRES_PORT || '5432', 10),
-    user: process.env.POSTGRES_USER || 'mediquery',
-    password: process.env.POSTGRES_PASSWORD || 'mediquery',
-    database: process.env.POSTGRES_DB || 'mediquery_db',
+    host: dbEnv.POSTGRES_HOST,
+    port: dbEnv.POSTGRES_PORT,
+    user: dbEnv.POSTGRES_USER,
+    password: dbEnv.POSTGRES_PASSWORD,
+    database: dbEnv.POSTGRES_DB_NAME,
     ssl: false,
   });
 

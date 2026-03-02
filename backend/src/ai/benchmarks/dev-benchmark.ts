@@ -303,11 +303,11 @@ function evaluateGoldenQuery(query: GoldenQuery): GoldenQueryResult {
 
 function createBenchmarkPool(): Pool {
   return new Pool({
-    host: config.BENCHMARK_POSTGRES_HOST || config.POSTGRES_HOST,
-    port: config.BENCHMARK_POSTGRES_PORT || config.POSTGRES_PORT,
-    user: config.BENCHMARK_POSTGRES_USER || config.POSTGRES_USER,
-    password: config.BENCHMARK_POSTGRES_PASSWORD || config.POSTGRES_PASSWORD,
-    database: config.BENCHMARK_POSTGRES_DB || config.POSTGRES_DB,
+    host: config.BENCHMARK_POSTGRES_HOST,
+    port: config.BENCHMARK_POSTGRES_PORT,
+    user: config.BENCHMARK_POSTGRES_USER,
+    password: config.BENCHMARK_POSTGRES_PASSWORD,
+    database: config.BENCHMARK_POSTGRES_DB_NAME,
     connectionTimeoutMillis: config.BENCHMARK_DB_CONNECT_TIMEOUT_MS,
     idleTimeoutMillis: config.BENCHMARK_DB_IDLE_TIMEOUT_MS,
     query_timeout: config.BENCHMARK_DB_QUERY_TIMEOUT_MS,

@@ -33,6 +33,70 @@ interface NavigatorContract {
   thought?: string;
 }
 
+function unwrapCodeFence(raw: string): string {
+  const trimmed = raw.trim();
+  const match = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  return match ? match[1].trim() : trimmed;
+}
+
+function extractJsonCandidate(raw: string): string | null {
+  const unwrapped = unwrapCodeFence(raw);
+  const firstBrace = unwrapped.indexOf('{');
+  const lastBrace = unwrapped.lastIndexOf('}');
+  if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+    return null;
+  }
+  return unwrapped.slice(firstBrace, lastBrace + 1).trim();
+}
+
+function parseNavigatorContract(content: string): {
+  supported: boolean;
+  tables: unknown;
+  joinPlan: string[];
+  confidence: number;
+  notes: string;
+  thought?: string;
+} | null {
+  const candidates = [
+    content.trim(),
+    unwrapCodeFence(content),
+    extractJsonCandidate(content),
+  ]
+    .filter((candidate): candidate is string => Boolean(candidate))
+    .map((candidate) => candidate.trim())
+    .filter((candidate, index, array) => array.indexOf(candidate) === index);
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate) as {
+        supported?: unknown;
+        tables?: unknown;
+        join_plan?: unknown;
+        confidence?: unknown;
+        notes?: unknown;
+        thought?: unknown;
+      };
+
+      return {
+        supported: parsed?.supported !== false,
+        tables: parsed?.tables,
+        joinPlan: Array.isArray(parsed?.join_plan)
+          ? parsed.join_plan.map((item) => String(item))
+          : [],
+        confidence:
+          typeof parsed?.confidence === 'number' ? parsed.confidence : 0,
+        notes: typeof parsed?.notes === 'string' ? parsed.notes : '',
+        thought:
+          typeof parsed?.thought === 'string' ? parsed.thought : undefined,
+      };
+    } catch {
+      // Try next candidate
+    }
+  }
+
+  return null;
+}
+
 const OMOP_FACT_TABLES = new Set([
   'visit_occurrence',
   'condition_occurrence',
@@ -167,61 +231,41 @@ function parseNavigatorSelection(
 ): { contract: NavigatorContract; selected: string[] } {
   const valid = new Set(allTables);
 
-  try {
-    const parsed = JSON.parse(content) as {
-      supported?: boolean;
-      tables?: unknown;
-      join_plan?: unknown;
-      confidence?: unknown;
-      notes?: unknown;
-      thought?: unknown;
-    };
-    const supported = parsed?.supported !== false;
-    const joinPlan = Array.isArray(parsed?.join_plan)
-      ? parsed.join_plan.map((item) => String(item))
-      : [];
-    const confidence =
-      typeof parsed?.confidence === 'number' ? parsed.confidence : 0;
-    const notes = typeof parsed?.notes === 'string' ? parsed.notes : '';
-    const thought =
-      typeof parsed?.thought === 'string' ? parsed.thought : undefined;
-
-    if (Array.isArray(parsed?.tables)) {
+  const parsed = parseNavigatorContract(content);
+  if (parsed) {
+    if (Array.isArray(parsed.tables)) {
       const tables = parsed.tables
         .map((table) => String(table).trim())
         .filter((table) => valid.has(table));
       return {
         contract: {
-          supported,
+          supported: parsed.supported,
           tables,
-          join_plan: joinPlan,
-          confidence,
-          notes,
-          thought,
+          join_plan: parsed.joinPlan,
+          confidence: parsed.confidence,
+          notes: parsed.notes,
+          thought: parsed.thought,
         },
-        selected: supported ? tables : [],
+        selected: parsed.supported ? tables : [],
       };
     }
 
     return {
       contract: {
-        supported,
+        supported: parsed.supported,
         tables: [],
-        join_plan: joinPlan,
-        confidence,
-        notes,
-        thought,
+        join_plan: parsed.joinPlan,
+        confidence: parsed.confidence,
+        notes: parsed.notes,
+        thought: parsed.thought,
       },
       selected: [],
     };
-  } catch {
-    // Fallback to CSV parsing below
   }
 
-  const selected = content
-    .split(',')
-    .map((table) => table.trim())
-    .filter((table) => valid.has(table));
+  const selected = allTables.filter((table) =>
+    new RegExp(`\\b${table}\\b`, 'i').test(content),
+  );
 
   return {
     contract: {

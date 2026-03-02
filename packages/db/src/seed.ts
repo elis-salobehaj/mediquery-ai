@@ -5,17 +5,20 @@ import * as argon2 from 'argon2';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { eq } from 'drizzle-orm';
 import * as schema from './schema';
+import { loadDbEnv } from './env';
 
 // Use same config as migration script
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
+const dbEnv = loadDbEnv();
+
 async function seed() {
   const pool = new Pool({
-    host: process.env.POSTGRES_HOST,
-    port: parseInt(process.env.POSTGRES_PORT || '5432', 10),
-    user: process.env.POSTGRES_USER,
-    password: process.env.POSTGRES_PASSWORD,
-    database: process.env.POSTGRES_DB,
+    host: dbEnv.POSTGRES_HOST,
+    port: dbEnv.POSTGRES_PORT,
+    user: dbEnv.POSTGRES_USER,
+    password: dbEnv.POSTGRES_PASSWORD,
+    database: dbEnv.POSTGRES_DB_NAME,
     ssl: false,
   });
 

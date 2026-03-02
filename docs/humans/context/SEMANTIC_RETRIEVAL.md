@@ -48,7 +48,7 @@ Table selection is the main token-efficiency lever:
 
 Use these artifacts together:
 
-- `infra/postgres/init.sql` → live PostgreSQL schema reality
+- `data-pipeline/gold_omop_tenant.sql` → OMOP tenant + vocab PostgreSQL bootstrap reality
 - `backend/src/ai/prompts/semantic_view.yaml` → retrieval metadata + join graph + unsupported intents
 - `backend/src/ai/prompts/system_prompts.yaml` → navigator/writer/critic/reflector behavior contracts
 

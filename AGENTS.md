@@ -27,7 +27,7 @@ Text-to-SQL platform for medical KPI analysis using natural language.
    - Use `pnpm dlx <package>` for one-off remote executions (equivalent to npx).
 3. **Always use configuration abstractions**: Use the centralized `ConfigService` in NestJS (backed by Zod validation). Never use `process.env` directly in business logic. For the data-pipeline, import from `data-pipeline/config.py`.
 4. **Never edit DB schema manually**: Use Drizzle ORM (TS) or SQLAlchemy + Alembic (Python). For TypeScript, treat `packages/db` as the source of truth for app-data schema and migrations.
-5. **Never commit real data**: Sanitize `init.sql` dumps.
+5. **Never commit real data**: Sanitize SQL dump artifacts (e.g., OMOP golden dumps).
 6. **Agent file naming convention**: All LangGraph agent node files must live under `backend/src/ai/agents/` and use the `*-agent.ts` suffix (e.g., `router-agent.ts`, `sql-writer-agent.ts`).
 7. **Benchmark queries must target OMOP Golden Dataset**: All entries in `backend/src/ai/benchmarks/corpus/omop_golden_queries.jsonl` must reference OMOP v5.4 tables (`person`, `condition_occurrence`, `drug_exposure`, `measurement`, `visit_occurrence`, `omop_vocab.concept`, etc.).
 8. **Update Plans**: Check off tasks in `docs/plans/active/*.md` as you complete them.

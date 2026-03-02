@@ -6,15 +6,25 @@ import { execSync } from 'child_process';
 import path from 'path';
 import * as fs from 'fs';
 import { Client } from 'pg';
+import { z } from 'zod';
 
 let pgContainer: StartedPostgreSqlContainer;
+
+const E2EEnvSchema = z.object({
+  POSTGRES_HOST: z.string().optional(),
+  POSTGRES_PORT: z.string().optional(),
+  POSTGRES_USER: z.string().optional(),
+  POSTGRES_PASSWORD: z.string().optional(),
+  POSTGRES_DB_NAME: z.string().optional(),
+});
 
 export async function setup() {
   const startTime = Date.now();
   const projectRoot = path.resolve(__dirname, '..');
+  let e2eEnv = E2EEnvSchema.parse(process.env);
 
   // Phase 1: Ensure Backend Services are running
-  if (process.env.POSTGRES_HOST) {
+  if (e2eEnv.POSTGRES_HOST) {
     console.log(
       'Using existing database services (skipping Testcontainers startup)',
     );
@@ -26,12 +36,14 @@ export async function setup() {
       .withPassword('postgres')
       .start();
 
-    // Bridge container info to environment
-    process.env.POSTGRES_HOST = pgContainer.getHost();
-    process.env.POSTGRES_PORT = pgContainer.getMappedPort(5432).toString();
-    process.env.POSTGRES_USER = 'postgres';
-    process.env.POSTGRES_PASSWORD = 'postgres';
-    process.env.POSTGRES_DB = pgContainer.getDatabase();
+    e2eEnv = {
+      ...e2eEnv,
+      POSTGRES_HOST: pgContainer.getHost(),
+      POSTGRES_PORT: pgContainer.getMappedPort(5432).toString(),
+      POSTGRES_USER: 'postgres',
+      POSTGRES_PASSWORD: 'postgres',
+      POSTGRES_DB_NAME: pgContainer.getDatabase(),
+    };
 
     console.log(`Testcontainers started in ${Date.now() - startTime}ms`);
   }
@@ -39,11 +51,11 @@ export async function setup() {
   // Phase 2: Initialize Database Schemas
   // Create .env.e2e.test for the Vitest processes to consume
   const envContent = `
-POSTGRES_HOST=${process.env.POSTGRES_HOST}
-POSTGRES_PORT=${process.env.POSTGRES_PORT}
-POSTGRES_USER=${process.env.POSTGRES_USER}
-POSTGRES_PASSWORD=${process.env.POSTGRES_PASSWORD}
-POSTGRES_DB=${process.env.POSTGRES_DB}
+POSTGRES_HOST=${e2eEnv.POSTGRES_HOST}
+POSTGRES_PORT=${e2eEnv.POSTGRES_PORT}
+POSTGRES_USER=${e2eEnv.POSTGRES_USER}
+POSTGRES_PASSWORD=${e2eEnv.POSTGRES_PASSWORD}
+POSTGRES_DB_NAME=${e2eEnv.POSTGRES_DB_NAME}
 `;
   await fs.promises.writeFile(
     path.join(projectRoot, '.env.e2e.test'),
@@ -52,20 +64,23 @@ POSTGRES_DB=${process.env.POSTGRES_DB}
 
   // Push drizzle schema to Postgres
   console.log('Pushing schema to PostgreSQL...');
-  execSync('npx drizzle-kit push', {
+  execSync('pnpm exec drizzle-kit push', {
     cwd: path.resolve(projectRoot, '../packages/db'),
-    env: process.env,
+    env: {
+      ...process.env,
+      ...e2eEnv,
+    },
     stdio: 'inherit',
   });
 
   // Create minimal schema for tests to run (previously MySQL, now PG)
   console.log('Pushing dummy KPI table to PostgreSQL...');
   const pgClient = new Client({
-    host: process.env.POSTGRES_HOST || 'localhost',
-    port: parseInt(process.env.POSTGRES_PORT || '5432', 10),
-    user: process.env.POSTGRES_USER,
-    password: process.env.POSTGRES_PASSWORD,
-    database: process.env.POSTGRES_DB,
+    host: e2eEnv.POSTGRES_HOST || 'localhost',
+    port: parseInt(e2eEnv.POSTGRES_PORT || '5432', 10),
+    user: e2eEnv.POSTGRES_USER,
+    password: e2eEnv.POSTGRES_PASSWORD,
+    database: e2eEnv.POSTGRES_DB_NAME,
   });
 
   await pgClient.connect();

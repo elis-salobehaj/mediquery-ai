@@ -37,6 +37,7 @@ Suggested starting points:
 ### Plans
 
 - Active work: [plans/active](plans/active/)
+- Featured active plan: [OMOP Vocabulary Automation (Open-License, No Manual Steps)](plans/active/omop_vocabulary_automation_open_data.md)
 - Implemented plans: [plans/implemented](plans/implemented/)
 - Backlog: [plans/backlog](plans/backlog/)
 

@@ -2,9 +2,11 @@ import { Injectable, Inject, Logger } from '@nestjs/common';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { sql } from 'drizzle-orm';
 import * as schema from '@/database/schema';
+import { ConfigService } from '@/config/config.service';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
+import { Pool } from 'pg';
 import type {
   SemanticView,
   SemanticViewTable,
@@ -18,11 +20,59 @@ const PG_CONNECTION = 'PG_CONNECTION';
 export class DatabaseService {
   private readonly logger = new Logger(DatabaseService.name);
   private semanticView: SemanticView | null = null;
+  private tenantPool: Pool | null = null;
 
   constructor(
     @Inject(PG_CONNECTION) public readonly pg: NodePgDatabase<typeof schema>,
+    private readonly configService: ConfigService,
   ) {
     this.loadSemanticView();
+  }
+
+  private getTenantPool(): Pool {
+    if (this.tenantPool) {
+      return this.tenantPool;
+    }
+
+    const tenantSchema = this.configService.get('NEXUS_TENANT_DB_NAME');
+
+    this.tenantPool = new Pool({
+      host: this.configService.get('POSTGRES_HOST'),
+      port: this.configService.get('POSTGRES_PORT'),
+      user: this.configService.get('POSTGRES_USER'),
+      password: this.configService.get('POSTGRES_PASSWORD'),
+      database: this.configService.get('TENANTS_DB_NAME'),
+      options: `-c search_path=${tenantSchema},omop_vocab,public`,
+    });
+
+    return this.tenantPool;
+  }
+
+  private extractDbErrorMessage(err: unknown): string {
+    if (!(err instanceof Error)) {
+      return String(err);
+    }
+
+    const cause = (err as { cause?: unknown }).cause;
+    if (cause instanceof Error && cause.message) {
+      return cause.message;
+    }
+
+    if (cause && typeof cause === 'object') {
+      const causeRecord = cause as Record<string, unknown>;
+      const message =
+        typeof causeRecord.message === 'string' ? causeRecord.message : '';
+      const detail =
+        typeof causeRecord.detail === 'string' ? causeRecord.detail : '';
+      const hint = typeof causeRecord.hint === 'string' ? causeRecord.hint : '';
+
+      const parts = [message, detail, hint].filter(Boolean);
+      if (parts.length > 0) {
+        return parts.join(' | ');
+      }
+    }
+
+    return err.message;
   }
 
   private loadSemanticView() {
@@ -133,7 +183,8 @@ export class DatabaseService {
 
   async getAllTableNames(): Promise<string[]> {
     try {
-      const result = await this.pg.execute(sql`
+      const tenantPool = this.getTenantPool();
+      const result = await tenantPool.query(`
         SELECT tablename 
         FROM pg_catalog.pg_tables 
         WHERE schemaname != 'pg_catalog' AND schemaname != 'information_schema'
@@ -141,7 +192,7 @@ export class DatabaseService {
       return result.rows.map((row) => String(row.tablename));
     } catch (err) {
       this.logger.error(
-        `Failed to get table names: ${err instanceof Error ? err.message : String(err)}`,
+        `Failed to get table names: ${this.extractDbErrorMessage(err)}`,
       );
       return [];
     }
@@ -149,18 +200,22 @@ export class DatabaseService {
 
   async getTableSchema(tableName: string): Promise<[string, string][]> {
     try {
-      const result = await this.pg.execute(sql`
+      const tenantPool = this.getTenantPool();
+      const result = await tenantPool.query(
+        `
         SELECT column_name, data_type 
         FROM information_schema.columns 
-        WHERE table_name = ${tableName}
-      `);
+        WHERE table_name = $1
+      `,
+        [tableName],
+      );
       return result.rows.map((row) => [
         String(row.column_name),
         String(row.data_type),
       ]);
     } catch (err) {
       this.logger.error(
-        `Failed to get schema for table ${tableName}: ${err instanceof Error ? err.message : String(err)}`,
+        `Failed to get schema for table ${tableName}: ${this.extractDbErrorMessage(err)}`,
       );
       return [];
     }
@@ -175,21 +230,22 @@ export class DatabaseService {
   }> {
     const warnings: string[] = [];
     const sqlClean = sqlQuery.trim().replace(/;$/, '');
+    const tenantPool = this.getTenantPool();
 
     try {
       // 1. Syntax validation via EXPLAIN
       // Postgres EXPLAIN doesn't need the string escaping used in mysql
-      await this.pg.execute(sql.raw(`EXPLAIN ${sqlClean}`));
+      await tenantPool.query(`EXPLAIN ${sqlClean}`);
 
       // 2. Row count estimate
-      const countResult = await this.pg.execute(
-        sql.raw(`SELECT COUNT(*) as count FROM (${sqlClean}) AS subquery`),
+      const countResult = await tenantPool.query(
+        `SELECT COUNT(*) as count FROM (${sqlClean}) AS subquery`,
       );
       const rowCount = Number(countResult.rows[0]?.count || 0);
 
       // 3. Sample data retrieval
-      const sampleResult = await this.pg.execute(
-        sql.raw(`SELECT * FROM (${sqlClean}) AS subquery LIMIT 5`),
+      const sampleResult = await tenantPool.query(
+        `SELECT * FROM (${sqlClean}) AS subquery LIMIT 5`,
       );
 
       // Filtering patient_id from sample data
@@ -209,12 +265,13 @@ export class DatabaseService {
         warnings,
       };
     } catch (err) {
+      const errorMessage = this.extractDbErrorMessage(err);
       this.logger.warn(
-        `SQL validation failed: ${err instanceof Error ? err.message : String(err)}`,
+        `SQL validation failed: ${errorMessage}`,
       );
       return {
         valid: false,
-        error: err instanceof Error ? err.message : String(err),
+        error: errorMessage,
         row_count: null,
         warnings: [],
       };
@@ -223,8 +280,9 @@ export class DatabaseService {
 
   async executeQuery(sqlQuery: string): Promise<KpiQueryResult> {
     const sqlClean = sqlQuery.trim().replace(/;$/, '');
+    const tenantPool = this.getTenantPool();
     try {
-      const result = await this.pg.execute(sql.raw(sqlClean));
+      const result = await tenantPool.query(sqlClean);
       const rows = result.rows;
       const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
 
@@ -245,10 +303,11 @@ export class DatabaseService {
         row_count: filteredRows.length,
       };
     } catch (err) {
+      const errorMessage = this.extractDbErrorMessage(err);
       this.logger.error(
-        `Query execution failed: ${err instanceof Error ? err.message : String(err)}`,
+        `Query execution failed: ${errorMessage}`,
       );
-      throw err;
+      throw new Error(errorMessage);
     }
   }
 }

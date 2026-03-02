@@ -18,12 +18,40 @@ Runs code locally for fast iteration, using Docker exclusively for the databases
 docker compose up -d postgres
 ```
 
-Wait for PostgreSQL to be ready (~5 seconds), then ensure migrations have run (first time only):
+Wait for PostgreSQL to be ready (~5 seconds), then ensure migrations have run:
 
 ```bash
 cd packages/db
 pnpm install
 pnpm db:migrate
+```
+
+**First-time only bootstrap notes**
+
+- On a fresh Docker volume, PostgreSQL runs `infra/postgres/init-multi-db.sh` automatically.
+- That script creates/ensures:
+  - app database: `${POSTGRES_DB_NAME}`
+  - tenant database: `${TENANTS_DB_NAME}`
+  - OMOP tenant schema: `${NEXUS_TENANT_DB_NAME}` (loaded from `data-pipeline/gold_omop_tenant.sql`)
+- If you need to re-run bootstrap from scratch, clear the Postgres volume and restart:
+
+```bash
+docker compose down -v
+docker compose up -d postgres
+```
+
+Optional verification (recommended for first setup):
+
+```bash
+# list databases
+docker exec -i mediquery-postgres psql -U "$POSTGRES_USER" -d postgres -c "\l"
+
+# list tables in app DB
+docker exec -i mediquery-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB_NAME" -c "\dt"
+
+# list tables in tenant DB + schema-qualified OMOP tables
+docker exec -i mediquery-postgres psql -U "$POSTGRES_USER" -d "$TENANTS_DB_NAME" -c "\dt"
+docker exec -i mediquery-postgres psql -U "$POSTGRES_USER" -d "$TENANTS_DB_NAME" -c "\dt ${NEXUS_TENANT_DB_NAME}.*"
 ```
 
 **Terminal 2: Backend (TypeScript — port 8001)**
@@ -226,14 +254,14 @@ docker compose logs migrator backend
 
 **Error**: `cannot connect to PostgreSQL server on 'mediquery-postgres'`
 
-**Cause**: `DB_HOST` is using the Docker network name instead of `localhost`
+**Cause**: `POSTGRES_HOST` is using the Docker network name instead of `localhost`
 
 **Solution**:
 
 ```bash
 # In .env file, ensure:
-DB_HOST=localhost  # For local development
-DB_PORT=5432
+POSTGRES_HOST=localhost  # For local development
+POSTGRES_PORT=5432
 
 # Then restart the debugger (F5)
 ```
@@ -247,5 +275,5 @@ DB_PORT=5432
 
 ### Database connection refused
 
-- **Check host**: In Hybrid Mode, use `DB_HOST=localhost` in `.env`
+- **Check host**: In Hybrid Mode, use `POSTGRES_HOST=localhost` in `.env`
 - **Check port**: Ensure `5432` is not in use: `lsof -i :5432`

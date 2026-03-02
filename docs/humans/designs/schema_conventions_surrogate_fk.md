@@ -78,7 +78,7 @@ Any schema key change must update these artifacts together:
 
 - `backend/src/ai/prompts/semantic_view.yaml`
 - `backend/src/ai/prompts/system_prompts.yaml`
-- `infra/postgres/init.sql`
+- `data-pipeline/gold_omop_tenant.sql`
 - `data-pipeline/omop_ddl/` (for OMOP tenant schema DDL)
 
 Prompt contract requirements:

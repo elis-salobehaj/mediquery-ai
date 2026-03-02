@@ -1,5 +1,7 @@
 services:
   transient-db:
+    profiles:
+      - legacy-transient-db
     image: postgres:18.3
     env_file:
       - ../.env

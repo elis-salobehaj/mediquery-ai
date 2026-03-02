@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/experimental-ct-react';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { frontendTestEnv } from './tests/env';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -10,9 +11,9 @@ export default defineConfig({
   snapshotDir: './__snapshots__',
   timeout: 10 * 1000,
   fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  forbidOnly: frontendTestEnv.isCi,
+  retries: frontendTestEnv.isCi ? 2 : 0,
+  workers: frontendTestEnv.isCi ? 1 : undefined,
   reporter: 'html',
   use: {
     trace: 'on-first-retry',

@@ -30,7 +30,9 @@ const ConfigSchema = z.object({
   POSTGRES_PORT: z.coerce.number().default(5432),
   POSTGRES_USER: z.string().default('mediquery'),
   POSTGRES_PASSWORD: z.string().default(''),
-  POSTGRES_DB: z.string().default('mediquery_tokens'),
+  POSTGRES_DB_NAME: z.string().default('mediquery_db'),
+  TENANTS_DB_NAME: z.string().default('omop_db'),
+  NEXUS_TENANT_DB_NAME: z.string().default('tenant_nexus_health'),
 
   // App Config
   LOG_LEVEL: z.string().default('DEBUG'),
@@ -57,6 +59,7 @@ const ConfigSchema = z.object({
 
   // AWS Bedrock
   AWS_BEDROCK_REGION: z.string().default('us-west-2'),
+  AWS_EC2_METADATA_DISABLED: booleanString.default(true),
   AWS_BEARER_TOKEN_BEDROCK: z.string().optional(),
   BEDROCK_BASE_MODEL: z.string().default('global.anthropic.claude-sonnet-4-6'),
   BEDROCK_SQL_WRITER_MODEL: z
@@ -103,10 +106,10 @@ const ConfigSchema = z.object({
   BENCHMARK_MODE: z.enum(['mode-a', 'mode-b', 'live']).default('mode-a'),
   BENCHMARK_DB_SCHEMA: z.string().default('tenant_nexus_health'),
   BENCHMARK_POSTGRES_HOST: z.string().default('localhost'),
-  BENCHMARK_POSTGRES_PORT: z.coerce.number().default(5433),
+  BENCHMARK_POSTGRES_PORT: z.coerce.number().default(5432),
   BENCHMARK_POSTGRES_USER: z.string().default('omop_user'),
   BENCHMARK_POSTGRES_PASSWORD: z.string().default('omop_password'),
-  BENCHMARK_POSTGRES_DB: z.string().default('omop'),
+  BENCHMARK_POSTGRES_DB_NAME: z.string().default('omop_db'),
   BENCHMARK_DB_CONNECT_TIMEOUT_MS: z.coerce.number().default(3000),
   BENCHMARK_DB_IDLE_TIMEOUT_MS: z.coerce.number().default(10000),
   BENCHMARK_DB_QUERY_TIMEOUT_MS: z.coerce.number().default(5000),
@@ -128,9 +131,6 @@ export const loadConfig = (): AppConfig => {
   }
 
   _config = parsed.data;
-
-  // AWS values will already be inherited from process.env via dotenv
-  process.env.AWS_EC2_METADATA_DISABLED = 'true';
 
   return _config;
 };

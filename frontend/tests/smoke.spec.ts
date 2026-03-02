@@ -1,10 +1,11 @@
 /// <reference types="node" />
 import { test, expect } from '@playwright/test';
+import { frontendTestEnv } from './env';
 
 test.describe('Post-Deployment Smoke Tests', () => {
   test('Backend Health Endpoint should be accessible and verify DB connectivity', async ({ request, baseURL }) => {
     // Determine apiURL depending on environment or fallback
-    const apiURL = process.env.VITE_API_URL || `${baseURL}/api/v1`;
+    const apiURL = frontendTestEnv.VITE_API_URL || `${baseURL}/api/v1`;
     
     // We expect the health endpoint to respond within 10s max
     const response = await request.get(`${apiURL}/health`, { timeout: 10000 });

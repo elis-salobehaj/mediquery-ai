@@ -40,32 +40,66 @@ interface SQLWriterResponse {
   table_strategy?: string;
 }
 
-function parseSqlWriterResponse(raw: string): SQLWriterResponse {
+function unwrapCodeFence(raw: string): string {
   const trimmed = raw.trim();
+  const match = trimmed.match(/^```(?:json|sql)?\s*([\s\S]*?)\s*```$/i);
+  return match ? match[1].trim() : trimmed;
+}
 
-  try {
-    const parsed = JSON.parse(trimmed) as {
-      sql?: unknown;
-      thought?: unknown;
-      table_strategy?: unknown;
-    };
+function extractJsonCandidate(raw: string): string | null {
+  const unwrapped = unwrapCodeFence(raw);
+  const firstBrace = unwrapped.indexOf('{');
+  const lastBrace = unwrapped.lastIndexOf('}');
+  if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+    return null;
+  }
+  return unwrapped.slice(firstBrace, lastBrace + 1).trim();
+}
 
-    if (typeof parsed.sql === 'string') {
-      return {
-        sql: parsed.sql,
-        thought:
-          typeof parsed.thought === 'string' ? parsed.thought : undefined,
-        table_strategy:
-          typeof parsed.table_strategy === 'string'
-            ? parsed.table_strategy
-            : undefined,
+function tryParseJsonContract(raw: string): SQLWriterResponse | null {
+  const candidates = [
+    raw.trim(),
+    unwrapCodeFence(raw),
+    extractJsonCandidate(raw),
+  ]
+    .filter((candidate): candidate is string => Boolean(candidate))
+    .map((candidate) => candidate.trim())
+    .filter((candidate, index, array) => array.indexOf(candidate) === index);
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate) as {
+        sql?: unknown;
+        thought?: unknown;
+        table_strategy?: unknown;
       };
+
+      if (typeof parsed.sql === 'string') {
+        return {
+          sql: parsed.sql,
+          thought:
+            typeof parsed.thought === 'string' ? parsed.thought : undefined,
+          table_strategy:
+            typeof parsed.table_strategy === 'string'
+              ? parsed.table_strategy
+              : undefined,
+        };
+      }
+    } catch {
+      // Try next candidate
     }
-  } catch {
-    // Fallback to raw SQL parsing below
   }
 
-  return { sql: trimmed };
+  return null;
+}
+
+function parseSqlWriterResponse(raw: string): SQLWriterResponse {
+  const parsedContract = tryParseJsonContract(raw);
+  if (parsedContract) {
+    return parsedContract;
+  }
+
+  return { sql: unwrapCodeFence(raw) };
 }
 
 /**

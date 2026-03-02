@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -6,18 +8,32 @@ class Settings(BaseSettings):
     pipeline_db_host: str
     pipeline_db_port: int
     pipeline_db_name: str
-    
+
+    pipeline_profile: Literal["synthetic_open", "athena_permitted"] = (
+        "synthetic_open"
+    )
+    athena_profile_enabled: bool = False
+    vocab_bundle_path: str | None = None
+    fail_on_vocab_gap: bool = True
+
+    synthea_population_size: int = 500
+    synthea_seed: int = 42
+
     tenant_schemas: list[str] = ["tenant_nexus_health"]
     vocab_schema: str = "omop_vocab"
 
     model_config = SettingsConfigDict(
         env_file="../.env",
         env_file_encoding="utf-8",
-        extra="ignore"
+        extra="ignore",
     )
 
     @property
     def database_url(self) -> str:
         return f"postgresql+psycopg://{self.pipeline_db_user}:{self.pipeline_db_password}@{self.pipeline_db_host}:{self.pipeline_db_port}/{self.pipeline_db_name}"
+
+    @property
+    def active_tenant_schema(self) -> str:
+        return self.tenant_schemas[0]
 
 settings = Settings()

@@ -25,8 +25,8 @@ depends_on:
 blocks: []
 assignee: null
 completion:
-  - [ ] Phase 0 — Policy, scope, and dataset profiles
-  - [ ] Phase 1 — Vocabulary ingestion architecture (open-license first)
+   - [x] Phase 0 — Policy, scope, and dataset profiles
+   - [x] Phase 1 — Vocabulary ingestion architecture (open-license first)
   - [ ] Phase 2 — ETL mapping hardening and concept integrity
   - [ ] Phase 3 — Gold dump production and idempotent orchestration
   - [ ] Phase 4 — Automated QA gates (pipeline fail-fast)

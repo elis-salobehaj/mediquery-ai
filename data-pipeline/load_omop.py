@@ -3,6 +3,8 @@ from config import settings
 import psycopg
 import time
 from io import BytesIO
+from vocabulary.load_profile import build_vocabulary_package
+from vocabulary.validators import validate_vocabulary_package
 
 
 def dict_to_pg_copy(conn, df: pl.DataFrame, table_name: str, schema: str):
@@ -233,13 +235,31 @@ def main():
     )
 
     print("Generating Vocabulary Concepts dynamically...")
-    concept_omop, code_map = generate_vocabulary(
+    synthetic_concepts_omop, _ = generate_vocabulary(
         [
             (conditions_df, "CODE", "DESCRIPTION", "Condition"),
             (medications_df, "CODE", "DESCRIPTION", "Drug"),
             (procedures_df, "CODE", "DESCRIPTION", "Procedure"),
             (observations_df, "CODE", "DESCRIPTION", "Observation"),
         ]
+    )
+
+    print(f"Building vocabulary package using profile={settings.pipeline_profile}...")
+    vocabulary_package, required_ids = build_vocabulary_package(
+        synthetic_concepts_omop
+    )
+    validation_errors = validate_vocabulary_package(vocabulary_package, required_ids)
+    if validation_errors:
+        for error in validation_errors:
+            print(f"Vocabulary validation error: {error}")
+        if settings.fail_on_vocab_gap:
+            raise RuntimeError(
+                "Vocabulary package validation failed and fail_on_vocab_gap=true"
+            )
+
+    concept_omop = vocabulary_package["concept"]
+    code_map = concept_omop.select(
+        [pl.col("concept_code").alias("code"), pl.col("concept_id")]
     )
 
     print("Mapping Patients -> person...")
@@ -481,6 +501,7 @@ def main():
             print(f"Setting search_path to {schema}, {vocab_schema}")
 
             # Delete exiting data to support rerun
+            cur.execute(f"TRUNCATE TABLE {schema}.concept CASCADE;")
             cur.execute(f"TRUNCATE TABLE {schema}.condition_era CASCADE;")
             cur.execute(f"TRUNCATE TABLE {schema}.drug_era CASCADE;")
             cur.execute(f"TRUNCATE TABLE {schema}.observation CASCADE;")
@@ -490,11 +511,42 @@ def main():
             cur.execute(f"TRUNCATE TABLE {schema}.condition_occurrence CASCADE;")
             cur.execute(f"TRUNCATE TABLE {schema}.visit_occurrence CASCADE;")
             cur.execute(f"TRUNCATE TABLE {schema}.person CASCADE;")
+            cur.execute(f"TRUNCATE TABLE {vocab_schema}.concept_synonym CASCADE;")
+            cur.execute(
+                f"TRUNCATE TABLE {vocab_schema}.concept_relationship CASCADE;"
+            )
+            cur.execute(f"TRUNCATE TABLE {vocab_schema}.relationship CASCADE;")
+            cur.execute(f"TRUNCATE TABLE {vocab_schema}.domain CASCADE;")
+            cur.execute(f"TRUNCATE TABLE {vocab_schema}.vocabulary CASCADE;")
             cur.execute(f"TRUNCATE TABLE {vocab_schema}.concept CASCADE;")
             conn.commit()
 
-        # Load Vocab
-        dict_to_pg_copy(conn, concept_omop, "concept", vocab_schema)
+        # Load Vocab support tables (synthetic_open baseline)
+        dict_to_pg_copy(conn, vocabulary_package["vocabulary"], "vocabulary", vocab_schema)
+        dict_to_pg_copy(conn, vocabulary_package["domain"], "domain", vocab_schema)
+        dict_to_pg_copy(
+            conn,
+            vocabulary_package["relationship"],
+            "relationship",
+            vocab_schema,
+        )
+        dict_to_pg_copy(conn, vocabulary_package["concept"], "concept", vocab_schema)
+        dict_to_pg_copy(
+            conn,
+            vocabulary_package["concept_relationship"],
+            "concept_relationship",
+            vocab_schema,
+        )
+        dict_to_pg_copy(
+            conn,
+            vocabulary_package["concept_synonym"],
+            "concept_synonym",
+            vocab_schema,
+        )
+
+        # Keep tenant concept table synchronized for compatibility checks
+        dict_to_pg_copy(conn, vocabulary_package["tenant_concept"], "concept", schema)
+
         # Load Patient
         dict_to_pg_copy(conn, person_omop, "person", schema)
         # Load Encounter

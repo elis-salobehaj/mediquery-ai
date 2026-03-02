@@ -185,6 +185,18 @@ uv lock --upgrade
 uv sync
 ```
 
+### Data Pipeline Profile Defaults
+
+For local and CI runs, keep the pipeline in open/synthetic mode:
+
+```bash
+PIPELINE_PROFILE=synthetic_open
+ATHENA_PROFILE_ENABLED=false
+FAIL_ON_VOCAB_GAP=true
+```
+
+This ensures vocabulary support tables are auto-populated and the pipeline fails fast when required OMOP concept coverage is missing.
+
 ### Testing
 
 See **[TESTING_GUIDE.md](TESTING_GUIDE.md)** for comprehensive testing instructions.

@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import Sidebar from './Sidebar';
+import UsageIndicator from '../Usage/UsageIndicator';
+import { Separator } from '@/components/ui/separator';
 import type { Thread } from '../../App';
 
 interface LayoutProps {
   children: React.ReactNode;
   onNewChat: () => void;
+  onLogout: () => void;
   threads: Thread[];
   currentChatId: string | null;
   onSelectThread: (id: string) => void;
@@ -12,13 +15,15 @@ interface LayoutProps {
   onDeleteThread: (id: string) => void;
   onPinThread: (id: string, pinned: boolean) => void;
   onShareThread: (id: string) => void;
-  theme: 'light' | 'dark' | 'drilling-slate' | 'system';
-  setTheme: (theme: 'light' | 'dark' | 'drilling-slate' | 'system') => void;
+  theme: 'light' | 'dark' | 'clinical-slate' | 'system';
+  setTheme: (theme: 'light' | 'dark' | 'clinical-slate' | 'system') => void;
+  onOpenPreferences: () => void;
 }
 
 const Layout: React.FC<LayoutProps> = ({
   children,
   onNewChat,
+  onLogout,
   threads,
   currentChatId,
   onSelectThread,
@@ -27,16 +32,18 @@ const Layout: React.FC<LayoutProps> = ({
   onPinThread,
   onShareThread,
   theme,
-  setTheme
+  setTheme,
+  onOpenPreferences,
 }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   return (
-    <div className="flex h-screen bg-[var(--bg-primary)] transition-colors duration-300 overflow-hidden">
+    <div className="bg-background flex h-screen overflow-hidden">
       <Sidebar
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
         onNewChat={onNewChat}
+        onLogout={onLogout}
         threads={threads}
         currentChatId={currentChatId}
         onSelectThread={onSelectThread}
@@ -46,13 +53,18 @@ const Layout: React.FC<LayoutProps> = ({
         onShareThread={onShareThread}
         theme={theme}
         setTheme={setTheme}
+        onOpenPreferences={onOpenPreferences}
       />
 
-      <main
-        className={`flex-1 flex flex-col h-full relative transition-all duration-300 ease-in-out
-          ${isSidebarOpen ? 'ml-64' : 'ml-16'}
-        `}
-      >
+      <Separator orientation="vertical" />
+
+      <main className="relative flex h-full flex-1 flex-col overflow-hidden">
+        {/* Top header bar with usage indicator */}
+        <div className="bg-card flex items-center justify-end px-4 py-2">
+          <UsageIndicator />
+        </div>
+        <Separator />
+
         {children}
       </main>
     </div>

@@ -5,20 +5,22 @@ Thumbs.db
 *.tmp
 
 # IDEs
-.vscode/
 .idea/
 *.swp
 *.swo
 
 # Python / Backend
-backend/venv/
+backend-py-legacy/venv/
+backend-py-legacy/.venv/
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-backend/.env
-backend/chat_history.db
+backend-py-legacy/.env
+backend-py-legacy/chat_history.db
 *.db
+# Build artifacts from setuptools
+*.egg-info/
 
 # Node / Frontend
 frontend/node_modules/
@@ -27,6 +29,27 @@ frontend/build/
 frontend/.env
 frontend/.env.local
 frontend/.vite/
+frontend/.pnpm-store/
+
+# Node / TypeScript Backend
+backend/node_modules/
+backend/dist/
+backend/build/
+backend/.env
+backend/.env.local
+backend/coverage/
+backend/.env.e2e.test
+packages/db/dist/
+packages/db/drizzle/meta/
 
 # Docker
 .env
+node_modules/
+
+# Data Pipeline
+data-pipeline/bronze/
+data-pipeline/silver/
+data-pipeline/gold/
+data-pipeline/.venv/
+
+

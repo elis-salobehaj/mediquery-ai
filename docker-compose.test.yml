@@ -2,15 +2,16 @@ services:
   # ==========================================
   # 1. CI Services (Isolated Unit/Component)
   # ==========================================
-  
-  # Isolated Backend Unit Tests (Pytest)
-  backend-unit:
+
+  # Isolated Backend Unit Tests (Legacy Python)
+  backend-legacy-unit:
     profiles: ["ci"]
     build:
-      context: ./backend
+      context: ./backend-py-legacy
       dockerfile: Dockerfile
       args:
-        BUILD_MODE: ci
+        BUILD_MODE: development
+    env_file: .env
     environment:
       - USE_LOCAL_MODEL=true
       - GEMINI_API_KEY=test
@@ -25,6 +26,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       target: test
+    env_file: .env
     environment:
       - CI=true
     # No volumes!
@@ -34,35 +36,56 @@ services:
   # 2. E2E Services (Full Stack Integration)
   # ==========================================
 
-  # Real Backend (Mocked LLM for stability)
-  backend:
+  # Isolated PostgreSQL for E2E
+  test-postgres:
     profiles: ["e2e"]
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      args:
-        BUILD_MODE: production
+    image: postgres:18.3-alpine
+    restart: always
+    env_file: .env
     environment:
-      - USE_LOCAL_MODEL=true
-      - GEMINI_API_KEY=test
-      - ANTHROPIC_API_KEY=test
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    volumes:
+      - test_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 20
-      start_period: 10s
+
+  # Isolated MySQL for E2E
+  test-db:
+    profiles: ["e2e"]
+    image: mysql:8.4
+    restart: always
+    command: --bind-address=0.0.0.0
+    env_file: .env
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - MYSQL_ROOT_HOST=%
+    volumes:
+      - test_mysql_data:/var/lib/mysql
+      - ./infra/mysql/init_02_24_2026.sql:/docker-entrypoint-initdb.d/init_02_24_2026.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${DB_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
 
   # Real Frontend (Nginx)
   frontend:
     profiles: ["e2e"]
+    container_name: mediquery-test-frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile
       target: production
-      args:
-        # Bake in the internal docker network URL
-        - VITE_API_URL=http://backend:8000
+      args: []
     depends_on:
       backend:
         condition: service_healthy
@@ -77,16 +100,87 @@ services:
   # E2E Runner (Ephemerally runs tests against the stack)
   e2e-runner:
     profiles: ["e2e"]
-    image: mcr.microsoft.com/playwright:v1.57.0-jammy
+    image: mcr.microsoft.com/playwright:v1.58.2-noble
     working_dir: /app
     volumes:
       - ./frontend:/app
+    env_file: .env
     environment:
       - CI=true
       # Point Playwright to the internal frontend service name
       - PLAYWRIGHT_TEST_BASE_URL=http://frontend:80
+      - VITE_API_URL=
     depends_on:
       frontend:
         condition: service_healthy
     command: >
-      sh -c "npm install && npx playwright test -c playwright-e2e.config.ts"
+      sh -c "corepack enable && pnpm install && pnpm exec playwright test -c playwright-e2e.config.ts --workers=2 --trace on --shard=$${PLAYWRIGHT_SHARD:-1/1}"
+
+  # Real Backend TS (NestJS)
+  backend:
+    profiles: ["e2e"]
+    container_name: mediquery-test-backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: test
+    env_file: .env
+    environment:
+      - NODE_ENV=test
+      - DB_HOST=test-db
+      - DB_PORT=3306
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - POSTGRES_HOST=test-postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+      - USE_BEDROCK=false
+      - USE_OPENAI=false
+      - USE_GEMINI=false
+      - USE_ANTHROPIC=false
+      - USE_LOCAL_MODEL=true
+    volumes: []
+    depends_on:
+      test-db:
+        condition: service_healthy
+      test-postgres:
+        condition: service_healthy
+    command: >
+      sh -c "pnpm run db:push && node dist/test/main.test.js"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/v1/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  # Backend TS E2E Runner (Database Integration)
+  backend-e2e:
+    profiles: ["e2e"]
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: test
+    env_file: .env
+    environment:
+      - NODE_ENV=test
+      - DB_HOST=test-db
+      - POSTGRES_HOST=test-postgres
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: >
+      pnpm test:e2e test/database.e2e-spec.ts
+
+networks:
+  default:
+    name: mediquery-test-network
+    driver: bridge
+
+volumes:
+  # Ephemeral volumes for E2E (not mapped to host persistence for hermeticity)
+  test_postgres_data:
+  test_mysql_data:

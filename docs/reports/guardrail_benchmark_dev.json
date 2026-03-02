@@ -1,0 +1,540 @@
+{
+  "generated_at": "2026-03-02T00:57:04.316Z",
+  "mode": "development",
+  "execution_mode": "mode-a",
+  "totals": {
+    "cases": 5,
+    "policy_gate_correct": 4,
+    "sql_policy_correct": 3,
+    "sql_policy_cases": 3,
+    "golden_queries": 27,
+    "table_selection_correct": 27,
+    "concept_join_correct": 27,
+    "sql_execution_correct": 0,
+    "sql_execution_cases": 0
+  },
+  "accuracy": {
+    "policy_gate": 0.8,
+    "sql_policy": 1,
+    "table_selection": 1,
+    "concept_join": 1,
+    "sql_execution": 0
+  },
+  "by_category": {
+    "demographics": {
+      "total": 4,
+      "tableSelectionCorrect": 4,
+      "conceptJoinCorrect": 4,
+      "sqlExecutionCorrect": 0,
+      "tableSelectionAccuracy": 1,
+      "conceptJoinAccuracy": 1,
+      "sqlExecutionAccuracy": 0
+    },
+    "conditions": {
+      "total": 5,
+      "tableSelectionCorrect": 5,
+      "conceptJoinCorrect": 5,
+      "sqlExecutionCorrect": 0,
+      "tableSelectionAccuracy": 1,
+      "conceptJoinAccuracy": 1,
+      "sqlExecutionAccuracy": 0
+    },
+    "medications": {
+      "total": 5,
+      "tableSelectionCorrect": 5,
+      "conceptJoinCorrect": 5,
+      "sqlExecutionCorrect": 0,
+      "tableSelectionAccuracy": 1,
+      "conceptJoinAccuracy": 1,
+      "sqlExecutionAccuracy": 0
+    },
+    "measurements": {
+      "total": 4,
+      "tableSelectionCorrect": 4,
+      "conceptJoinCorrect": 4,
+      "sqlExecutionCorrect": 0,
+      "tableSelectionAccuracy": 1,
+      "conceptJoinAccuracy": 1,
+      "sqlExecutionAccuracy": 0
+    },
+    "visits": {
+      "total": 3,
+      "tableSelectionCorrect": 3,
+      "conceptJoinCorrect": 3,
+      "sqlExecutionCorrect": 0,
+      "tableSelectionAccuracy": 1,
+      "conceptJoinAccuracy": 1,
+      "sqlExecutionAccuracy": 0
+    },
+    "cross_domain": {
+      "total": 3,
+      "tableSelectionCorrect": 3,
+      "conceptJoinCorrect": 3,
+      "sqlExecutionCorrect": 0,
+      "tableSelectionAccuracy": 1,
+      "conceptJoinAccuracy": 1,
+      "sqlExecutionAccuracy": 0
+    },
+    "edge_cases": {
+      "total": 3,
+      "tableSelectionCorrect": 3,
+      "conceptJoinCorrect": 3,
+      "sqlExecutionCorrect": 0,
+      "tableSelectionAccuracy": 1,
+      "conceptJoinAccuracy": 1,
+      "sqlExecutionAccuracy": 0
+    }
+  },
+  "cases": [
+    {
+      "id": "omop_top_conditions_allow",
+      "policyGatePassed": true,
+      "expectedPolicyGate": "ALLOW",
+      "sqlPolicyPassed": true,
+      "expectedSqlPolicy": "ALLOW",
+      "issues": []
+    },
+    {
+      "id": "write_intent_delete",
+      "policyGatePassed": true,
+      "expectedPolicyGate": "BLOCK",
+      "sqlPolicyPassed": true,
+      "expectedSqlPolicy": "BLOCK",
+      "issues": [
+        "Blocked WRITE SQL operation"
+      ]
+    },
+    {
+      "id": "domain_knowledge_schema",
+      "policyGatePassed": true,
+      "expectedPolicyGate": "ALLOW",
+      "issues": []
+    },
+    {
+      "id": "unsupported_ml_request",
+      "policyGatePassed": false,
+      "expectedPolicyGate": "BLOCK",
+      "issues": []
+    },
+    {
+      "id": "complex_join_without_limit",
+      "policyGatePassed": true,
+      "expectedPolicyGate": "ALLOW",
+      "sqlPolicyPassed": true,
+      "expectedSqlPolicy": "BLOCK",
+      "issues": [
+        "High-join query must include LIMIT to bound result size"
+      ]
+    }
+  ],
+  "golden_results": [
+    {
+      "id": "omop_patient_gender",
+      "category": "demographics",
+      "tier": "easy",
+      "question": "Show the distribution of patients by gender.",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "person",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_age_distribution",
+      "category": "demographics",
+      "tier": "easy",
+      "question": "What is the age distribution of patients by decade?",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "person"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": false,
+      "needsConceptJoin": false
+    },
+    {
+      "id": "omop_ethnicity_breakdown",
+      "category": "demographics",
+      "tier": "easy",
+      "question": "What is the breakdown of patients by ethnicity?",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "person",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_race_distribution",
+      "category": "demographics",
+      "tier": "easy",
+      "question": "Show patient distribution by race.",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "person",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_common_conditions",
+      "category": "conditions",
+      "tier": "medium",
+      "question": "What are the top 5 most common medical conditions?",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "condition_occurrence",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_condition_prevalence_by_age",
+      "category": "conditions",
+      "tier": "medium",
+      "question": "What are the most common conditions in patients over 60?",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "condition_occurrence",
+        "person",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_avg_conditions_per_patient",
+      "category": "conditions",
+      "tier": "medium",
+      "question": "What is the average number of conditions per patient?",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "condition_occurrence"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": false,
+      "needsConceptJoin": false
+    },
+    {
+      "id": "omop_condition_era_duration",
+      "category": "conditions",
+      "tier": "hard",
+      "question": "What is the average duration of condition eras by condition name?",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "condition_era",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_comorbidity_burden",
+      "category": "conditions",
+      "tier": "medium",
+      "question": "Show the distribution of patients by number of distinct conditions (comorbidity burden).",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "condition_occurrence"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": false,
+      "needsConceptJoin": false
+    },
+    {
+      "id": "omop_top_medications",
+      "category": "medications",
+      "tier": "medium",
+      "question": "What are the top 10 most frequently prescribed medications?",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "drug_exposure",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_polypharmacy_patients",
+      "category": "medications",
+      "tier": "hard",
+      "question": "How many patients are currently taking 5 or more distinct medications?",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "drug_exposure"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": false,
+      "needsConceptJoin": false
+    },
+    {
+      "id": "omop_avg_drug_exposure_duration",
+      "category": "medications",
+      "tier": "medium",
+      "question": "What is the average drug exposure duration (in days) for each medication?",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "drug_exposure",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_medications_by_visit_type",
+      "category": "medications",
+      "tier": "hard",
+      "question": "What are the most common medications prescribed during inpatient visits?",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "drug_exposure",
+        "visit_occurrence",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_drug_era_duration",
+      "category": "medications",
+      "tier": "hard",
+      "question": "Show the average drug era duration by medication using drug era records.",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "drug_era",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_recent_measurements",
+      "category": "measurements",
+      "tier": "hard",
+      "question": "Show the latest body weight measurement for each patient.",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "measurement",
+        "person",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_abnormal_lab_values",
+      "category": "measurements",
+      "tier": "hard",
+      "question": "Which patients have lab values outside the normal reference range?",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "measurement",
+        "person",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_bmi_distribution",
+      "category": "measurements",
+      "tier": "medium",
+      "question": "What is the distribution of patients by BMI category (underweight, normal, overweight, obese)?",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "measurement",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_measurement_trends",
+      "category": "measurements",
+      "tier": "medium",
+      "question": "Show the monthly average systolic blood pressure trend over the last 12 months.",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "measurement",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_visit_stats",
+      "category": "visits",
+      "tier": "medium",
+      "question": "What is the average duration of inpatient visits?",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "visit_occurrence"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": false,
+      "needsConceptJoin": false
+    },
+    {
+      "id": "omop_visit_type_distribution",
+      "category": "visits",
+      "tier": "easy",
+      "question": "What is the distribution of visit types (inpatient, outpatient, emergency)?",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "visit_occurrence",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_er_visit_frequency",
+      "category": "visits",
+      "tier": "medium",
+      "question": "What is the average number of emergency room visits per patient?",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "visit_occurrence"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": false,
+      "needsConceptJoin": false
+    },
+    {
+      "id": "omop_diabetes_and_hypertension",
+      "category": "cross_domain",
+      "tier": "hard",
+      "question": "How many patients have both a diabetes diagnosis and a hypertension diagnosis?",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "condition_occurrence",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_conditions_by_visit_type",
+      "category": "cross_domain",
+      "tier": "hard",
+      "question": "What are the most common conditions recorded during inpatient visits?",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "condition_occurrence",
+        "visit_occurrence",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_drug_condition_co_occurrence",
+      "category": "cross_domain",
+      "tier": "hard",
+      "question": "Show patients who have both an asthma diagnosis and are prescribed a corticosteroid.",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "person",
+        "condition_occurrence",
+        "drug_exposure",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_medication_list_specific_patient",
+      "category": "edge_cases",
+      "tier": "medium",
+      "question": "List all medications taken by patient with source ID 'aee7bbe1-0c45-c028-1e62-1f4cdb30c273'.",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "drug_exposure",
+        "person",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_male_patient_count",
+      "category": "edge_cases",
+      "tier": "easy",
+      "question": "How many male patients are there?",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "person",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_procedures_during_er",
+      "category": "edge_cases",
+      "tier": "hard",
+      "question": "What procedures were most commonly performed during emergency room visits?",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "procedure_occurrence",
+        "visit_occurrence",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    }
+  ]
+}

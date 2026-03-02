@@ -4,116 +4,115 @@
 
 We provide two dedicated test suites that run in isolated Docker containers:
 
-### CI Tests (Fast - Unit & Component)
+### Backend Unit Tests (Fast)
 
 ```bash
-# Linux/Mac
-./run-ci.sh
-
-# Windows
-.\run-ci.ps1
+# Run backend tests
+cd backend
+pnpm test
 ```
 
-**What it runs (~30 seconds):**
-1. **Backend Unit Tests** - 13 pytest tests for API logic, auth, and LLM integration
-2. **Frontend Component Tests** - 10 Playwright tests for React components
+**What it runs:**
 
-**Use case:** Run before every commit, in CI/CD pipelines
+1. **Backend Unit Tests** — Vitest suite (`backend/src/**/*.spec.ts`), covering controllers, services, and core logic.
+2. **Frontend Component Tests** — Playwright component testing (`frontend/tests/components/`)
+
+**Use case:** Test driven development, quick sanity checks.
+
+**Spec files:**
+
+| File                                             | What it covers                                                                                                                                                                 | Stmt %   |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- |
+| `app.controller.spec.ts`                         | Health endpoint                                                                                                                                                                | 57%      |
+| `auth/auth.controller.spec.ts`                   | Login, register, guest, logout, me — full path coverage                                                                                                                        | **100%** |
+| `auth/auth.service.spec.ts`                      | validateUser, login, getUserById, createUser, seedAdmin, blacklistToken, isTokenBlacklisted                                                                                    | **82%**  |
+| `threads/threads.controller.spec.ts`             | GET/POST/DELETE/PATCH thread endpoints                                                                                                                                         | **100%** |
+| `threads/threads.service.spec.ts`                | createThread, getUserThreads, deleteThread, updateThread, getThreadMessages, addMessage                                                                                        | **100%** |
+| `token-usage/token-usage.controller.spec.ts`     | Usage, status, monthly, breakdown, SSE, admin quota endpoints                                                                                                                  | **100%** |
+| `token-usage/token-usage.service.spec.ts`        | calculateCost (all providers), checkMonthlyLimit, getUsageStatus (all warning levels), getMonthlyUsage, getProviderBreakdown, getAllUsersUsage, updateUserQuota, logTokenUsage | **84%**  |
+| `token-usage/token-usage-events.service.spec.ts` | SSE subscribe/emit/cleanup                                                                                                                                                     | **100%** |
+| `ai/config.controller.spec.ts`                   | `/config/models` response shape                                                                                                                                                | **100%** |
+| `ai/llm.service.spec.ts`                         | `getAvailableModels()` per provider                                                                                                                                            | 36%      |
+| `ai/queries.controller.spec.ts`                  | `model_id`/`model_provider` contract                                                                                                                                           | 34%      |
+| `config/config.service.spec.ts`                  | Env config loading                                                                                                                                                             | 21%      |
+
+> Coverage last measured: 2026-02-22 · **113 tests, 12 files** · Overall: ~26% stmts (auth: 66%, threads: 100%, token-usage: 91%)
+
+### Integration Tests (Manual Only)
+
+These tests require live API keys (e.g., Bedrock/Gemini) and are **excluded** from standard CI runs to avoid costs and flakiness.
+
+```bash
+# Run from backend-py-legacy directory
+cd backend-py-legacy
+uv run pytest -m "integration"
+```
+
+**What it runs:**
+
+- Real LLM connectivity checks
+- Complex multi-agent flows
+- Database query execution
 
 ### E2E Tests (Full Stack Integration)
 
-```bash
-# Linux/Mac
-./run-e2e.sh
+Our CI pipeline (`.github/workflows/e2e.yml`) and local setups now run natively instead of using heavy docker-in-docker wrapper scripts.
 
-# Windows
-.\run-e2e.ps1
+```bash
+# Terminal 1: Background DBs
+docker compose up -d db postgres
+
+# Terminal 2: Backend API
+cd packages/db
+pnpm db:migrate
+
+cd ../../backend
+pnpm start:prod
+
+# Terminal 3: Frontend local preview
+cd frontend
+pnpm build
+pnpm preview
+
+# Terminal 4: Run Playwright against local preview (port 4173)
+cd frontend
+PLAYWRIGHT_TEST_BASE_URL=http://localhost:4173 pnpm test-e2e
 ```
 
-**What it runs (~2-3 minutes):**
-1. Spins up full stack (backend + frontend + database)
-2. Runs Playwright E2E tests against real services
-3. Tests complete user flows (login, queries, visualizations)
+**What it runs (~1-2 minutes):**
 
-**Use case:** Run before merging PRs, deployment validation
+1. Verifies the actual built outputs of both TS Backend and Frontend Vite servers.
+2. Runs Playwright E2E testing against the running stack across `chromium`.
+3. Validates full system interactions (authentication, queries, visualizations, mapping).
 
----
+**Use case:** Run before merging PRs, deployment validation. This exactly mimics the GitHub Actions pipeline.
 
-## Manual Testing (Current Running Services)
+## Backend TypeScript (NestJS) Specifics
 
-### Test Model Switching
+In 2026, the TypeScript backend uses **Vitest** for all testing layers (Unit, Integration, and Contract) ensuring native ESM support and blazing-fast execution speeds compared to legacy Jest.
 
-1. Select "GEMMA 3 27B" or "GEMINI 2.5 FLASH LITE" from dropdown
-2. Ask a query
-3. Select "Gemini Pro" from dropdown
-4. Ask the same query
-5. Verify both work (if cloud mode enabled)
+### Unit Tests (Vitest)
 
-### Test Average Metric Aggregation
+Unit tests focus on pure functions, logic, and strictly mocked database dependencies.
 
-1. Ask: "Show average age of patients by state"
-2. Switch visualization to "Indicator"
-3. Verify the number displayed is reasonable (e.g., ~40-60) and NOT a huge sum (e.g., >1000).
-4. Verify the label says "Avg age" or similar.
+```bash
+cd backend
+pnpm test
 
-### Test Suite
+```
 
-#### Test 1: Basic Query (Bar Chart)
-**Query:** "Show patient count by state"
-**Expected:**
-- Chart Type: Bar or Choropleth Map
-- Data: Patient counts grouped by state
-- Interactive: Can switch between bar, pie, map views
+`pnpm test:e2e` relies on `Testcontainers`. Testcontainers automatically pulls and spins up a dedicated, isolated PostgreSQL database container strictly for testing and destroys it upon exit.
 
-#### Test 2: Pie Chart
-**Query:** "Distribution of patients by gender"
-**Expected:**
-- Chart Type: Pie
-- Data: Male, Female, Other percentages
-- Interactive: Can switch to donut or bar
+```bash
+cd backend
+pnpm test:e2e
+```
 
-#### Test 3: Case-Insensitive Search
-**Query:** "List all patients with diabetes"
-**Expected:**
-- Finds patients with "Diabetes" (capital D)
-- Shows patient NAMES not IDs
-- Table or list view
+_Note: This process does not conflict with `docker-compose.yml` DBs running on default ports as Testcontainers binds randomized ephemeral ports._
 
-#### Test 4: Scatter Plot
-**Query:** "Show relationship between age and BMI"
-**Expected:**
-- Chart Type: Scatter
-- X-axis: Age
-- Y-axis: BMI
-- Can switch to heatmap or line
+## Frontend Specifics (Vite / React)
 
-#### Test 5: Hierarchical Chart
-**Query:** "Show patients by insurance type and income bracket"
-**Expected:**
-- Chart Type: Sunburst or Treemap
-- Hierarchical structure visible
-- Interactive drill-down
+For 2026 frontend testing, we have transitioned toward:
 
-#### Test 6: Box Plot
-**Query:** "Distribution of patient ages"
-**Expected:**
-- Chart Type: Box plot
-- Shows quartiles and outliers
-- Can switch to violin or histogram
-
-#### Test 7: Choropleth Map
-**Query:** "Patient count by state on a map"
-**Expected:**
-- Chart Type: Choropleth (USA map)
-- Color-coded states
-- Hover shows state name and count
-
-#### Test 8: Time Series
-**Query:** "Patient registrations by date"
-**Expected:**
-- Chart Type: Line chart
-- X-axis: Dates
-- Y-axis: Count
-- Can switch to area chart
-
----
+1. **Component Behavior Tests**: Validating interactions rather than implementation details (via React Testing Library + Vitest).
+2. **Visual Regression & Sharding**: E2E Workflows run on Playwright. We use sharding across CI workers to massively reduce build times on large browser matrixes.

@@ -9,7 +9,7 @@
 
 ### Features
 
-* **Dynamic Theme Engines**: Support for "Light", "Dark", and "Drilling Slate" premium themes.
+* **Dynamic Theme Engines**: Support for "Light", "Dark", and "Clinical Slate" premium themes.
 * **Glassmorphism Design**: Modern, transparent UI elements with backdrop filters and optimized readability.
 * **Enhanced Chat Experience**: Integrated thought process display for real-time multi-agent interaction monitoring.
 * **Advanced Thread Management**: Robust pinning, renaming, and bulk deletion of chat histories.

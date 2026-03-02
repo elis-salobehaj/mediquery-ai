@@ -2,7 +2,7 @@
 # Quick Start Script for Docker Deployment (Linux/Mac)
 
 echo "========================================="
-echo "  AI Healthcare Data Agent - Docker Setup"
+echo "  Mediquery AI Data Agent - Docker Setup"
 echo "========================================="
 echo ""
 

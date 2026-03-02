@@ -1,19 +1,29 @@
 # Chat History Auto-Deletion
 
 ## Overview
-The chat history system automatically deletes expired messages based on the configured retention period.
+The chat history system automatically deletes expired chat threads from PostgreSQL based on the configured retention period. Threads are pruned based on their `updated_at` timestamp.
 
 ## Configuration
-Set the retention period in `backend/.env`:
-```bash
-CHAT_HISTORY_RETENTION_HOURS=24  # Default: 24 hours (1 day)
+
+### Pydantic Settings (Recommended)
+Set the retention period in `backend/config.py`:
+```python
+class Settings(BaseSettings):
+    chat_history_retention_hours: int = 24  # Default: 24 hours (1 day)
 ```
 
-### Examples:
-- `24` = 1 day
+### Environment Variable (Optional Override)
+You can also override via environment variable:
+```bash
+CHAT_HISTORY_RETENTION_HOURS=24
+```
+
+### Common Retention Periods:
+- `24` = 1 day (default)
 - `48` = 2 days  
 - `72` = 3 days
 - `168` = 7 days (1 week)
+- `720` = 30 days (1 month)
 
 ## How It Works
 
@@ -32,25 +42,45 @@ chat_history.prune_old_messages()
 
 ## Implementation Details
 
-### Files Modified:
-- `backend/.env` - Configuration variable
-- `backend/services/chat_history.py` - Pruning logic
-- `backend/main.py` - Background task scheduler
+### Database
+- **Table**: `chat_threads` (PostgreSQL)
+- **Pruning Logic**: Deletes threads where `updated_at < (now - retention_hours)`
+- **Cascade**: Associated `chat_messages` are deleted via foreign key cascade
+
+### Files:
+- `backend/config.py` - Pydantic Settings configuration
+- `backend/services/chat_history.py` - ChatHistoryService with `prune_old_messages()`
+- `backend/main.py` - Startup pruning + background task scheduler
 
 ### Background Task:
 ```python
 async def prune_history_periodically():
-    """Runs every hour to delete expired messages."""
+    """Runs every hour to delete expired threads."""
     while True:
         await asyncio.sleep(3600)  # 1 hour
-        chat_history.prune_old_messages()
+        chat_history.prune_old_messages(settings.chat_history_retention_hours)
+```
+
+### Pruning Logic:
+```python
+def prune_old_messages(self, hours: int = None):
+    """Deletes threads older than N hours based on updated_at."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    session.query(ChatThread).filter(ChatThread.updated_at < cutoff).delete()
+    session.commit()
 ```
 
 ## Testing
-Run the test script to verify auto-deletion:
+Run the automated test:
 ```bash
 cd backend
-venv\Scripts\python tests/test_auto_deletion.py
+uv run pytest tests/test_auto_deletion.py -v
+```
+
+Or test manually:
+```bash
+cd backend
+uv run python tests/test_auto_deletion.py
 ```
 
 ## Logs

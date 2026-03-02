@@ -1,15 +1,20 @@
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
 
-/**
- * Hook to dynamically read OKLCH chart colors from CSS variables
- * Supports all 3 themes: light, dark, drilling-slate
- */
+// Theme type definition to match usage
+export type ThemeMode = 'light' | 'dark' | 'clinical-slate' | 'system';
+
 export const useChartColors = () => {
-  return useMemo(() => {
+  // Helper: Resolve CSS variable to RGB using browser's native computation
+  // This is required because Plotly/SVG doesn't fully support 'oklch()' strings yet
+  const getColorsFromDOM = () => {
     const getColor = (varName: string) => {
-      return getComputedStyle(document.documentElement)
-        .getPropertyValue(varName)
-        .trim();
+      const temp = document.createElement('div');
+      temp.style.display = 'none';
+      temp.style.color = `var(${varName})`;
+      document.body.appendChild(temp);
+      const computed = getComputedStyle(temp).color;
+      document.body.removeChild(temp);
+      return computed;
     };
 
     return {
@@ -25,7 +30,7 @@ export const useChartColors = () => {
       brand: getColor('--color-brand'),
       surface: getColor('--color-surface'),
       surfaceElevated: getColor('--color-surface-elevated'),
-      text: getColor('--color-text'),
+      text: getColor('--color-table-text'),
       textMuted: getColor('--color-text-muted'),
       border: getColor('--color-border'),
       borderSubtle: getColor('--color-border-subtle'),
@@ -45,6 +50,52 @@ export const useChartColors = () => {
         getColor('--color-chart-accent-5'),
         getColor('--color-chart-accent-6'),
       ],
+
+      // Map Palette
+      mapLand: getColor('--map-land'),
+      mapOcean: getColor('--map-ocean'),
+      mapLake: getColor('--map-lake'),
+      mapBorder: getColor('--map-border'),
+      mapCoastline: getColor('--map-coastline'),
+
+      // Table Palette
+      tableHeaderBg: getColor('--table-header-bg'),
+      tableCellRowOdd: getColor('--table-cell-row-odd'),
+      tableCellRowEven: getColor('--table-cell-row-even'),
+      tableBorderColor: getColor('--table-border-color'),
     };
-  }, []); // Empty deps - colors update via CSS, not React state
+  };
+
+  // Initialize with current state of DOM
+  const [colors, setColors] = useState(getColorsFromDOM);
+
+  useEffect(() => {
+    // Function to update state based on current DOM
+    const update = () => setColors(getColorsFromDOM());
+
+    // Observe changes to the 'data-theme' attribute on <html>
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (
+          mutation.type === 'attributes' &&
+          (mutation.attributeName === 'data-theme' ||
+            mutation.attributeName === 'class')
+        ) {
+          update();
+        }
+      }
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme', 'class'],
+    });
+
+    // Also update immediately in case of race conditions or layout thrashing updates
+    update();
+
+    return () => observer.disconnect();
+  }, []); // Run once on mount
+
+  return colors;
 };

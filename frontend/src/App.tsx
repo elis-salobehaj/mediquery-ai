@@ -1,10 +1,32 @@
 import { useState, useEffect } from 'react';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+} from 'react-router-dom';
 import axios from 'axios';
 import Layout from './components/Layout/Layout';
 import ChatInterface from './components/Chat/ChatInterface';
 import InputBar from './components/Chat/InputBar';
 import Login from './components/Login';
+import UsageDashboard from './pages/UsageDashboard';
+import AdminQuotaManagement from './pages/AdminQuotaManagement';
+import UserPreferences from './pages/UserPreferences';
+import UsageNotifications from './components/Usage/UsageNotifications';
+import ProtectedRoute from './components/ProtectedRoute';
 import { getApiUrl } from './config/api';
+import { isAdmin, clearAuth, isTokenExpired } from './utils/auth';
+import { TokenUsageProvider } from './contexts/TokenUsageContext';
+
+// Initialise axios auth header synchronously from localStorage on module load.
+// This prevents a race where useEffects (fetchModels, fetchThreads) fire on mount
+// before the auth-headers effect runs, causing spurious 401s → login redirect loop.
+const _initialToken = localStorage.getItem('mediquery_token');
+if (_initialToken) {
+  axios.defaults.headers.common['Authorization'] = `Bearer ${_initialToken}`;
+}
 
 export interface Thread {
   id: string;
@@ -17,59 +39,130 @@ export interface Message {
   id: string;
   sender: 'user' | 'bot';
   text: string;
-  data?: any;
+  data?: Record<string, unknown>;
   sql?: string;
   visualization_type?: string;
   thoughts?: string[];
 }
 
-const MODELS = [
-  { id: 'global.anthropic.claude-haiku-4-5-20251001-v1:0', name: 'Claude Haiku 4.5 (Bedrock)' },
-  { id: 'qwen2.5-coder:7b', name: 'Qwen 2.5 Coder' },
-  { id: 'sqlcoder:7b', name: 'Defog SQLCoder' },
-  { id: 'gemma-3-27b-it', name: 'GEMMA 3 27B' },
-];
+interface RawMessage {
+  id: string;
+  role: string;
+  text: string;
+  meta?: {
+    data?: Record<string, unknown>;
+    sql?: string;
+    visualization_type?: string;
+    thoughts?: string[];
+    query_plan?: string;
+  };
+}
 
-function App() {
+type Theme = 'light' | 'dark' | 'system' | 'clinical-slate';
+type AgentMode = 'fast' | 'multi-agent';
+
+interface ModelOption {
+  id: string;
+  name: string;
+  provider?: string;
+}
+
+// Inner component with access to router hooks
+function AppContent() {
+  const navigate = useNavigate();
+
   // State
   const [threads, setThreads] = useState<Thread[]>([]);
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('mediquery_token'));
-  const [user, setUser] = useState<string | null>(localStorage.getItem('mediquery_user'));
+  const [token, setToken] = useState<string | null>(
+    localStorage.getItem('mediquery_token'),
+  );
+  const [, setUser] = useState<string | null>(
+    localStorage.getItem('mediquery_user'),
+  );
   const [isLoading, setIsLoading] = useState(false);
 
+  // Check if user is admin using role-based authorization
+  const userIsAdmin = isAdmin();
+
   // Settings - Use backend defaults if localStorage is empty (first-time users)
-  const [fastMode, setFastMode] = useState(() => {
-    const stored = localStorage.getItem('fastMode');
-    return stored !== null ? stored === 'true' : false; // Default: thinking mode ON (fast mode OFF)
+  const [theme, setTheme] = useState<Theme>(
+    () => (localStorage.getItem('theme') as Theme) || 'system',
+  );
+  const [models, setModels] = useState<ModelOption[]>([]);
+  const [selectedModel, setSelectedModel] = useState('');
+  const [agentMode, setAgentMode] = useState<AgentMode>(() => {
+    const savedMode = localStorage.getItem('agentMode');
+    if (savedMode === 'thinking') {
+      return 'multi-agent';
+    }
+    if (savedMode === 'fast' || savedMode === 'multi-agent') {
+      return savedMode;
+    }
+    return 'multi-agent';
   });
-  const [multiAgent, setMultiAgent] = useState(() => {
-    const stored = localStorage.getItem('multiAgent');
-    return stored !== null ? stored === 'true' : true; // Default: multi-agent ON
+  const [enable_memory, setEnableMemory] = useState<boolean>(() => {
+    const saved = localStorage.getItem('enable_memory');
+    return saved === null ? true : saved === 'true';
   });
-  const [selectedModel, setSelectedModel] = useState(MODELS[0].id);
+
+  // Fetch available models from backend
+  useEffect(() => {
+    if (!token) {
+      // Clear models when token is removed
+      setModels([]);
+      setSelectedModel('');
+      return;
+    }
+
+    const fetchModels = async () => {
+      try {
+        const res = await axios.get(getApiUrl('/config/models'));
+        const fetched = res.data.models;
+        if (Array.isArray(fetched) && fetched.length > 0) {
+          // Deduplicate models by id (backend may return duplicates)
+          const uniqueModels = Array.from(
+            new Map(fetched.map((m: ModelOption) => [m.id, m])).values(),
+          );
+          setModels(uniqueModels);
+          setSelectedModel(uniqueModels[0].id);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch models', err);
+      }
+    };
+    fetchModels();
+  }, [token]);
 
   // Persistence
-  useEffect(() => localStorage.setItem('fastMode', String(fastMode)), [fastMode]);
-  useEffect(() => localStorage.setItem('multiAgent', String(multiAgent)), [multiAgent]);
-
-  // Theme State ... (Keep theme logic same)
-  // Theme State
-  const [theme, setTheme] = useState<'light' | 'dark' | 'drilling-slate' | 'system'>(() => {
-    return (localStorage.getItem('theme') as 'light' | 'dark' | 'drilling-slate' | 'system') || 'system';
-  });
+  useEffect(() => localStorage.setItem('theme', theme), [theme]);
+  useEffect(() => localStorage.setItem('agentMode', agentMode), [agentMode]);
+  useEffect(
+    () => localStorage.setItem('enable_memory', String(enable_memory)),
+    [enable_memory],
+  );
 
   // Apply Theme
   useEffect(() => {
-    const root = window.document.documentElement;
-
-    const applyTheme = (themeName: 'light' | 'dark' | 'drilling-slate' | 'system') => {
-      let effectiveTheme: 'light' | 'dark' | 'drilling-slate' = themeName === 'system'
-        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-        : themeName;
+    const applyTheme = (
+      themeName: 'light' | 'dark' | 'clinical-slate' | 'system',
+    ) => {
+      const effectiveTheme: 'light' | 'dark' | 'clinical-slate' =
+        themeName === 'system'
+          ? window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light'
+          : themeName;
 
       document.documentElement.setAttribute('data-theme', effectiveTheme);
+
+      // Bridge: Shadcn v4 uses the `.dark` class for its dark variant
+      // Our dark and clinical-slate themes both warrant dark Shadcn styling
+      document.documentElement.classList.toggle(
+        'dark',
+        effectiveTheme === 'dark' || effectiveTheme === 'clinical-slate',
+      );
     };
 
     if (theme === 'system') {
@@ -98,6 +191,50 @@ function App() {
     }
   }, [token]);
 
+  // Check for expired token on mount
+  useEffect(() => {
+    if (token && isTokenExpired()) {
+      console.warn('Token expired on mount, clearing auth');
+      setToken(null);
+      setUser(null);
+      clearAuth();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- Run once on mount
+
+  // Setup axios interceptor for 401 and 429 errors
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        // Handle 401 Unauthorized (expired/invalid token)
+        if (error.response?.status === 401) {
+          const isAuthEndpoint =
+            error.config?.url?.includes('/auth/token') ||
+            error.config?.url?.includes('/auth/register');
+
+          if (!isAuthEndpoint) {
+            console.warn(
+              '401 Unauthorized - clearing auth and redirecting to login',
+            );
+            clearAuth();
+            setToken(null);
+            setUser(null);
+            window.location.href = '/login';
+          }
+        }
+
+        // Handle 429 Quota Exceeded
+        if (error.response?.status === 429) {
+          alert('Token quota exceeded. You have reached your monthly limit.');
+        }
+
+        return Promise.reject(error);
+      },
+    );
+
+    return () => axios.interceptors.response.eject(interceptor);
+  }, []);
+
   // API Utils
   const fetchThreads = async () => {
     if (!token) return;
@@ -105,57 +242,70 @@ function App() {
       const res = await axios.get(getApiUrl('/threads'));
       setThreads(res.data.threads || []);
     } catch (err) {
-      console.error("Failed to fetch threads", err);
+      console.error('Failed to fetch threads', err);
     }
   };
 
   const fetchMessages = async (threadId: string) => {
     try {
       const res = await axios.get(getApiUrl(`/threads/${threadId}/messages`));
-      const rawMessages = res.data.messages || [];
-      const formattedMessages: Message[] = rawMessages.map((msg: any) => ({
+      const rawMessages = (res.data.messages || []) as RawMessage[];
+      const formattedMessages: Message[] = rawMessages.map((msg) => ({
         id: msg.id,
         sender: msg.role === 'user' ? 'user' : 'bot',
         text: msg.text,
         data: msg.meta?.data,
         sql: msg.meta?.sql,
         visualization_type: msg.meta?.visualization_type,
-        thoughts: (msg.meta?.thoughts && msg.meta.thoughts.length > 0)
-          ? msg.meta.thoughts
-          : (msg.meta?.query_plan ? [msg.meta.query_plan] : [])
+        thoughts:
+          msg.meta?.thoughts && msg.meta.thoughts.length > 0
+            ? msg.meta.thoughts
+            : msg.meta?.query_plan
+              ? [msg.meta.query_plan]
+              : [],
       }));
       setMessages(formattedMessages);
     } catch (err) {
-      console.error("Failed to fetch messages", err);
+      console.error('Failed to fetch messages', err);
     }
   };
 
   // Effects
   useEffect(() => {
     if (token) fetchThreads();
-  }, [token]);
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps -- fetchThreads recreated each render; token is the correct trigger
 
   useEffect(() => {
-    if (currentThreadId) {
+    if (currentThreadId && !isLoading) {
       fetchMessages(currentThreadId);
-    } else {
+    } else if (!currentThreadId && !isLoading) {
       setMessages([]);
     }
-  }, [currentThreadId]);
+  }, [currentThreadId, isLoading]);
 
   // Handlers
-  const handleLogin = (newToken: string, username: string) => {
+  const handleLogin = (newToken: string, username: string, role?: string) => {
+    // Set auth header immediately so it is ready before any React effects fire.
+    axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
     setToken(newToken);
     setUser(username);
     localStorage.setItem('mediquery_token', newToken);
     localStorage.setItem('mediquery_user', username);
+    if (role) {
+      localStorage.setItem('role', role);
+    }
+    // React Router will handle navigation to home page
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await axios.post(getApiUrl('/auth/logout'));
+    } catch (err) {
+      console.warn('Backend logout failed', err);
+    }
     setToken(null);
     setUser(null);
-    localStorage.removeItem('mediquery_token');
-    localStorage.removeItem('mediquery_user');
+    clearAuth(); // Clear all auth data including role
     setMessages([]);
     setThreads([]);
     setCurrentThreadId(null);
@@ -164,10 +314,12 @@ function App() {
   const handleNewChat = () => {
     setCurrentThreadId(null);
     setMessages([]);
+    navigate('/'); // Navigate back to chat page
   };
 
   const handleSelectThread = (threadId: string) => {
     setCurrentThreadId(threadId);
+    navigate('/'); // Navigate back to chat page
   };
 
   const handleRenameThread = async (threadId: string, newTitle: string) => {
@@ -175,7 +327,7 @@ function App() {
       await axios.patch(getApiUrl(`/threads/${threadId}`), { title: newTitle });
       fetchThreads();
     } catch (err) {
-      console.error("Failed to rename thread", err);
+      console.error('Failed to rename thread', err);
     }
   };
 
@@ -187,7 +339,7 @@ function App() {
       }
       fetchThreads();
     } catch (err) {
-      console.error("Failed to delete thread", err);
+      console.error('Failed to delete thread', err);
     }
   };
 
@@ -196,7 +348,7 @@ function App() {
       await axios.patch(getApiUrl(`/threads/${threadId}`), { pinned });
       fetchThreads();
     } catch (err) {
-      console.error("Failed to pin thread", err);
+      console.error('Failed to pin thread', err);
     }
   };
 
@@ -205,143 +357,323 @@ function App() {
     alert(`Shared thread ${threadId}`);
   };
 
+  const handleClearMemory = async () => {
+    try {
+      await axios.delete(getApiUrl('/memory'));
+    } catch (err) {
+      console.error('Failed to clear memory', err);
+    }
+  };
+
+  const handleOpenPreferences = () => {
+    navigate('/preferences');
+  };
+
   const handleSend = async (text: string) => {
     if (!text.trim() || isLoading) return;
 
-    // Optimistic Update: User Message
+    // Optimistic Update: User & Initial "Thinking" Bot Message
     const tempId = Date.now().toString();
     const userMsg: Message = { id: tempId, sender: 'user', text };
-    setMessages(prev => [...prev, userMsg]);
-    setIsLoading(true);
-
-    // Initial "Thinking" Bot Message
     const botId = (Date.now() + 1).toString();
-    const initialThoughts = ["Analyzing request..."];
     const thinkingMsg: Message = {
       id: botId,
       sender: 'bot',
-      text: "",
-      thoughts: initialThoughts
+      text: '',
+      thoughts: ['Initializing agent workflow...'], // Initial thought
     };
-    setMessages(prev => [...prev, thinkingMsg]);
 
-    // Simulated streaming of thoughts
-    const thoughtSteps = [
-      "Identifying relevant medical tables...",
-      "Analyzing schema relationships...",
-      "Constructing SQL query...",
-      "Optimizing query performance...",
-      "Validating against safety protocols...",
-      "Executing database query...",
-      "Formatting visualization..."
-    ];
-
-    let stepIndex = 0;
-    const thoughtInterval = setInterval(() => {
-      if (stepIndex < thoughtSteps.length) {
-        setMessages(prev => prev.map(msg =>
-          msg.id === botId
-            ? { ...msg, thoughts: [...(msg.thoughts || []), thoughtSteps[stepIndex]] }
-            : msg
-        ));
-        stepIndex++;
-      }
-    }, 1500);
+    setMessages((prev) => [...prev, userMsg, thinkingMsg]);
+    setIsLoading(true);
 
     try {
-      const response = await axios.post(getApiUrl('/query'), {
-        question: text,
-        thread_id: currentThreadId,
-        model_id: selectedModel,
-        fast_mode: fastMode,
-        multi_agent: multiAgent
+      const response = await fetch(getApiUrl('/queries/stream'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({
+          question: text,
+          thread_id: currentThreadId,
+          model_id: selectedModel,
+          model_provider: models.find((m) => m.id === selectedModel)?.provider,
+          // Map AgentMode to backend flags
+          fast_mode: agentMode === 'fast',
+          multi_agent: agentMode === 'multi-agent',
+          enable_memory,
+        }),
       });
 
-      const resData = response.data;
+      if (!response.body) throw new Error('No response body');
 
-      // Update current thread if changed
-      if (resData.meta?.thread_id && resData.meta.thread_id !== currentThreadId) {
-        setCurrentThreadId(resData.meta.thread_id);
-        fetchThreads();
-      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      const accumulatedThoughts: string[] = [];
 
-      // Preserve existing thoughts if backend sends none, or merge them
-      const existingThoughts = messages.find(m => m.id === botId)?.thoughts || [];
-      const backendThoughts = resData.meta?.thoughts || [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      // Use backend thoughts if available (full trace), otherwise keep simulated steps + completion
-      const finalThoughts = backendThoughts.length > 0
-        ? backendThoughts
-        : [...existingThoughts, "Analysis complete.", "Rendering results..."];
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
 
-      setMessages(prev => prev.map(msg =>
-        msg.id === botId
-          ? {
-            ...msg,
-            text: resData.insight || "Here is the data you requested.",
-            data: resData.data,
-            sql: resData.sql,
-            visualization_type: resData.visualization_type,
-            thoughts: finalThoughts
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const event = JSON.parse(line);
+
+            if (event.type === 'thought') {
+              accumulatedThoughts.push(event.content);
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === botId
+                    ? { ...msg, thoughts: [...accumulatedThoughts] }
+                    : msg,
+                ),
+              );
+            } else if (event.type === 'result') {
+              const resData = event.payload;
+              // Provide default empty values if missing
+              const safeData = resData.data || {
+                row_count: 0,
+                columns: [],
+                data: [],
+              };
+
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === botId
+                    ? {
+                        ...msg,
+                        text:
+                          resData.answer ||
+                          resData.insight ||
+                          'Analysis complete.',
+                        data: safeData,
+                        sql: resData.sql,
+                        visualization_type: 'table',
+                        thoughts: accumulatedThoughts,
+                      }
+                    : msg,
+                ),
+              );
+
+              // Refresh threads list if needed (e.g. title update)
+              fetchThreads();
+            } else if (event.type === 'meta') {
+              if (event.thread_id && event.thread_id !== currentThreadId) {
+                setCurrentThreadId(event.thread_id);
+              }
+            } else if (event.type === 'error') {
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === botId
+                    ? {
+                        ...msg,
+                        text: `Error: ${event.content}`,
+                        thoughts: [
+                          ...accumulatedThoughts,
+                          'Error encountered.',
+                        ],
+                      }
+                    : msg,
+                ),
+              );
+            }
+          } catch (e) {
+            console.warn('Stream parse error', e);
           }
-          : msg
-      ));
-    } catch (error: any) {
-      const errorText = `I encountered an error processing your request: ${error.response?.data?.detail || error.message}`;
-      setMessages(prev => prev.map(msg =>
-        msg.id === botId
-          ? { ...msg, text: errorText, thoughts: [...(msg.thoughts || []), "Error encountered."] }
-          : msg
-      ));
+        }
+      }
+    } catch (error: unknown) {
+      const errorText = `I encountered an error processing your request: ${error instanceof Error ? error.message : String(error)}`;
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === botId
+            ? {
+                ...msg,
+                text: errorText,
+                thoughts: [...(msg.thoughts || []), 'Connection failed.'],
+              }
+            : msg,
+        ),
+      );
     } finally {
-      clearInterval(thoughtInterval);
       setIsLoading(false);
     }
   };
 
   if (!token) {
     return (
-      <div className="h-screen bg-[var(--bg-primary)] flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-md bg-[var(--bg-secondary)] p-8 rounded-2xl shadow-lg border border-[var(--border-subtle)]">
-          <div className="mb-8 text-center">
-            <h1 className="text-2xl font-bold font-heading text-[var(--accent-primary)] mb-2">Mediquery AI</h1>
-            <p className="text-[var(--text-secondary)]">Please sign in to continue</p>
-          </div>
-          <Login onLogin={handleLogin} />
-        </div>
-      </div>
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            <div className="flex h-screen flex-col items-center justify-center bg-(--bg-primary) p-4">
+              <div className="w-full max-w-md rounded-2xl border border-(--border-subtle) bg-(--bg-secondary) p-8 shadow-lg">
+                <div className="mb-8 text-center">
+                  <h1 className="font-heading mb-2 text-2xl font-bold text-(--accent-primary)">
+                    {import.meta.env.VITE_APP_TITLE || 'Mediquery'}
+                  </h1>
+                  <p className="text-(--text-secondary)">
+                    Please sign in to continue
+                  </p>
+                </div>
+                <Login onLogin={handleLogin} />
+              </div>
+            </div>
+          }
+        />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
     );
   }
 
+  // Main app with authenticated routes
   return (
-    <Layout
-      onNewChat={handleNewChat}
-      threads={threads}
-      currentChatId={currentThreadId}
-      onSelectThread={handleSelectThread}
-      onRenameThread={handleRenameThread}
-      onDeleteThread={handleDeleteThread}
-      onPinThread={handlePinThread}
-      onShareThread={handleShareThread}
-      theme={theme}
-      setTheme={setTheme}
-    >
-      <ChatInterface messages={messages} theme={theme} />
+    <TokenUsageProvider>
+      <UsageNotifications />
 
-      <InputBar
-        onSend={handleSend}
-        isLoading={isLoading}
-        fastMode={fastMode}
-        setFastMode={setFastMode}
-        multiAgent={multiAgent}
-        setMultiAgent={setMultiAgent}
-        models={MODELS}
-        selectedModel={selectedModel}
-        setSelectedModel={setSelectedModel}
-      />
-    </Layout>
+      <Routes>
+        <Route path="/login" element={<Navigate to="/" replace />} />
+
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute isAuthenticated={!!token}>
+              <Layout
+                onNewChat={handleNewChat}
+                onLogout={handleLogout}
+                threads={threads}
+                currentChatId={currentThreadId}
+                onSelectThread={handleSelectThread}
+                onRenameThread={handleRenameThread}
+                onDeleteThread={handleDeleteThread}
+                onPinThread={handlePinThread}
+                onShareThread={handleShareThread}
+                theme={theme}
+                setTheme={setTheme}
+                onOpenPreferences={handleOpenPreferences}
+              >
+                <ChatInterface
+                  messages={messages}
+                  theme={theme}
+                  onUpdateMessage={(id, updates) => {
+                    setMessages((prev) =>
+                      prev.map((m) => (m.id === id ? { ...m, ...updates } : m)),
+                    );
+                  }}
+                />
+                <InputBar
+                  onSend={handleSend}
+                  isLoading={isLoading}
+                  agentMode={agentMode}
+                  setAgentMode={setAgentMode}
+                  models={models}
+                  selectedModel={selectedModel}
+                  setSelectedModel={setSelectedModel}
+                />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute isAuthenticated={!!token}>
+              <Layout
+                onNewChat={handleNewChat}
+                onLogout={handleLogout}
+                threads={threads}
+                currentChatId={currentThreadId}
+                onSelectThread={handleSelectThread}
+                onRenameThread={handleRenameThread}
+                onDeleteThread={handleDeleteThread}
+                onPinThread={handlePinThread}
+                onShareThread={handleShareThread}
+                theme={theme}
+                setTheme={setTheme}
+                onOpenPreferences={handleOpenPreferences}
+              >
+                <UsageDashboard />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute
+              isAuthenticated={!!token}
+              requireAdmin={true}
+              isAdmin={userIsAdmin}
+            >
+              <Layout
+                onNewChat={handleNewChat}
+                onLogout={handleLogout}
+                threads={threads}
+                currentChatId={currentThreadId}
+                onSelectThread={handleSelectThread}
+                onRenameThread={handleRenameThread}
+                onDeleteThread={handleDeleteThread}
+                onPinThread={handlePinThread}
+                onShareThread={handleShareThread}
+                theme={theme}
+                setTheme={setTheme}
+                onOpenPreferences={handleOpenPreferences}
+              >
+                <AdminQuotaManagement />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/preferences"
+          element={
+            <ProtectedRoute isAuthenticated={!!token}>
+              <Layout
+                onNewChat={handleNewChat}
+                onLogout={handleLogout}
+                threads={threads}
+                currentChatId={currentThreadId}
+                onSelectThread={handleSelectThread}
+                onRenameThread={handleRenameThread}
+                onDeleteThread={handleDeleteThread}
+                onPinThread={handlePinThread}
+                onShareThread={handleShareThread}
+                theme={theme}
+                setTheme={setTheme}
+                onOpenPreferences={handleOpenPreferences}
+              >
+                <UserPreferences
+                  enable_memory={enable_memory}
+                  setEnableMemory={setEnableMemory}
+                  onClearMemory={handleClearMemory}
+                  agentMode={agentMode}
+                  setAgentMode={setAgentMode}
+                />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </TokenUsageProvider>
+  );
+}
+
+// Wrapper component that provides BrowserRouter
+function App() {
+  return (
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <AppContent />
+    </BrowserRouter>
   );
 }
 
 export default App;
-

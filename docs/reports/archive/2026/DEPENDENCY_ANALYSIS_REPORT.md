@@ -1,7 +1,7 @@
 # Dependency Analysis & Optimization Report
 
 **Date**: January 21, 2026  
-**Project**: MediQueryAI Backend
+**Project**: MediqueryAI Backend
 
 ## Executive Summary
 

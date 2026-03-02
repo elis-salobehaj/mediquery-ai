@@ -1,0 +1,14 @@
+[project]
+name = "data-pipeline"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.18.4",
+    "polars>=1.38.1",
+    "psycopg[binary]>=3.3.3",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.13.1",
+    "sqlalchemy>=2.0.47",
+]

@@ -1,0 +1,157 @@
+# Mediquery Semantic View - OMOP CDM v5.4 Healthcare Database
+# Database: PostgreSQL
+# Schema: Standard OMOP Vocabulary + Tenant clinical data (person, visit_occurrence, etc.)
+
+database: mediquery
+dialect: postgresql
+hub_table: person
+hub_key: person_id
+supported_table_count: 8
+
+join_graph:
+  - from: person
+    to: visit_occurrence
+    join: person.person_id = visit_occurrence.person_id
+  - from: person
+    to: condition_occurrence
+    join: person.person_id = condition_occurrence.person_id
+  - from: person
+    to: drug_exposure
+    join: person.person_id = drug_exposure.person_id
+  - from: person
+    to: procedure_occurrence
+    join: person.person_id = procedure_occurrence.person_id
+  - from: person
+    to: measurement
+    join: person.person_id = measurement.person_id
+  - from: person
+    to: observation
+    join: person.person_id = observation.person_id
+  - from: visit_occurrence
+    to: condition_occurrence
+    join: visit_occurrence.visit_occurrence_id = condition_occurrence.visit_occurrence_id
+  # Vocabulary joins (Crucial for OMOP)
+  - from: condition_occurrence
+    to: concept
+    join: condition_occurrence.condition_concept_id = concept.concept_id
+  - from: drug_exposure
+    to: concept
+    join: drug_exposure.drug_concept_id = concept.concept_id
+
+unsupported_intents:
+  - 'Write operations (INSERT, UPDATE, DELETE, DDL)'
+  - 'Financial/Billing data (not currently mapped in current Phase)'
+
+tables:
+  person:
+    description: 'Central patient repository. Contains structural demographics (birth date, gender, race, ethnicity).'
+    aliases: ['patient', 'subject', 'individual', 'member']
+    primary_key: person_id
+    columns:
+      person_id: 'Unique identifier for the person'
+      gender_concept_id: 'FK to concept table for gender (8507=Male, 8532=Female)'
+      year_of_birth: 'Year part of the birth date'
+      month_of_birth: 'Month part of the birth date'
+      day_of_birth: 'Day part of the birth date'
+      birth_datetime: 'Full birth date and time'
+      race_concept_id: 'FK to concept table for race'
+      ethnicity_concept_id: 'FK to concept table for ethnicity'
+      person_source_value: 'Original source ID (e.g. Synthea UUID)'
+
+  visit_occurrence:
+    description: 'Contains clinical encounters (admissions, outpatient visits, ER visits).'
+    aliases: ['encounter', 'visit', 'admission']
+    primary_key: visit_occurrence_id
+    columns:
+      visit_occurrence_id: 'Primary key'
+      person_id: 'FK to person'
+      visit_concept_id: 'Type of visit (9201=Inpatient, 9202=Outpatient, 9203=Emergency)'
+      visit_start_date: 'Start date of the visit'
+      visit_end_date: 'End date of the visit'
+      visit_source_value: 'Original source identifier'
+
+  condition_occurrence:
+    description: 'Clinical diagnoses, diseases, and ailments.'
+    aliases: ['diagnosis', 'condition', 'illness', 'disease']
+    primary_key: condition_occurrence_id
+    columns:
+      condition_occurrence_id: 'Primary key'
+      person_id: 'FK to person'
+      condition_concept_id: 'FK to concept (OMOP standard diag code)'
+      condition_start_date: 'Diagnosis start date'
+      condition_end_date: 'Diagnosis end date'
+      condition_source_value: 'Source code (e.g. SNOMED/ICD10 string)'
+
+  drug_exposure:
+    description: 'Medication and drug prescriptions/administrations.'
+    aliases: ['medication', 'drug', 'prescription', 'pharmacy']
+    primary_key: drug_exposure_id
+    columns:
+      drug_exposure_id: 'Primary key'
+      person_id: 'FK to person'
+      drug_concept_id: 'FK to concept (Standard RxNorm concept)'
+      drug_exposure_start_date: 'Start date of medication'
+      drug_exposure_end_date: 'End date of medication'
+      quantity: 'Amount dispensed/taken'
+      days_supply: 'Supply duration in days'
+
+  measurement:
+    description: 'Quantitative lab results and vital signs.'
+    aliases: ['lab', 'test', 'vital', 'measurement', 'result']
+    primary_key: measurement_id
+    columns:
+      measurement_id: 'Primary key'
+      person_id: 'FK to person'
+      measurement_concept_id: 'FK to concept (LOINC or similar)'
+      measurement_date: 'Date of measurement'
+      value_as_number: 'Numerical value of the result'
+      unit_source_value: 'Source unit (e.g. mg/dL, cm, kg)'
+      measurement_source_value: 'Source name for the test'
+
+  concept:
+    description: 'The master vocabulary lookup. Use this to find names for concept_id columns. Crucial: concept is usually in the omop_vocab schema.'
+    aliases: ['vocabulary', 'dictionary', 'lookup', 'name map']
+    primary_key: concept_id
+    columns:
+      concept_id: 'Unique identifier for the concept'
+      concept_name: 'Human-friendly name'
+      domain_id: 'Domain (Condition, Drug, Measurement, etc.)'
+      vocabulary_id: 'Source vocab (SNOMED, RxNorm, LOINC)'
+      concept_code: 'Source code'
+
+reasoning: |
+  Mediquery has transitioned to the OMOP CDM v5.4 standard. 
+  The database is highly normalized. You MUST join fact tables (condition_occurrence, drug_exposure, etc.) with the `concept` table to resolve integer IDs to readable `concept_name`s.
+  Default to `tenant_nexus_health` search_path.
+
+query_patterns:
+  - name: 'Top Diagnoses'
+    description: 'Find the top 5 most frequent diagnoses'
+    example: |
+      SELECT c.concept_name, COUNT(*) as frequency
+      FROM condition_occurrence co
+      JOIN omop_vocab.concept c ON co.condition_concept_id = c.concept_id
+      GROUP BY c.concept_name
+      ORDER BY frequency DESC
+      LIMIT 5;
+
+  - name: 'Patient Demographics'
+    description: 'Count patients by gender'
+    example: |
+      SELECT c.concept_name as gender, COUNT(*) as patient_count
+      FROM person p
+      JOIN omop_vocab.concept c ON p.gender_concept_id = c.concept_id
+      GROUP BY c.concept_name;
+
+  - name: 'Clinical Profile'
+    description: 'List medications and diagnoses for a specific patient'
+    example: |
+      SELECT 'Condition' as type, c.concept_name
+      FROM condition_occurrence co
+      JOIN omop_vocab.concept c ON co.condition_concept_id = c.concept_id
+      WHERE co.person_id = 123
+      UNION ALL
+      SELECT 'Medication' as type, c.concept_name
+      FROM drug_exposure de
+      JOIN omop_vocab.concept c ON de.drug_concept_id = c.concept_id
+      WHERE de.person_id = 123;

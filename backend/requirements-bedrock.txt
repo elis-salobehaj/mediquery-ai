@@ -1,6 +1,0 @@
-# Bedrock-only configuration (lightweight, no local ML)
--r requirements-base.txt
-
-# Bedrock-specific providers
-langchain-anthropic>=0.2.0
-anthropic>=0.25.0

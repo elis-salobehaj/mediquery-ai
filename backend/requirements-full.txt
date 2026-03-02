@@ -1,4 +1,0 @@
-# Full installation - All features enabled
--r requirements-base.txt
--r requirements-local.txt
--r requirements-bedrock.txt

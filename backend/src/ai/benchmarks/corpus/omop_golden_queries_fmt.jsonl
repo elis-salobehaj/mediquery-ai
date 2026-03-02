@@ -1,0 +1,354 @@
+{
+  "id": "omop_patient_gender",
+  "category": "demographics",
+  "tier": "easy",
+  "question": "Show the distribution of patients by gender.",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT c.concept_name as gender, COUNT(*) as patient_count FROM person p JOIN omop_vocab.concept c ON p.gender_concept_id = c.concept_id GROUP BY c.concept_name ORDER BY patient_count DESC",
+  "expected_tables": [
+    "person",
+    "concept"
+  ],
+  "validation_hints": "Should return 2 rows (Male, Female) with counts summing to total person table row count"
+}
+{
+  "id": "omop_age_distribution",
+  "category": "demographics",
+  "tier": "easy",
+  "question": "What is the age distribution of patients by decade?",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT FLOOR((EXTRACT(YEAR FROM CURRENT_DATE) - year_of_birth) / 10) * 10 AS age_decade, COUNT(*) AS patient_count FROM person GROUP BY age_decade ORDER BY age_decade",
+  "expected_tables": [
+    "person"
+  ],
+  "validation_hints": "Should return rows grouped by 10-year intervals (0, 10, 20, 30...) with patient counts per decade"
+}
+{
+  "id": "omop_ethnicity_breakdown",
+  "category": "demographics",
+  "tier": "easy",
+  "question": "What is the breakdown of patients by ethnicity?",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT c.concept_name AS ethnicity, COUNT(*) AS patient_count FROM person p JOIN omop_vocab.concept c ON p.ethnicity_concept_id = c.concept_id GROUP BY c.concept_name ORDER BY patient_count DESC",
+  "expected_tables": [
+    "person",
+    "concept"
+  ],
+  "validation_hints": "Should return ethnicity categories (Hispanic or Latino, Not Hispanic or Latino) with patient counts"
+}
+{
+  "id": "omop_race_distribution",
+  "category": "demographics",
+  "tier": "easy",
+  "question": "Show patient distribution by race.",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT c.concept_name AS race, COUNT(*) AS patient_count FROM person p JOIN omop_vocab.concept c ON p.race_concept_id = c.concept_id GROUP BY c.concept_name ORDER BY patient_count DESC",
+  "expected_tables": [
+    "person",
+    "concept"
+  ],
+  "validation_hints": "Should return race categories with patient counts summing to total person table row count"
+}
+{
+  "id": "omop_common_conditions",
+  "category": "conditions",
+  "tier": "medium",
+  "question": "What are the top 5 most common medical conditions?",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT c.concept_name, COUNT(*) as frequency FROM condition_occurrence co JOIN omop_vocab.concept c ON co.condition_concept_id = c.concept_id GROUP BY c.concept_name ORDER BY frequency DESC LIMIT 5",
+  "expected_tables": [
+    "condition_occurrence",
+    "concept"
+  ],
+  "validation_hints": "Should return exactly 5 rows with condition names and occurrence counts in descending order"
+}
+{
+  "id": "omop_condition_prevalence_by_age",
+  "category": "conditions",
+  "tier": "medium",
+  "question": "What are the most common conditions in patients over 60?",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT c.concept_name AS condition, COUNT(DISTINCT co.person_id) AS affected_patients FROM condition_occurrence co JOIN person p ON co.person_id = p.person_id JOIN omop_vocab.concept c ON co.condition_concept_id = c.concept_id WHERE (EXTRACT(YEAR FROM CURRENT_DATE) - p.year_of_birth) > 60 GROUP BY c.concept_name ORDER BY affected_patients DESC LIMIT 10",
+  "expected_tables": [
+    "condition_occurrence",
+    "person",
+    "concept"
+  ],
+  "validation_hints": "Uses DISTINCT person_id to avoid double-counting. Age filter via year_of_birth. Returns top 10 conditions for elderly patients"
+}
+{
+  "id": "omop_avg_conditions_per_patient",
+  "category": "conditions",
+  "tier": "medium",
+  "question": "What is the average number of conditions per patient?",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT AVG(condition_count) AS avg_conditions_per_patient FROM (SELECT person_id, COUNT(*) AS condition_count FROM condition_occurrence GROUP BY person_id) counts",
+  "expected_tables": [
+    "condition_occurrence"
+  ],
+  "validation_hints": "Should return a single numeric value (e.g. 8.4). Subquery counts per person, outer AVG aggregates."
+}
+{
+  "id": "omop_condition_era_duration",
+  "category": "conditions",
+  "tier": "hard",
+  "question": "What is the average duration of condition eras by condition name?",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT c.concept_name AS condition, AVG(condition_era_end_date - condition_era_start_date) AS avg_duration_days, COUNT(*) AS era_count FROM condition_era ce JOIN omop_vocab.concept c ON ce.condition_concept_id = c.concept_id GROUP BY c.concept_name ORDER BY avg_duration_days DESC LIMIT 20",
+  "expected_tables": [
+    "condition_era",
+    "concept"
+  ],
+  "validation_hints": "Uses condition_era table (not condition_occurrence). Date subtraction gives interval in days. Returns top 20 conditions by average era duration."
+}
+{
+  "id": "omop_comorbidity_burden",
+  "category": "conditions",
+  "tier": "medium",
+  "question": "Show the distribution of patients by number of distinct conditions (comorbidity burden).",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT condition_count, COUNT(*) AS patient_count FROM (SELECT person_id, COUNT(DISTINCT condition_concept_id) AS condition_count FROM condition_occurrence GROUP BY person_id) t GROUP BY condition_count ORDER BY condition_count",
+  "expected_tables": [
+    "condition_occurrence"
+  ],
+  "validation_hints": "Uses COUNT(DISTINCT condition_concept_id). Inner query gets per-patient distinct condition count; outer groups by that count."
+}
+{
+  "id": "omop_top_medications",
+  "category": "medications",
+  "tier": "medium",
+  "question": "What are the top 10 most frequently prescribed medications?",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT c.concept_name AS medication, COUNT(*) AS prescription_count FROM drug_exposure de JOIN omop_vocab.concept c ON de.drug_concept_id = c.concept_id GROUP BY c.concept_name ORDER BY prescription_count DESC LIMIT 10",
+  "expected_tables": [
+    "drug_exposure",
+    "concept"
+  ],
+  "validation_hints": "Should return 10 rows with drug names and counts. Joins drug_exposure to omop_vocab.concept on drug_concept_id."
+}
+{
+  "id": "omop_polypharmacy_patients",
+  "category": "medications",
+  "tier": "hard",
+  "question": "How many patients are currently taking 5 or more distinct medications?",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT COUNT(*) AS polypharmacy_patient_count FROM (SELECT person_id, COUNT(DISTINCT drug_concept_id) AS distinct_drugs FROM drug_exposure WHERE drug_exposure_end_date >= CURRENT_DATE OR drug_exposure_end_date IS NULL GROUP BY person_id HAVING COUNT(DISTINCT drug_concept_id) >= 5) poly",
+  "expected_tables": [
+    "drug_exposure"
+  ],
+  "validation_hints": "Uses HAVING COUNT(DISTINCT drug_concept_id) >= 5. Filters active exposures via date. Returns single count."
+}
+{
+  "id": "omop_avg_drug_exposure_duration",
+  "category": "medications",
+  "tier": "medium",
+  "question": "What is the average drug exposure duration (in days) for each medication?",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT c.concept_name AS medication, AVG(drug_exposure_end_date - drug_exposure_start_date) AS avg_duration_days, COUNT(*) AS exposure_count FROM drug_exposure de JOIN omop_vocab.concept c ON de.drug_concept_id = c.concept_id WHERE drug_exposure_end_date IS NOT NULL GROUP BY c.concept_name ORDER BY avg_duration_days DESC LIMIT 20",
+  "expected_tables": [
+    "drug_exposure",
+    "concept"
+  ],
+  "validation_hints": "Average duration via date subtraction. NULL end dates excluded via WHERE. Returns top 20 by average duration."
+}
+{
+  "id": "omop_medications_by_visit_type",
+  "category": "medications",
+  "tier": "hard",
+  "question": "What are the most common medications prescribed during inpatient visits?",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT c_drug.concept_name AS medication, COUNT(*) AS prescription_count FROM drug_exposure de JOIN visit_occurrence vo ON de.person_id = vo.person_id AND de.drug_exposure_start_date BETWEEN vo.visit_start_date AND vo.visit_end_date JOIN omop_vocab.concept c_drug ON de.drug_concept_id = c_drug.concept_id WHERE vo.visit_concept_id = 9201 GROUP BY c_drug.concept_name ORDER BY prescription_count DESC LIMIT 10",
+  "expected_tables": [
+    "drug_exposure",
+    "visit_occurrence",
+    "concept"
+  ],
+  "validation_hints": "Uses visit_concept_id = 9201 for inpatient. Joins drug_exposure to visit via date range overlap on shared person_id."
+}
+{
+  "id": "omop_drug_era_duration",
+  "category": "medications",
+  "tier": "hard",
+  "question": "Show the average drug era duration by medication using drug era records.",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT c.concept_name AS medication, AVG(drug_era_end_date - drug_era_start_date) AS avg_era_days, COUNT(*) AS era_count FROM drug_era de JOIN omop_vocab.concept c ON de.drug_concept_id = c.concept_id GROUP BY c.concept_name ORDER BY avg_era_days DESC LIMIT 20",
+  "expected_tables": [
+    "drug_era",
+    "concept"
+  ],
+  "validation_hints": "Uses drug_era table (not drug_exposure). Tests agent knowledge of era vs exposure. Date subtraction gives average era duration."
+}
+{
+  "id": "omop_recent_measurements",
+  "category": "measurements",
+  "tier": "hard",
+  "question": "Show the latest body weight measurement for each patient.",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT p.person_source_value, m.value_as_number, m.unit_source_value, m.measurement_date FROM (SELECT person_id, value_as_number, unit_source_value, measurement_date, ROW_NUMBER() OVER (PARTITION BY person_id ORDER BY measurement_date DESC) as rn FROM measurement WHERE measurement_concept_id IN (SELECT concept_id FROM omop_vocab.concept WHERE concept_name = 'Body Weight')) m JOIN person p ON m.person_id = p.person_id WHERE m.rn = 1",
+  "expected_tables": [
+    "measurement",
+    "person",
+    "concept"
+  ],
+  "validation_hints": "Uses ROW_NUMBER window function partitioned by person_id. Subquery resolves body weight concept_id. Returns one row per patient."
+}
+{
+  "id": "omop_abnormal_lab_values",
+  "category": "measurements",
+  "tier": "hard",
+  "question": "Which patients have lab values outside the normal reference range?",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT p.person_source_value, c.concept_name AS measurement_name, m.value_as_number, m.range_low, m.range_high, m.measurement_date FROM measurement m JOIN person p ON m.person_id = p.person_id JOIN omop_vocab.concept c ON m.measurement_concept_id = c.concept_id WHERE m.value_as_number IS NOT NULL AND m.range_low IS NOT NULL AND m.range_high IS NOT NULL AND (m.value_as_number < m.range_low OR m.value_as_number > m.range_high) ORDER BY m.measurement_date DESC LIMIT 50",
+  "expected_tables": [
+    "measurement",
+    "person",
+    "concept"
+  ],
+  "validation_hints": "Filters where value falls outside range_low/range_high. All three must be NOT NULL. Returns up to 50 most recent abnormal values."
+}
+{
+  "id": "omop_bmi_distribution",
+  "category": "measurements",
+  "tier": "medium",
+  "question": "What is the distribution of patients by BMI category (underweight, normal, overweight, obese)?",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT CASE WHEN value_as_number < 18.5 THEN 'Underweight' WHEN value_as_number < 25 THEN 'Normal' WHEN value_as_number < 30 THEN 'Overweight' ELSE 'Obese' END AS bmi_category, COUNT(*) AS patient_count FROM (SELECT person_id, value_as_number, ROW_NUMBER() OVER (PARTITION BY person_id ORDER BY measurement_date DESC) AS rn FROM measurement WHERE measurement_concept_id IN (SELECT concept_id FROM omop_vocab.concept WHERE concept_name ILIKE '%body mass index%')) bmi_latest WHERE rn = 1 AND value_as_number IS NOT NULL GROUP BY bmi_category ORDER BY patient_count DESC",
+  "expected_tables": [
+    "measurement",
+    "concept"
+  ],
+  "validation_hints": "Uses CASE for 4 BMI categories. Gets latest BMI per patient via ROW_NUMBER. Should return up to 4 rows summing to total patients with BMI records."
+}
+{
+  "id": "omop_measurement_trends",
+  "category": "measurements",
+  "tier": "medium",
+  "question": "Show the monthly average systolic blood pressure trend over the last 12 months.",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT DATE_TRUNC('month', measurement_date) AS month, AVG(value_as_number) AS avg_systolic_bp FROM measurement WHERE measurement_concept_id IN (SELECT concept_id FROM omop_vocab.concept WHERE concept_name ILIKE '%systolic blood pressure%') AND measurement_date >= CURRENT_DATE - INTERVAL '12 months' GROUP BY DATE_TRUNC('month', measurement_date) ORDER BY month",
+  "expected_tables": [
+    "measurement",
+    "concept"
+  ],
+  "validation_hints": "Uses DATE_TRUNC for monthly grouping. Filters to last 12 months via INTERVAL. Returns up to 12 rows with month and average value."
+}
+{
+  "id": "omop_visit_stats",
+  "category": "visits",
+  "tier": "medium",
+  "question": "What is the average duration of inpatient visits?",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT AVG(visit_end_date - visit_start_date) as avg_duration_days FROM visit_occurrence WHERE visit_concept_id = 9201",
+  "expected_tables": [
+    "visit_occurrence"
+  ],
+  "validation_hints": "Uses visit_concept_id = 9201 for inpatient. Returns single numeric value representing average stay duration in days."
+}
+{
+  "id": "omop_visit_type_distribution",
+  "category": "visits",
+  "tier": "easy",
+  "question": "What is the distribution of visit types (inpatient, outpatient, emergency)?",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT c.concept_name AS visit_type, COUNT(*) AS visit_count, ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 1) AS percentage FROM visit_occurrence vo JOIN omop_vocab.concept c ON vo.visit_concept_id = c.concept_id GROUP BY c.concept_name ORDER BY visit_count DESC",
+  "expected_tables": [
+    "visit_occurrence",
+    "concept"
+  ],
+  "validation_hints": "Uses window function SUM OVER for percentage calculation. Percentages should sum to 100%."
+}
+{
+  "id": "omop_er_visit_frequency",
+  "category": "visits",
+  "tier": "medium",
+  "question": "What is the average number of emergency room visits per patient?",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT AVG(er_visit_count) AS avg_er_visits_per_patient FROM (SELECT person_id, COUNT(*) AS er_visit_count FROM visit_occurrence WHERE visit_concept_id = 9203 GROUP BY person_id) er_counts",
+  "expected_tables": [
+    "visit_occurrence"
+  ],
+  "validation_hints": "Uses visit_concept_id = 9203 for ER visits. Inner query counts per patient; outer AVG produces single numeric result."
+}
+{
+  "id": "omop_diabetes_and_hypertension",
+  "category": "cross_domain",
+  "tier": "hard",
+  "question": "How many patients have both a diabetes diagnosis and a hypertension diagnosis?",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT COUNT(DISTINCT person_id) AS patient_count FROM condition_occurrence WHERE person_id IN (SELECT DISTINCT co.person_id FROM condition_occurrence co JOIN omop_vocab.concept c ON co.condition_concept_id = c.concept_id WHERE c.concept_name ILIKE '%diabetes%') AND person_id IN (SELECT DISTINCT co.person_id FROM condition_occurrence co JOIN omop_vocab.concept c ON co.condition_concept_id = c.concept_id WHERE c.concept_name ILIKE '%hypertension%')",
+  "expected_tables": [
+    "condition_occurrence",
+    "concept"
+  ],
+  "validation_hints": "Uses two correlated IN subqueries (one per condition). ILIKE for flexible name matching. Returns single count of comorbid patients."
+}
+{
+  "id": "omop_conditions_by_visit_type",
+  "category": "cross_domain",
+  "tier": "hard",
+  "question": "What are the most common conditions recorded during inpatient visits?",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT c_cond.concept_name AS condition, COUNT(*) AS occurrence_count FROM condition_occurrence co JOIN visit_occurrence vo ON co.visit_occurrence_id = vo.visit_occurrence_id JOIN omop_vocab.concept c_cond ON co.condition_concept_id = c_cond.concept_id WHERE vo.visit_concept_id = 9201 GROUP BY c_cond.concept_name ORDER BY occurrence_count DESC LIMIT 10",
+  "expected_tables": [
+    "condition_occurrence",
+    "visit_occurrence",
+    "concept"
+  ],
+  "validation_hints": "Joins condition_occurrence to visit_occurrence via visit_occurrence_id FK. Filters by inpatient (9201). Returns top 10."
+}
+{
+  "id": "omop_drug_condition_co_occurrence",
+  "category": "cross_domain",
+  "tier": "hard",
+  "question": "Show patients who have both an asthma diagnosis and are prescribed a corticosteroid.",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT DISTINCT p.person_source_value FROM person p WHERE p.person_id IN (SELECT DISTINCT co.person_id FROM condition_occurrence co JOIN omop_vocab.concept c ON co.condition_concept_id = c.concept_id WHERE c.concept_name ILIKE '%asthma%') AND p.person_id IN (SELECT DISTINCT de.person_id FROM drug_exposure de JOIN omop_vocab.concept c ON de.drug_concept_id = c.concept_id WHERE c.concept_name ILIKE '%corticosteroid%' OR c.concept_name ILIKE '%budesonide%' OR c.concept_name ILIKE '%fluticasone%')",
+  "expected_tables": [
+    "person",
+    "condition_occurrence",
+    "drug_exposure",
+    "concept"
+  ],
+  "validation_hints": "Two IN subqueries — one for asthma condition, one for corticosteroid drug. Returns list of person_source_value identifiers."
+}
+{
+  "id": "omop_medication_list_specific_patient",
+  "category": "edge_cases",
+  "tier": "medium",
+  "question": "List all medications taken by patient with source ID 'aee7bbe1-0c45-c028-1e62-1f4cdb30c273'.",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT DISTINCT c.concept_name FROM drug_exposure de JOIN person p ON de.person_id = p.person_id JOIN omop_vocab.concept c ON de.drug_concept_id = c.concept_id WHERE p.person_source_value = 'aee7bbe1-0c45-c028-1e62-1f4cdb30c273' ORDER BY c.concept_name",
+  "expected_tables": [
+    "drug_exposure",
+    "person",
+    "concept"
+  ],
+  "validation_hints": "Single-patient lookup via person_source_value. DISTINCT prevents duplicate drug names if patient was exposed multiple times."
+}
+{
+  "id": "omop_male_patient_count",
+  "category": "edge_cases",
+  "tier": "easy",
+  "question": "How many male patients are there?",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT COUNT(*) AS male_patient_count FROM person p JOIN omop_vocab.concept c ON p.gender_concept_id = c.concept_id WHERE UPPER(c.concept_name) = 'MALE'",
+  "expected_tables": [
+    "person",
+    "concept"
+  ],
+  "validation_hints": "Requires concept join — cannot filter by literal 'male' without resolving concept_id. Tests agent's omop_vocab.concept join for demographic filters."
+}
+{
+  "id": "omop_procedures_during_er",
+  "category": "edge_cases",
+  "tier": "hard",
+  "question": "What procedures were most commonly performed during emergency room visits?",
+  "expected_outcome": "sql",
+  "golden_sql": "SELECT c_proc.concept_name AS procedure, COUNT(*) AS procedure_count FROM procedure_occurrence po JOIN visit_occurrence vo ON po.visit_occurrence_id = vo.visit_occurrence_id JOIN omop_vocab.concept c_proc ON po.procedure_concept_id = c_proc.concept_id WHERE vo.visit_concept_id = 9203 GROUP BY c_proc.concept_name ORDER BY procedure_count DESC LIMIT 10",
+  "expected_tables": [
+    "procedure_occurrence",
+    "visit_occurrence",
+    "concept"
+  ],
+  "validation_hints": "Uses procedure_occurrence (not condition_occurrence). Tests agent's ability to select correct OMOP fact table. ER = visit_concept_id 9203."
+}

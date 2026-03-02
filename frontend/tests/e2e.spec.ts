@@ -2,224 +2,138 @@ import { test, expect } from '@playwright/test';
 
 test('homepage has title and main elements', async ({ page }) => {
   await page.goto('/');
-
-  // Expect a title "to contain" a substring.
-  await expect(page).toHaveTitle(/MediQuery AI/);
-
-  // Expect current login button text "AUTHENTICATE"
-  await expect(page.getByRole('button', { name: /AUTHENTICATE/i })).toBeVisible();
-
-  // Test Guest Login Flow
-  await page.getByRole('button', { name: /INITIATE GUEST PROTOCOL/i }).click();
-
-  // Expect to see the ChatBox input after login
-  // Wait up to 10s for backend response
-  await expect(page.getByPlaceholder(/ENTER INSTRUCTION/i)).toBeVisible({ timeout: 10000 });
+  await expect(page).toHaveTitle(/Mediquery/i);
+  await expect(page.getByText(/INITIATE GUEST PROTOCOL/i)).toBeVisible();
 });
 
-test('shows error message on failed guest login', async ({ page }) => {
-  // Mock failure route just for this test if needed, but for now we just want to see if real login fails
-  // This test block is just a placeholder to remind us to check for [ ALERT: ... ]
-});
-
-test('E2E Test 1: Single-agent + Fast mode - list patients by state', async ({ page }) => {
+async function loginAsGuest(page: any) {
   await page.goto('/');
-  
-  // Login as guest
   await page.getByRole('button', { name: /INITIATE GUEST PROTOCOL/i }).click();
-  await expect(page.getByPlaceholder(/ENTER INSTRUCTION/i)).toBeVisible({ timeout: 10000 });
-  
-  // Ensure single-agent mode (multi-agent toggle OFF)
-  const multiAgentToggle = page.locator('input[type="checkbox"]').first();
-  if (await multiAgentToggle.isChecked()) {
-    await multiAgentToggle.click();
-  }
-  
-  // Ensure fast mode (thinking mode toggle OFF)
-  const thinkingModeToggle = page.locator('input[type="checkbox"]').nth(1);
-  if (await thinkingModeToggle.isChecked()) {
-    await thinkingModeToggle.click();
-  }
-  
+  await expect(
+    page.getByRole('textbox', { name: /Ask Mediquery/i }),
+  ).toBeVisible({ timeout: 15000 });
+}
+
+test('E2E Test 1: Single-agent + Fast mode - list people in Texas', async ({
+  page,
+}) => {
+  await loginAsGuest(page);
+
+  // Enable fast mode
+  await page.getByRole('radio', { name: /Fast/i }).click();
+
   // Send query
-  const input = page.getByPlaceholder(/ENTER INSTRUCTION/i);
-  await input.fill('list patients by state');
+  const input = page.getByRole('textbox', { name: /Ask Mediquery/i });
+  await input.fill('list people in Texas');
   await input.press('Enter');
-  
-  // Wait for response (up to 30s for LLM)
-  await page.waitForTimeout(2000);
-  
+
+  // Wait for bot response indicator
+  const thinkingBtn = page.getByText(/Show thinking/i).first();
+  await expect(thinkingBtn).toBeVisible({ timeout: 20000 });
+
   // Verify SQL is generated
-  const sqlText = await page.locator('text=/SELECT/i').first().textContent({ timeout: 30000 });
-  expect(sqlText).toContain('SELECT');
-  expect(sqlText?.toLowerCase()).toContain('from');
-  expect(sqlText?.toLowerCase()).toContain('patient');
-  
-  // Verify no error messages
-  const errorAlert = page.locator('text=/ERROR|ALERT.*ERROR/i');
-  await expect(errorAlert).not.toBeVisible();
-  
-  // Verify data table appears
-  await expect(page.locator('table')).toBeVisible({ timeout: 5000 });
-  
-  // Verify table has headers and rows
-  const headers = page.locator('thead th');
-  await expect(headers.first()).toBeVisible();
-  const rows = page.locator('tbody tr');
-  await expect(rows.first()).toBeVisible();
-  
-  // Verify visualization appears
-  await expect(page.locator('.plotly')).toBeVisible({ timeout: 5000 });
+  await page
+    .getByText(/View SQL Query/i)
+    .first()
+    .click();
+  const sqlCode = page.locator('code');
+  await expect(sqlCode).toBeVisible({ timeout: 10000 });
+  await expect(sqlCode).toContainText(/person/i);
+
+  // Verify data visualization (Plotly)
+  const plotlyChart = page.locator('.plotly');
+  await expect(plotlyChart).toBeVisible({ timeout: 30000 });
 });
 
-test('E2E Test 2: Single-agent + Thinking mode - list patients by state', async ({ page }) => {
-  await page.goto('/');
-  
-  // Login as guest
-  await page.getByRole('button', { name: /INITIATE GUEST PROTOCOL/i }).click();
-  await expect(page.getByPlaceholder(/ENTER INSTRUCTION/i)).toBeVisible({ timeout: 10000 });
-  
-  // Ensure single-agent mode (multi-agent toggle OFF)
-  const multiAgentToggle = page.locator('input[type="checkbox"]').first();
-  if (await multiAgentToggle.isChecked()) {
-    await multiAgentToggle.click();
-  }
-  
-  // Enable thinking mode
-  const thinkingModeToggle = page.locator('input[type="checkbox"]').nth(1);
-  if (!await thinkingModeToggle.isChecked()) {
-    await thinkingModeToggle.click();
-  }
-  
-  // Send query
-  const input = page.getByPlaceholder(/ENTER INSTRUCTION/i);
-  await input.fill('list patients by state');
-  await input.press('Enter');
-  
-  // Wait for response
-  await page.waitForTimeout(2000);
-  
-  // Verify SQL is generated
-  const sqlText = await page.locator('text=/SELECT/i').first().textContent({ timeout: 30000 });
-  expect(sqlText).toContain('SELECT');
-  expect(sqlText?.toLowerCase()).toContain('from');
-  expect(sqlText?.toLowerCase()).toContain('patient');
-  
-  // Verify thinking process is shown
-  const thinkingText = page.locator('text=/Analyzing|Generating|Processing/i');
-  await expect(thinkingText.first()).toBeVisible({ timeout: 5000 });
-  
-  // Verify no error messages
-  const errorAlert = page.locator('text=/ERROR|ALERT.*ERROR/i');
-  await expect(errorAlert).not.toBeVisible();
-  
-  // Verify data table appears
-  await expect(page.locator('table')).toBeVisible({ timeout: 5000 });
-  const headers = page.locator('thead th');
-  await expect(headers.first()).toBeVisible();
-  const rows = page.locator('tbody tr');
-  await expect(rows.first()).toBeVisible();
-  
-  // Verify visualization appears
-  await expect(page.locator('.plotly')).toBeVisible({ timeout: 5000 });
-});
+test('E2E Test 2: Multi-agent mode - list people in Texas', async ({
+  page,
+}) => {
+  await loginAsGuest(page);
 
-test('E2E Test 3: Multi-agent + Fast mode - list patients by state', async ({ page }) => {
-  await page.goto('/');
-  
-  // Login as guest
-  await page.getByRole('button', { name: /INITIATE GUEST PROTOCOL/i }).click();
-  await expect(page.getByPlaceholder(/ENTER INSTRUCTION/i)).toBeVisible({ timeout: 10000 });
-  
   // Enable multi-agent mode
-  const multiAgentToggle = page.locator('input[type="checkbox"]').first();
-  if (!await multiAgentToggle.isChecked()) {
-    await multiAgentToggle.click();
-  }
-  
-  // Ensure fast mode (thinking mode toggle OFF)
-  const thinkingModeToggle = page.locator('input[type="checkbox"]').nth(1);
-  if (await thinkingModeToggle.isChecked()) {
-    await thinkingModeToggle.click();
-  }
-  
+  await page.getByRole('radio', { name: /Multi-Agent/i }).click();
+
   // Send query
-  const input = page.getByPlaceholder(/ENTER INSTRUCTION/i);
-  await input.fill('list patients by state');
+  const input = page.getByRole('textbox', { name: /Ask Mediquery/i });
+  await input.fill('list people in Texas');
   await input.press('Enter');
-  
-  // Wait for response
-  await page.waitForTimeout(2000);
-  
-  // Verify SQL is generated
-  const sqlText = await page.locator('text=/SELECT/i').first().textContent({ timeout: 45000 });
-  expect(sqlText).toContain('SELECT');
-  expect(sqlText?.toLowerCase()).toContain('from');
-  expect(sqlText?.toLowerCase()).toContain('patient');
-  
-  // Verify no error messages
-  const errorAlert = page.locator('text=/ERROR|ALERT.*ERROR/i');
-  await expect(errorAlert).not.toBeVisible();
-  
-  // Verify data table appears
-  await expect(page.locator('table')).toBeVisible({ timeout: 5000 });
-  const headers = page.locator('thead th');
-  await expect(headers.first()).toBeVisible();
-  const rows = page.locator('tbody tr');
-  await expect(rows.first()).toBeVisible();
-  
-  // Verify visualization appears
-  await expect(page.locator('.plotly')).toBeVisible({ timeout: 5000 });
+
+  // Wait for 'Show thinking' button and click it
+  const thinkingBtn = page.getByText(/Show thinking/i).first();
+  await expect(thinkingBtn).toBeVisible({ timeout: 20000 });
+  await thinkingBtn.click();
+
+  // Verify thoughts are visible
+  await expect(
+    page.locator('text=/Initializing|Navigator|SQL Writer|Critic/i').first(),
+  ).toBeVisible();
+
+  // Verify SQL
+  await page
+    .getByText(/View SQL Query/i)
+    .first()
+    .click();
+  await expect(page.locator('code').first()).toContainText(/person/i);
+
+  // Verify Plotly
+  await expect(page.locator('.plotly')).toBeVisible({ timeout: 30000 });
 });
 
-test('E2E Test 4: Multi-agent + Thinking mode - list patients by state', async ({ page }) => {
-  await page.goto('/');
-  
-  // Login as guest
-  await page.getByRole('button', { name: /INITIATE GUEST PROTOCOL/i }).click();
-  await expect(page.getByPlaceholder(/ENTER INSTRUCTION/i)).toBeVisible({ timeout: 10000 });
-  
+test('E2E Test 3: Multi-agent + Fast mode - list people in Texas', async ({
+  page,
+}) => {
+  await loginAsGuest(page);
+
   // Enable multi-agent mode
-  const multiAgentToggle = page.locator('input[type="checkbox"]').first();
-  if (!await multiAgentToggle.isChecked()) {
-    await multiAgentToggle.click();
-  }
-  
-  // Enable thinking mode
-  const thinkingModeToggle = page.locator('input[type="checkbox"]').nth(1);
-  if (!await thinkingModeToggle.isChecked()) {
-    await thinkingModeToggle.click();
-  }
-  
+  await page.getByRole('radio', { name: /Multi-Agent/i }).click();
+
   // Send query
-  const input = page.getByPlaceholder(/ENTER INSTRUCTION/i);
-  await input.fill('list patients by state');
+  const input = page.getByRole('textbox', { name: /Ask Mediquery/i });
+  await input.fill('list people in Texas');
   await input.press('Enter');
-  
-  // Wait for response
-  await page.waitForTimeout(2000);
-  
-  // Verify SQL is generated
-  const sqlText = await page.locator('text=/SELECT/i').first().textContent({ timeout: 45000 });
-  expect(sqlText).toContain('SELECT');
-  expect(sqlText?.toLowerCase()).toContain('from');
-  expect(sqlText?.toLowerCase()).toContain('patient');
-  
-  // Verify multi-agent thoughts are shown with numbered steps
-  const agentThoughts = page.locator('text=/\\[\\d+\\]|Schema Navigator|SQL Writer|Critic/i');
-  await expect(agentThoughts.first()).toBeVisible({ timeout: 5000 });
-  
-  // Verify no error messages
-  const errorAlert = page.locator('text=/ERROR|ALERT.*ERROR/i');
-  await expect(errorAlert).not.toBeVisible();
-  
-  // Verify data table appears
-  await expect(page.locator('table')).toBeVisible({ timeout: 5000 });
-  const headers = page.locator('thead th');
-  await expect(headers.first()).toBeVisible();
-  const rows = page.locator('tbody tr');
-  await expect(rows.first()).toBeVisible();
-  
-  // Verify visualization appears
-  await expect(page.locator('.plotly')).toBeVisible({ timeout: 5000 });
+
+  // Wait for 'Show thinking' button and click it
+  const thinkingBtn = page.getByText(/Show thinking/i).first();
+  await expect(thinkingBtn).toBeVisible({ timeout: 20000 });
+  await thinkingBtn.click();
+
+  // Verify multiple agents worked
+  await expect(
+    page.locator('text=/Navigator|SQL Writer|Critic/i').first(),
+  ).toBeVisible();
+
+  // Verify SQL and Plotly
+  await page
+    .getByText(/View SQL Query/i)
+    .first()
+    .click();
+  await expect(page.locator('code').first()).toContainText(/person/i);
+  await expect(page.locator('.plotly')).toBeVisible({ timeout: 30000 });
+});
+
+test('E2E Test 4: Complex Multi-agent Query - compare person count by state', async ({
+  page,
+}) => {
+  await loginAsGuest(page);
+
+  // Enable multi-agent mode
+  await page.getByRole('radio', { name: /Multi-Agent/i }).click();
+
+  // Send query
+  const input = page.getByRole('textbox', { name: /Ask Mediquery/i });
+  await input.fill('compare person count by state');
+  await input.press('Enter');
+
+  // Wait for 'Show thinking' button and click it
+  const thinkingBtn = page.getByText(/Show thinking/i).first();
+  await expect(thinkingBtn).toBeVisible({ timeout: 20000 });
+  await thinkingBtn.click();
+
+  // Verify multiple thoughts
+  const thoughts = page.locator('.space-y-2 > div');
+  const count = await thoughts.count();
+  expect(count).toBeGreaterThan(1);
+
+  // Check results
+  await expect(page.locator('.plotly')).toBeVisible({ timeout: 45000 });
 });

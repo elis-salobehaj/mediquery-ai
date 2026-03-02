@@ -1,85 +1,122 @@
-import React, { useRef, useEffect } from 'react';
-import { FiMoon, FiSun, FiMonitor, FiCheck } from 'react-icons/fi';
-import { GiOilRig } from 'react-icons/gi';
+import React from 'react';
+import { FiMoon, FiSun, FiMonitor, FiLogOut, FiSliders } from 'react-icons/fi';
+import { FaStethoscope } from 'react-icons/fa';
+import { Check } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface SettingsMenuProps {
-  theme: 'light' | 'dark' | 'drilling-slate' | 'system';
-  setTheme: (theme: 'light' | 'dark' | 'drilling-slate' | 'system') => void;
+  theme: 'light' | 'dark' | 'clinical-slate' | 'system';
+  setTheme: (theme: 'light' | 'dark' | 'clinical-slate' | 'system') => void;
+  onOpenPreferences: () => void;
   onClose: () => void;
   isSidebarOpen: boolean;
+  onLogout: () => void;
+  /** The trigger button element to anchor the menu */
+  trigger: React.ReactNode;
 }
 
-const SettingsMenu: React.FC<SettingsMenuProps> = ({ theme, setTheme, onClose, isSidebarOpen }) => {
+const themeOptions = [
+  { value: 'light', label: 'Light', icon: FiSun },
+  { value: 'dark', label: 'Dark', icon: FiMoon },
+  { value: 'clinical-slate', label: 'Clinical Slate', icon: FaStethoscope },
+  { value: 'system', label: 'System', icon: FiMonitor },
+] as const;
+
+const SettingsMenu: React.FC<SettingsMenuProps> = ({
+  theme,
+  setTheme,
+  onOpenPreferences,
+  onClose,
+  isSidebarOpen,
+  onLogout,
+  trigger,
+}) => {
   return (
-    <div
-      className={`
-        absolute bottom-full mb-2 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] 
-        rounded-lg shadow-xl overflow-hidden min-w-[200px] animate-fade-in
-        ${isSidebarOpen ? 'left-0' : 'left-full ml-2'}
-      `}
-      style={{ zIndex: 100 }}
-    >
-      <div className="p-3 border-b border-[var(--border-subtle)]">
-        <p className="text-xs font-bold text-[var(--text-tertiary)] uppercase tracking-wider mb-2">
+    <DropdownMenu onOpenChange={(open) => !open && onClose()}>
+      <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
+
+      <DropdownMenuContent
+        side={isSidebarOpen ? 'top' : 'right'}
+        align={isSidebarOpen ? 'start' : 'end'}
+        className="w-56"
+        sideOffset={8}
+      >
+        {/* Theme selection */}
+        <DropdownMenuLabel className="text-muted-foreground text-xs font-bold tracking-wider uppercase">
           Appearance
-        </p>
+        </DropdownMenuLabel>
 
-        <div className="space-y-1">
-          <button
-            onClick={() => setTheme('light')}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-[var(--bg-tertiary)] text-sm transition-colors cursor-pointer ${theme === 'light' ? 'text-[var(--accent-primary)] bg-[var(--bg-tertiary)]' : 'text-[var(--text-secondary)]'}`}
-          >
-            <div className="flex items-center gap-2">
-              <FiSun size={16} />
-              <span>Light</span>
-            </div>
-            {theme === 'light' && <FiCheck size={16} />}
-          </button>
+        <DropdownMenuRadioGroup
+          value={theme}
+          onValueChange={(v) =>
+            setTheme(v as 'light' | 'dark' | 'clinical-slate' | 'system')
+          }
+        >
+          {themeOptions.map(({ value, label, icon: Icon }) => (
+            <DropdownMenuRadioItem
+              key={value}
+              value={value}
+              className="flex cursor-pointer items-center gap-2"
+            >
+              <Icon size={15} />
+              <span>{label}</span>
+              {theme === value && (
+                <Check size={13} className="text-primary ml-auto" />
+              )}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
 
-          <button
-            onClick={() => setTheme('dark')}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-[var(--bg-tertiary)] text-sm transition-colors cursor-pointer ${theme === 'dark' ? 'text-[var(--accent-primary)] bg-[var(--bg-tertiary)]' : 'text-[var(--text-secondary)]'}`}
-          >
-            <div className="flex items-center gap-2">
-              <FiMoon size={16} />
-              <span>Dark</span>
-            </div>
-            {theme === 'dark' && <FiCheck size={16} />}
-          </button>
+        <DropdownMenuSeparator />
 
-          <button
-            onClick={() => setTheme('drilling-slate')}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-[var(--bg-tertiary)] text-sm transition-colors cursor-pointer ${theme === 'drilling-slate' ? 'text-[var(--accent-primary)] bg-[var(--bg-tertiary)]' : 'text-[var(--text-secondary)]'}`}
-          >
-            <div className="flex items-center gap-2">
-              <GiOilRig size={16} />
-              <span>Drilling Slate</span>
-            </div>
-            {theme === 'drilling-slate' && <FiCheck size={16} />}
-          </button>
+        <DropdownMenuLabel className="text-muted-foreground text-xs font-bold tracking-wider uppercase">
+          User Preferences
+        </DropdownMenuLabel>
+        <DropdownMenuItem
+          className="cursor-pointer gap-2"
+          onClick={() => {
+            onOpenPreferences();
+            onClose();
+          }}
+        >
+          <FiSliders size={14} />
+          Open Preferences
+        </DropdownMenuItem>
 
-          <button
-            onClick={() => setTheme('system')}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-md hover:bg-[var(--bg-tertiary)] text-sm transition-colors cursor-pointer ${theme === 'system' ? 'text-[var(--accent-primary)] bg-[var(--bg-tertiary)]' : 'text-[var(--text-secondary)]'}`}
-          >
-            <div className="flex items-center gap-2">
-              <FiMonitor size={16} />
-              <span>System</span>
-            </div>
-            {theme === 'system' && <FiCheck size={16} />}
-          </button>
-        </div>
-      </div>
+        <DropdownMenuSeparator />
 
-      <div className="p-2">
-        <button className="w-full text-left px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] rounded-md cursor-pointer">
-          Help & Support
-        </button>
-        <button className="w-full text-left px-3 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] rounded-md cursor-pointer">
+        {/* Help / About */}
+        <DropdownMenuItem className="cursor-pointer">
+          Help &amp; Support
+        </DropdownMenuItem>
+        <DropdownMenuItem className="cursor-pointer">
           About {import.meta.env.VITE_APP_TITLE || 'MediqueryAI'}
-        </button>
-      </div>
-    </div>
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+
+        {/* Sign out */}
+        <DropdownMenuItem
+          className="text-destructive focus:text-destructive cursor-pointer gap-2"
+          onClick={() => {
+            onLogout();
+            onClose();
+          }}
+        >
+          <FiLogOut size={14} />
+          Sign Out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 

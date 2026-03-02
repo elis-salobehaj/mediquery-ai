@@ -1,14 +1,17 @@
 import { describe, it, expect, vi } from 'vitest';
-import { metaAgentNode } from '@/ai/meta-agent';
+import { metaAgentNode } from '@/ai/agents/meta-agent';
 import { createInitialState } from '@/ai/state';
 
 function buildDeps(content: string) {
   return {
     dbService: {
-      getAllTableNames: vi.fn(async () => ['patients', 'visits']),
+      getAllTableNames: vi.fn(async () => ['person', 'visit_occurrence']),
       getTableSchema: vi.fn(async (table: string) => [
-        ['patient_id', 'varchar'],
-        [table === 'patients' ? 'patient_name' : 'visit_duration', 'text'],
+        ['person_id', 'varchar'],
+        [
+          table === 'person' ? 'person_source_value' : 'visit_start_date',
+          'text',
+        ],
       ]),
     },
     tokenUsageService: {
@@ -33,7 +36,7 @@ describe('metaAgentNode', () => {
     const deps = buildDeps(
       JSON.stringify({
         thought: 'Summarized available schema tables for the user.',
-        answer: 'Your database includes patients and visits.',
+        answer: 'Your database includes person and visit_occurrence tables.',
       }),
     );
 
@@ -42,7 +45,7 @@ describe('metaAgentNode', () => {
     expect(result.messages).toBeDefined();
     const messages = result.messages as Array<{ content: string }>;
     expect(messages[messages.length - 1].content).toContain(
-      'patients and visits',
+      'person and visit_occurrence',
     );
     expect(state.thoughts).toContain(
       '🤖 MetaAgent: Summarized available schema tables for the user.',

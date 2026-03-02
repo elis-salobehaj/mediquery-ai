@@ -134,7 +134,7 @@ graph TD
 **Architecture**:
 
 - **Router**: Classifies intent (Data vs. Schema vs. Chat).
-- **Schema Navigator**: Selects relevant tables from the available MySQL KPI schema.
+- **Schema Navigator**: Selects relevant OMOP tables from the available PostgreSQL schema.
 - **SQL Writer**: Specialized expert for recursive CTEs and complex joins.
 - **Critic**: Seperate LLM (often different provider) validates logic.
 - **Reflector**: Feeds error analysis back to Writer.
@@ -180,21 +180,26 @@ Memory is now handled as an explicit policy layer, not a raw transcript dump int
 
 ### State Management
 
-The `AgentState` object persists across steps, tracking:
+The `GraphState` interface persists across steps, tracking:
 
 - `original_query`: User input
-- `query_plan`: Generated strategy
-- `data_schema`: Selected table definitions
+- `routing_decision`: `DATA` | `DOMAIN_KNOWLEDGE` | `OFF_TOPIC`
+- `selected_tables`: OMOP tables chosen by Navigator
+- `table_schemas`: DDL context for chosen tables
 - `generated_sql`: Current draft
+- `validation_result`: Critic pass/fail + issues
 - `reflections`: History of errors and fixes
-- `human_feedback`: User inputs during interrupts
+- `attempt_count` / `max_attempts`: Retry tracking
+- `fast_mode`: Bypass Router LLM classification and cap retries to 1
+- `thoughts`: UI-visible reasoning stream
 
 ## 🛠️ Configuration
 
 Enable Multi-Agent mode via `.env` or UI toggle:
 
 ```bash
-# Backend Default
-AGENT_MODE=thinking
-ENABLE_HUMAN_INTERRUPTS=true
+# Backend defaults (.env)
+MULTI_AGENT=true
+FAST_MODE=false
+ENABLE_HUMAN_INTERRUPTS=false
 ```

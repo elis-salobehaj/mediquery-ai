@@ -183,8 +183,8 @@ This contract means:
 
 | Component                           | Owned By                     | Deploys Independently     |
 | ----------------------------------- | ---------------------------- | ------------------------- |
-| Mediquery App (FastAPI + LangGraph) | Application team             | Yes                       |
-| Data Pipeline (Dagster + Polars)    | Data/Platform team           | Yes                       |
+| Mediquery App (NestJS + LangGraph)  | Application team             | Yes                       |
+| Data Pipeline (Polars + Alembic)    | Data/Platform team           | Yes                       |
 | PostgreSQL + Schema Template        | Shared (via Drizzle/Alembic) | Migrations run separately |
 
 This decoupling is intentional — the pipeline may evolve into a broader MLOps platform (model training, evaluation, feature stores) without requiring changes to the application.

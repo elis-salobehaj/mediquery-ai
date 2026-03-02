@@ -1,13 +1,16 @@
 import { StateGraph, END, START } from '@langchain/langgraph';
 import type { BaseMessage } from '@langchain/core/messages';
 import { GraphState } from '@/ai/state';
-import { routerNode, RouterDeps } from '@/ai/router';
-import { schemaNavigatorNode, NavigatorDeps } from '@/ai/schema-navigator';
-import { sqlWriterNode, SQLWriterDeps } from '@/ai/sql-writer';
-import { criticNode, CriticDeps } from '@/ai/critic';
-import { metaAgentNode, MetaAgentDeps } from '@/ai/meta-agent';
-import { reflectorNode, ReflectorDeps } from '@/ai/reflector';
-import { policyGateNode } from '@/ai/policy-gate';
+import { routerNode, RouterDeps } from '@/ai/agents/router-agent';
+import {
+  schemaNavigatorNode,
+  NavigatorDeps,
+} from '@/ai/agents/schema-navigator-agent';
+import { sqlWriterNode, SQLWriterDeps } from '@/ai/agents/sql-writer-agent';
+import { criticNode, CriticDeps } from '@/ai/agents/critic-agent';
+import { metaAgentNode, MetaAgentDeps } from '@/ai/agents/meta-agent';
+import { reflectorNode, ReflectorDeps } from '@/ai/agents/reflector-agent';
+import { policyGateNode } from '@/ai/agents/policy-gate';
 import { Injectable, Logger } from '@nestjs/common';
 import { LLMService } from '@/ai/llm.service';
 import { TokenUsageService } from '@/token-usage/token-usage.service';

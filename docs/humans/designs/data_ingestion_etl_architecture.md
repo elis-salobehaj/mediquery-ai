@@ -1,19 +1,16 @@
 # Mediquery: Data Ingestion & ETL Architecture
 
-> **Status**: Legacy (Superseded by OMOP CDM) | **Last Updated**: February 2026 | **Owner**: Platform Engineering
+> **Status**: Active | OMOP CDM v5.4 | **Last Updated**: February 2026 | **Owner**: Platform Engineering
 
 ---
 
-> [!WARNING]
-> This document details the legacy custom MySQL-based ETL ingestion layer. The project is currently actively transitioning to the **OMOP CDM v5.4 standard on PostgreSQL**, orchestrated by the new `data-pipeline/` using Python, Polars, and Alembic (see `docs/plans/active/omop_synthea_migration.md`). The architectural concepts (Bronze, Silver, Gold and schema-per-tenant) remain relevant, but the table entities (`lab_results`, etc.) are entirely deprecated.
-
 ## Executive Summary
 
-Mediquery ingests medical operational data from customer-provided files, transforms it through a standardized pipeline, and loads it into tenant-isolated databases. The LangGraph AI agent then queries these databases using natural language → SQL.
+Mediquery ingests clinical data from Synthea-generated CSV files, transforms it through the **OMOP CDM v5.4** standard using a Medallion Architecture, and loads it into tenant-isolated PostgreSQL schemas. The LangGraph AI agent then queries these schemas using natural language → SQL.
 
 PostgreSQL application-data schema migrations are managed separately through the dedicated `packages/db` package (Drizzle schema + migration runtime) and are executed by the Docker `migrator` service.
 
-This document covers the **data ingestion and ETL pipeline** — the system that turns raw CSV/Parquet uploads into queryable, validated, tenant-isolated KPI data.
+This document covers the **clinical data ingestion and ETL pipeline** — the system that turns raw Synthea CSV exports into queryable, validated, OMOP-compliant, tenant-isolated clinical data.
 
 ---
 
@@ -25,53 +22,53 @@ This document covers the **data ingestion and ETL pipeline** — the system that
 │                                                                             │
 │   ┌───────────────┐    ┌─────────────────┐    ┌─────────────────────────┐  │
 │   │  DATA SOURCES │    │  BRONZE LAYER   │    │    SILVER LAYER         │  │
-│   │               │    │  (S3 / MinIO)   │    │    (Polars in-memory)   │  │
-│   │  CSV uploads  │───▶│                 │───▶│                         │  │
-│   │  Parquet files│    │  Immutable raw  │    │  ✓ Schema validation    │  │
-│   │  API feeds    │    │  files archived │    │  ✓ Type casting         │  │
-│   │               │    │  by tenant+date │    │  ✓ Unit standardization │  │
+│   │               │    │  (Local CSVs)   │    │    (Polars in-memory)   │  │
+│   │  Synthea CSVs │───▶│                 │───▶│                         │  │
+│   │  (generated)  │    │  Immutable raw  │    │  ✓ OMOP mapping         │  │
+│   │               │    │  files in       │    │  ✓ Type casting         │  │
+│   │               │    │  bronze/synthea/ │    │  ✓ Vocabulary alignment │  │
 │   └───────────────┘    └─────────────────┘    │  ✓ Null handling        │  │
 │                                                └──────────┬──────────────┘  │
 │                                                           │                 │
 │                                                           ▼                 │
 │                         ┌─────────────────────────────────────────────┐     │
-│                         │         VALIDATION GATE                     │     │
-│                         │         (Great Expectations)                │     │
+│                         │         OMOP VALIDATION                     │     │
+│                         │         (Polars + SQLAlchemy)               │     │
 │                         │                                             │     │
-│                         │  ✓ oil_vol >= 0, gas_vol >= 0               │     │
+│                         │  ✓ person_id exists in person               │     │
+│                         │  ✓ concept_ids resolve in omop_vocab        │     │
 │                         │  ✓ dates not in future                      │     │
-│                         │  ✓ lat/lon within valid Medical ranges          │     │
-│                         │  ✓ foreign key integrity (patient_id exists)   │     │
+│                         │  ✓ required OMOP fields populated           │     │
 │                         │                                             │     │
-│                         │  PASS → continue    FAIL → quarantine + alert│    │
+│                         │  PASS → load to tenant schema               │     │
 │                         └──────────────────────┬──────────────────────┘     │
 │                                                │                            │
 │                                                ▼                            │
 │                         ┌──────────────────────────────────────────┐        │
 │                         │          GOLD LAYER                      │        │
-│                         │          MySQL 8.4 (Percona / AWS Aurora)│        │
+│                         │   PostgreSQL 18.1 (schema-per-tenant)    │        │
 │                         │                                          │        │
-│                         │  ┌──────────────┐  ┌──────────────┐     │        │
-│                         │  │ tenant_abc   │  │ tenant_xyz   │     │        │
-│                         │  │  patients│  │  patients│    │        │
-│                         │  │  lab_results │  │  lab_results │     │        │
-│                         │  │  conn_times  │  │  conn_times  │     │        │
-│                         │  └──────────────┘  └──────────────┘     │        │
+│                         │  ┌────────────────┐  ┌────────────────┐  │        │
+│                         │  │  tenant_abc    │  │  tenant_xyz    │  │        │
+│                         │  │  person        │  │  person        │  │        │
+│                         │  │  condition_occ │  │  condition_occ │  │        │
+│                         │  │  measurement   │  │  measurement   │  │        │
+│                         │  └────────────────┘  └────────────────┘  │        │
 │                         └──────────────────────────────────────────┘        │
 │                                                │                            │
 └────────────────────────────────────────────────┼────────────────────────────┘
                                                  │
-                                          USE tenant_abc
+                                SET search_path TO tenant_abc
                                                  │
                                     ┌────────────▼────────────┐
                                     │   LangGraph AI Agent    │
                                     │   (Text-to-SQL)         │
                                     │                         │
-                                    │   "What is avg wait     │
-                                    │    production?"         │
+                                    │   "Top 5 diagnoses?"    │
                                     │         ↓               │
-                                    │   SELECT AVG(oil_vol)   │
-                                    │   FROM lab_results;     │
+                                    │   SELECT c.concept_name │
+                                    │   FROM condition_occ co │
+                                    │   JOIN omop_vocab.concept│
                                     └─────────────────────────┘
 ```
 
@@ -79,15 +76,16 @@ This document covers the **data ingestion and ETL pipeline** — the system that
 
 ## Data Flow: Step by Step
 
-| Step             | What Happens                                                  | Where              | Tooling                                |
-| ---------------- | ------------------------------------------------------------- | ------------------ | -------------------------------------- |
-| **1. Upload**    | Customer data files land in cloud storage                     | S3 / MinIO         | Manual upload or API                   |
-| **2. Catalog**   | Files are cataloged by tenant, table type, and date           | S3 path convention | Dagster sensor                         |
-| **3. Extract**   | Raw files are read into memory                                | Bronze → Memory    | Polars `read_csv()` / `read_parquet()` |
-| **4. Transform** | Column renaming, type casting, unit conversion, null handling | In-memory          | Polars DataFrames                      |
-| **5. Validate**  | Data quality checks against expectation suites                | In-memory          | Great Expectations                     |
-| **6. Load**      | Validated data written to tenant-specific MySQL database      | Memory → Gold      | SQLAlchemy + `USE <db>`                |
-| **7. Query**     | AI agent generates SQL against tenant data                    | MySQL              | LangGraph + LLM                        |
+| Step             | What Happens                                                         | Where                   | Tooling                                |
+| ---------------- | -------------------------------------------------------------------- | ----------------------- | -------------------------------------- |
+| **1. Generate**  | Synthea generates synthetic patient CSV files                        | Synthea Docker container| `generate_synthea.sh`                  |
+| **2. Stage**     | Raw CSV files land in `data-pipeline/bronze/synthea/`                | Local filesystem        | Manual or CI-triggered                 |
+| **3. Extract**   | Raw files are read into memory                                       | Bronze → Memory         | Polars `read_csv()`                    |
+| **4. Transform** | Column mapping, type casting, OMOP vocabulary alignment              | In-memory               | Polars DataFrames + `load_omop.py`     |
+| **5. Validate**  | OMOP FK integrity, concept ID references, date sanity checks         | In-memory               | SQLAlchemy + custom validation         |
+| **6. Load**      | Validated data written to transient OMOP PostgreSQL tenant schema    | Memory → Gold           | SQLAlchemy + Alembic                   |
+| **7. Export**    | Dump tenant schema to portable SQL file                              | PostgreSQL → SQL file   | `pg_dump` → `gold_omop_tenant.sql`     |
+| **8. Query**     | AI agent generates SQL against tenant OMOP schema                   | PostgreSQL              | LangGraph + LLM                        |
 
 ---
 
@@ -95,111 +93,107 @@ This document covers the **data ingestion and ETL pipeline** — the system that
 
 ### Bronze Layer — Raw Data Archive
 
-**Storage**: S3 / MinIO  
-**Format**: CSV, Parquet (as received from customer)  
-**Retention**: Indefinite (enables full reprocessing)
+**Storage**: Local filesystem (`data-pipeline/bronze/synthea/`)
+**Format**: CSV (Synthea-generated synthetic patient data)
+**Retention**: Indefinite (enables full reprocessing); gitignored from the repository
 
 **Path convention**:
 
 ```
-s3://mediquery-raw/
-└── tenant_id=abc/
-    ├── table=patients/
-    │   ├── 2026-01-15_initial_load.csv
-    │   └── 2026-02-01_update.csv
-    ├── table=lab_results/
-    │   ├── 2026-01-15_jan_production.csv
-    │   └── 2026-02-01_feb_production.csv
-    └── table=wait_times/
-        └── 2026-01-15_initial_load.csv
+data-pipeline/bronze/synthea/
+├── patients.csv
+├── encounters.csv
+├── conditions.csv
+├── medications.csv
+├── observations.csv
+├── procedures.csv
+└── ...  (all Synthea-generated clinical domain files)
 ```
 
 **Key principles**:
 
-- Files are **immutable** — never modified after upload
-- Every file is **partitioned** by tenant and table type
-- Date in filename enables **incremental processing**
-- Original format preserved for **audit trail**
+- Files are **immutable** — never modified after generation
+- Synthea generates all files in a single run via `generate_synthea.sh`
+- Original format preserved for **full reprocessing** capability
 
 ### Silver Layer — Cleaned Data
 
-**Storage**: In-memory (Polars DataFrames)  
-**Format**: Typed, validated DataFrames  
-**Retention**: Ephemeral (recreated from Bronze on each run)
+**Storage**: In-memory (Polars DataFrames)
+**Format**: Typed, OMOP-aligned DataFrames
+**Retention**: Ephemeral (recreated from Bronze on each run via `load_omop.py`)
 
-Each table type has a dedicated **transformer** that enforces the schema contract:
+Each Synthea source file has a dedicated **OMOP mapper** that enforces the OMOP CDM v5.4 schema contract:
 
-| Transformer                  | Input (Raw CSV)                     | Output (Clean DataFrame)                                                                          |
-| ---------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `WellMetadataTransformer`    | Arbitrary column names, mixed types | `patient_name: Utf8`, `status: Utf8`, `lat: Float64`, `lon: Float64`, `mrn_number: Utf8`             |
-| `KpiGeneralTransformer`      | String dates, string numbers        | `production_date: Date`, `oil_vol_bbl: Float64`, `gas_vol_mcf: Float64`, `water_vol_bbl: Float64` |
-| `ConnectionTimesTransformer` | Various formats                     | `patient_id: Utf8`, `capacity: Float64`, `connection_date: Date`                                     |
+| Synthea Source      | OMOP Target Table      | Key Mappings                                                             |
+| ------------------- | ---------------------- | ------------------------------------------------------------------------ |
+| `patients.csv`      | `person`               | `Id` → `person_id`, gender → `gender_concept_id` via vocab lookup        |
+| `conditions.csv`    | `condition_occurrence` | `SNOMED` codes → `condition_concept_id` via `omop_vocab.concept`         |
+| `medications.csv`   | `drug_exposure`        | `RxNorm` codes → `drug_concept_id` via `omop_vocab.concept`              |
+| `observations.csv`  | `measurement`          | `LOINC` codes → `measurement_concept_id` via `omop_vocab.concept`        |
+| `encounters.csv`    | `visit_occurrence`     | encounter type → `visit_concept_id` via `omop_vocab.concept`             |
+| `procedures.csv`    | `procedure_occurrence` | `SNOMED` procedure codes → `procedure_concept_id`                        |
 
 **Transformation operations**:
 
-- **Column mapping**: Source names → canonical names (e.g., `Patient Name` → `patient_name`)
-- **Type casting**: `"2026-01-15"` → `Date`, `"1234.56"` → `Float64`
-- **Unit standardization**: Convert to standard units (barrels, MCF, etc.)
-- **Null handling**: Replace missing values with appropriate defaults or nulls
-- **Deduplication**: Remove exact duplicate rows
+- **OMOP concept mapping**: Source codes (SNOMED, RxNorm, LOINC) → standard `concept_id` integers via vocabulary lookup
+- **Type casting**: date strings → `Date`, float strings → `Float64`
+- **Null handling**: Replace missing values with OMOP-appropriate defaults or nulls
+- **Deduplication**: Remove exact duplicate rows within each domain table
 
 ### Gold Layer — Queryable Tenant Data
 
-**Storage**: MySQL 8.4 (Percona, AWS Aurora-compatible)  
-**Format**: Relational tables with indexes  
-**Isolation**: Database-per-tenant (hard isolation)
+**Storage**: PostgreSQL 18.1 (schema-per-tenant)  
+**Format**: OMOP CDM v5.4 relational tables with indexes  
+**Isolation**: Schema-per-tenant (`SET search_path TO tenant_abc`)
 
-Each tenant gets an **identical set of tables** (the Schema Contract):
+Each tenant gets an **identical OMOP CDM v5.4 schema** (the Schema Contract). The full DDL lives in `data-pipeline/omop_ddl/`; below is an illustrative excerpt:
 
 ```sql
--- Example: tenant_abc database
-USE tenant_abc;
+-- Example: tenant_abc schema (PostgreSQL)
+SET search_path TO tenant_abc;
 
-CREATE TABLE patients (
-    id          VARCHAR(36) PRIMARY KEY,
-    patient_name   VARCHAR(255) NOT NULL,
-    status      VARCHAR(50),       -- Active, Shut-In, P&A, Clinical, Completed
-    mrn_number  VARCHAR(20),
-    latitude    DECIMAL(10, 6),
-    longitude   DECIMAL(10, 6),
-    spud_date   DATE,
-    county      VARCHAR(100),
-    state       VARCHAR(50),
-    hospital    VARCHAR(255),
-    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+CREATE TABLE person (
+    person_id                BIGINT        NOT NULL,
+    gender_concept_id        INTEGER       NOT NULL,
+    year_of_birth            INTEGER       NOT NULL,
+    month_of_birth           INTEGER,
+    day_of_birth             INTEGER,
+    race_concept_id          INTEGER       NOT NULL,
+    ethnicity_concept_id     INTEGER       NOT NULL,
+    CONSTRAINT person_pk PRIMARY KEY (person_id)
 );
 
-CREATE TABLE lab_results (
-    id               VARCHAR(36) PRIMARY KEY,
-    patient_id          VARCHAR(36) NOT NULL,
-    production_date  DATE NOT NULL,
-    oil_vol_bbl      DECIMAL(12, 2),
-    gas_vol_mcf      DECIMAL(12, 2),
-    water_vol_bbl    DECIMAL(12, 2),
-    runtime_hours    DECIMAL(6, 2),
-    created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (patient_id) REFERENCES patients(id),
-    UNIQUE KEY uq_well_date (patient_id, production_date)
+CREATE TABLE condition_occurrence (
+    condition_occurrence_id  BIGINT        NOT NULL,
+    person_id                BIGINT        NOT NULL,
+    condition_concept_id     INTEGER       NOT NULL,
+    condition_start_date     DATE          NOT NULL,
+    condition_end_date       DATE,
+    visit_occurrence_id      BIGINT,
+    CONSTRAINT condition_occ_pk PRIMARY KEY (condition_occurrence_id),
+    CONSTRAINT fk_co_person FOREIGN KEY (person_id) REFERENCES person(person_id)
 );
 
-CREATE TABLE wait_times (
-    id               VARCHAR(36) PRIMARY KEY,
-    patient_id          VARCHAR(36) NOT NULL,
-    capacity         DECIMAL(12, 2),
-    connection_date  DATE,
-    disconnect_date  DATE,
-    status           VARCHAR(50),
-    created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (patient_id) REFERENCES patients(id)
+CREATE TABLE measurement (
+    measurement_id           BIGINT        NOT NULL,
+    person_id                BIGINT        NOT NULL,
+    measurement_concept_id   INTEGER       NOT NULL,
+    measurement_date         DATE          NOT NULL,
+    value_as_number          NUMERIC,
+    unit_concept_id          INTEGER,
+    CONSTRAINT measurement_pk PRIMARY KEY (measurement_id),
+    CONSTRAINT fk_m_person FOREIGN KEY (person_id) REFERENCES person(person_id)
 );
 ```
 
+The complete OMOP v5.4 DDL (all 37 tables) is applied via `data-pipeline/omop_ddl/OMOPCDM_postgresql_5.4_ddl.sql`.
+
 **Loading strategy**:
 
-- **Append mode**: Add new rows (daily production data)
-- **Upsert mode**: `INSERT ... ON DUPLICATE KEY UPDATE` (idempotent reloads)
-- **Replace mode**: `TRUNCATE` + `INSERT` (full table refresh)
+- **`load_omop.py`**: Reads Synthea CSVs with Polars, maps to OMOP tables via concept lookups, bulk-inserts
+- **Idempotency**: Truncate + reload per tenant (safe to re-run; no duplicate rows)
+- **Migrations**: Alembic in `data-pipeline/alembic/` manages schema evolution
+- **Portable dump**: Final tenant data is exported as `data-pipeline/gold_omop_tenant.sql` for deployment
 
 ---
 
@@ -214,55 +208,48 @@ CREATE TABLE wait_times (
                     tenant_db claim
                       in JWT token
                            │
-                    ┌──────▼───────┐
-                    │  MySQL 8.4   │     ← KPI data (database-per-tenant)
-                    │  (KPI Data)  │
-                    │              │
-                    │  USE tenant_abc ──────▶ Agent sees ONLY abc's tables
-                    │  USE tenant_xyz ──────▶ Agent sees ONLY xyz's tables
-                    │              │
-                    └──────────────┘
+                    ┌──────────────────────┐
+                    │  PostgreSQL 18.1     │  ← OMOP clinical data (schema-per-tenant)
+                    │  (Clinical Data)     │
+                    │                      │
+                    │  SET search_path TO  │
+                    │    tenant_abc ────────────▶ Agent sees ONLY abc's OMOP tables
+                    │    tenant_xyz ────────────▶ Agent sees ONLY xyz's OMOP tables
+                    │                      │
+                    └──────────────────────┘
 ```
 
-**Why database-per-tenant?**
+**Why schema-per-tenant?**
 
-The AI agent **generates SQL dynamically**. Row-Level Security (RLS) relies on `WHERE tenant_id = ?` being present in every query — a single AI mistake could leak cross-tenant data. With database-per-tenant, `SELECT * FROM lab_results` is safe by any definition because the database itself contains only that tenant's data.
+The AI agent **generates SQL dynamically**. Row-Level Security (RLS) relies on `WHERE tenant_id = ?` being present in every query — a single AI mistake could leak cross-tenant data. With schema-per-tenant (`SET search_path TO tenant_abc`), `SELECT * FROM condition_occurrence` is safe by definition because the schema itself contains only that tenant's OMOP data.
 
 ---
 
-## Pipeline Orchestration (Dagster)
+## Pipeline Orchestration
 
-Once the manual ETL scripts are proven, they are wrapped in **Dagster** for scheduling, monitoring, and reliability.
+**Current state (Phase 1)**: The pipeline runs as a manual Python script. There is no scheduler in production yet.
 
 ```
-┌─────────────────────── Dagster Orchestrator ──────────────────────┐
-│                                                                    │
-│   ┌──────────────┐   ┌──────────────┐   ┌───────────────────┐    │
-│   │ bronze_*     │──▶│ silver_*     │──▶│ validated_*       │    │
-│   │ (S3 ingest)  │   │ (transform)  │   │ (GE quality gate) │    │
-│   └──────────────┘   └──────────────┘   └────────┬──────────┘    │
-│                                                    │               │
-│                                                    ▼               │
-│                                          ┌─────────────────┐      │
-│                                          │ gold_*          │      │
-│                                          │ (MySQL load)    │      │
-│                                          └─────────────────┘      │
-│                                                                    │
-│   Schedule: Daily at 06:00 UTC                                     │
-│   Partitions: tenant × date (per-tenant failure isolation)         │
-│   Monitoring: Dagster UI at :3000                                  │
-│   Backfills: On-demand for historical data                         │
-│                                                                    │
-└────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                  Current Pipeline (Manual)                       │
+│                                                                  │
+│  data-pipeline/bronze/synthea/  ─▶  load_omop.py  ─▶  PostgreSQL│
+│       (Synthea CSV files)             (Polars ETL)    schema-per │
+│                                                         -tenant  │
+│                                                                  │
+│  Trigger: uv run python load_omop.py                             │
+│  Output:  gold_omop_tenant.sql  (portable dump for deployment)   │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-**Key orchestration features**:
+**Planned state (Phase 2)**: Wrap in Dagster for scheduling, monitoring, and per-tenant partitioning.
 
-- **Per-tenant partitions**: Tenant A's failure doesn't block Tenant B
-- **Incremental processing**: Watermark tracking (only process new files)
-- **Data quality gates**: Great Expectations blocks bad data before Gold load
-- **Full backfill support**: Reprocess historical data on demand
-- **S3 sensor**: Detects new file uploads automatically
+**Key steps run by `load_omop.py`**:
+
+- Read Synthea Bronze CSVs with Polars
+- Map source fields to OMOP CDM v5.4 columns (concept lookups)
+- Truncate + reload target OMOP tables in the tenant schema
+- Export portable `gold_omop_tenant.sql` dump for downstream deployment
 
 ---
 
@@ -270,14 +257,14 @@ Once the manual ETL scripts are proven, they are wrapped in **Dagster** for sche
 
 | Component           | Technology                       | Purpose                                                     |
 | ------------------- | -------------------------------- | ----------------------------------------------------------- |
-| **Transformation**  | Polars                           | Fast, memory-efficient DataFrame processing (Rust-based)    |
-| **Orchestration**   | Dagster                          | Pipeline scheduling, monitoring, lineage, retry             |
-| **Data Quality**    | Great Expectations               | Schema validation, anomaly detection, quality gates         |
-| **Raw Storage**     | S3 / MinIO                       | Bronze layer — immutable source file archive                |
-| **KPI Storage**     | MySQL 8.4 (Percona / AWS Aurora) | Gold layer — database-per-tenant, optimized for Text-to-SQL |
-| **App Data**        | PostgreSQL 16                    | Users, chat history, tenant registry, MLOps metadata        |
-| **CLI**             | Click                            | Manual ETL trigger (`uv run etl load --tenant abc`)         |
-| **Package Manager** | uv                               | Fast Python dependency management                           |
+| **Transformation**  | Polars                           | Fast, memory-efficient DataFrame processing (Rust-based)     |
+| **Orchestration**   | Planned — Dagster (Phase 2)      | Pipeline scheduling, monitoring, lineage, retry              |
+| **Data Quality**    | Planned — Great Expectations (Phase 2) | Schema validation, anomaly detection, quality gates    |
+| **Raw Storage**     | Local filesystem (`data-pipeline/bronze/synthea/`) | Bronze layer — Synthea-generated CSVs       |
+| **Clinical Storage**| PostgreSQL 18.1 (schema-per-tenant) | Gold layer — OMOP CDM v5.4, one schema per tenant        |
+| **App Data**        | PostgreSQL 18.1                  | Users, chat history, tenant registry, thread metadata        |
+| **CLI**             | Python (`uv run python load_omop.py`) | Manual ETL trigger and gold SQL dump generation         |
+| **Package Manager** | uv                               | Fast Python dependency management for `data-pipeline/`       |
 
 ---
 
@@ -286,36 +273,22 @@ Once the manual ETL scripts are proven, they are wrapped in **Dagster** for sche
 The ETL pipeline lives in a **standalone project**, decoupled from the Mediquery application:
 
 ```
-data-pipeline/                    ← Independent project (sibling to backend/, frontend/)
-├── pyproject.toml                ← Dependencies: polars, boto3, pymysql, dagster
-├── README.md                     ← Usage docs, CSV format specs
-├── sample-data/
-│   ├── patients.csv
-│   ├── lab_results.csv
-│   └── wait_times.csv
-├── src/
-│   └── mediquery_etl/
-│       ├── __init__.py
-│       ├── cli.py                ← Click CLI entrypoint
-│       ├── config.py             ← DB URLs, S3 config
-│       ├── readers/
-│       │   ├── s3_reader.py      ← S3/MinIO file reader
-│       │   └── local_reader.py   ← Local filesystem reader (dev)
-│       ├── transforms/
-│       │   ├── base.py           ← Base transformer class
-│       │   ├── patients.py          ← patients transforms
-│       │   ├── production.py     ← lab_results transforms
-│       │   └── tanks.py          ← wait_times transforms
-│       ├── loaders/
-│       │   └── mysql_loader.py   ← Tenant-aware MySQL writer
-│       ├── quality/              ← Great Expectations suites (Plan 3)
-│       └── dagster/              ← Dagster definitions (Plan 3)
-│           ├── assets/
-│           ├── schedules.py
-│           └── sensors.py
-└── tests/
-    ├── test_transforms.py
-    └── test_loader.py
+data-pipeline/                    ← Standalone OMOP ETL project (sibling to backend/, frontend/)
+├── pyproject.toml                ← uv dependencies: polars, sqlalchemy, alembic
+├── config.py                     ← Settings (POSTGRES_*, OMOP_SCHEMA, etc.)
+├── load_omop.py                  ← Main ETL script (Polars Synthea → OMOP transform)
+├── main.py                       ← CLI entrypoint
+├── docker-compose.yml            ← Transient PostgreSQL 18.1 ETL database
+├── generate_synthea.sh           ← Synthea data generation script
+├── gold_omop_tenant.sql          ← Deployable OMOP tenant SQL dump
+├── alembic/                      ← Alembic migrations for OMOP tenant schemas
+│   └── versions/
+├── bronze/synthea/               ← Raw Synthea CSV files (gitignored)
+└── omop_ddl/                     ← OMOP CDM v5.4 DDL artifacts
+    ├── OMOPCDM_postgresql_5.4_ddl.sql
+    ├── OMOPCDM_postgresql_5.4_primary_keys.sql
+    ├── OMOPCDM_postgresql_5.4_indices.sql
+    └── OMOPCDM_postgresql_5.4_constraints.sql
 ```
 
 ---
@@ -323,78 +296,85 @@ data-pipeline/                    ← Independent project (sibling to backend/, 
 ## CLI Usage
 
 ```bash
-# Load a single table for a tenant from S3
-uv run etl load --tenant abc --table lab_results --source s3://mediquery-raw/
+# Run the full OMOP ETL pipeline (Bronze CSVs → PostgreSQL tenant schema)
+cd data-pipeline
+uv run python load_omop.py
 
-# Load all tables for a tenant
-uv run etl load --tenant abc --all --source s3://mediquery-raw/
+# Generate a portable SQL dump of the loaded tenant data
+uv run python main.py
 
-# Load from local CSV (development)
-uv run etl load --tenant demo --table patients --source ./sample-data/
+# Regenerate Synthea Bronze CSVs (requires Synthea installed)
+bash generate_synthea.sh
 
-# Dry run — validate only, don't write
-uv run etl load --tenant abc --table lab_results --dry-run
+# Start the transient ETL PostgreSQL database
+docker compose up -d
 ```
 
 ---
 
 ## Data Quality Rules
 
-| Table              | Rule                                        | Severity            |
-| ------------------ | ------------------------------------------- | ------------------- |
-| `lab_results`      | `oil_vol_bbl >= 0`                          | Error (blocks load) |
-| `lab_results`      | `gas_vol_mcf >= 0`                          | Error               |
-| `lab_results`      | `production_date` not in future             | Error               |
-| `lab_results`      | `patient_id` exists in `patients`         | Error               |
-| `patients`    | Latitude: -90 to 90, Longitude: -180 to 180 | Error               |
-| `patients`    | `mrn_number` matches format pattern         | Warning             |
-| `patients`    | Unique `patient_name` per tenant               | Warning             |
-| `wait_times` | `capacity > 0`                              | Error               |
-| `wait_times` | Valid status values                         | Warning             |
+| Table                    | Rule                                                     | Severity            |
+| ------------------------ | -------------------------------------------------------- | ------------------- |
+| `person`                 | `person_id IS NOT NULL`                                  | Error (blocks load) |
+| `person`                 | `year_of_birth BETWEEN 1900 AND EXTRACT(YEAR FROM NOW())`| Error               |
+| `person`                 | `gender_concept_id IS NOT NULL`                          | Error               |
+| `condition_occurrence`   | `condition_concept_id IS NOT NULL`                       | Error (blocks load) |
+| `condition_occurrence`   | `condition_start_date IS NOT NULL`                       | Error               |
+| `condition_occurrence`   | `person_id` exists in `person`                           | Error               |
+| `measurement`            | `measurement_concept_id IS NOT NULL`                     | Error (blocks load) |
+| `measurement`            | `measurement_date IS NOT NULL`                           | Error               |
+| `measurement`            | `value_as_number` is numeric or NULL (no string values)  | Warning             |
+| `visit_occurrence`       | `visit_start_date <= visit_end_date`                     | Error               |
+| All concept ID columns   | Resolve in `omop_vocab.concept`                          | Warning             |
 
 ---
 
 ## Environment & Configuration
 
-| Variable                | Description                   | Example                                       |
-| ----------------------- | ----------------------------- | --------------------------------------------- |
-| `MEDIQUERY_MYSQL_URL`   | MySQL wait_time for KPI data | `mysql+pymysql://user:pass@host:3306`         |
-| `AWS_ACCESS_KEY_ID`     | S3 credentials                | (from AWS profile)                            |
-| `AWS_SECRET_ACCESS_KEY` | S3 credentials                | (from AWS profile)                            |
-| `AWS_ENDPOINT_URL`      | MinIO endpoint (dev only)     | `http://localhost:9000`                       |
-| `DAGSTER_POSTGRES_URL`  | Dagster internal metadata     | `postgresql://dagster:pass@host:5432/dagster` |
+| Variable              | Description                          | Example                          |
+| --------------------- | ------------------------------------ | -------------------------------- |
+| `POSTGRES_HOST`       | PostgreSQL host for ETL database     | `localhost`                      |
+| `POSTGRES_PORT`       | PostgreSQL port                      | `5432`                           |
+| `POSTGRES_USER`       | PostgreSQL user                      | `omop`                           |
+| `POSTGRES_PASSWORD`   | PostgreSQL password                  | (from `.env`)                    |
+| `POSTGRES_DB`         | PostgreSQL database name             | `omop`                           |
+| `OMOP_SCHEMA`         | Target tenant schema name            | `tenant_abc`                     |
+
+All settings are imported from `data-pipeline/config.py`. Never use `os.environ` directly in ETL scripts.
 
 ---
 
 ## Implementation Phases
 
-| Phase                            | Scope                                                        | Deliverable                                        | Status     |
-| -------------------------------- | ------------------------------------------------------------ | -------------------------------------------------- | ---------- |
-| **Phase 1** — Manual ETL Scripts | S3 reader, Polars transformers, MySQL loader, CLI            | `uv run etl load --tenant abc --table lab_results` | 📋 Planned |
-| **Phase 2** — Orchestration      | Dagster wrapping, scheduling, Great Expectations, monitoring | Automated daily runs with quality gates            | 📋 Backlog |
-| **Phase 3** — MLOps Integration  | Training data export, evaluation suites, schema statistics   | Self-improving agent accuracy                      | 📋 Backlog |
+| Phase                            | Scope                                                            | Deliverable                                         | Status         |
+| -------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------- | -------------- |
+| **Phase 1** — OMOP ETL Scripts   | Synthea CSV reader, Polars OMOP mappers, PostgreSQL loader, dump | `uv run python load_omop.py` + `gold_omop_tenant.sql` | ✅ Complete   |
+| **Phase 2** — Orchestration      | Dagster wrapping, scheduling, Great Expectations, monitoring     | Automated daily runs with quality gates             | 📋 Backlog     |
+| **Phase 3** — MLOps Integration  | Training data export, evaluation suites, schema statistics       | Self-improving agent accuracy                       | 📋 Backlog     |
 
 ---
 
 ## Key Design Decisions
 
-| Decision            | Choice                                     | Rationale                                                                   |
-| ------------------- | ------------------------------------------ | --------------------------------------------------------------------------- |
-| ETL framework       | Polars (not Pandas)                        | 10-100x faster, lower memory, Rust-based, native lazy evaluation            |
-| Orchestration       | Dagster (not Airflow)                      | Better asset model, built-in data lineage, modern API                       |
-| Data quality        | Great Expectations                         | Industry standard, integrates with Dagster, declarative rules               |
-| Standalone project  | `data-pipeline/` separated from `backend/` | Enables independent deployment, future MLOps pipeline                       |
-| KPI database engine | MySQL 8.4 (Percona)                        | Already in production, AWS Aurora-compatible, database-per-tenant isolation |
-| Loading strategy    | Upsert (default)                           | Idempotent — safe to re-run without duplicating data                        |
+| Decision              | Choice                                       | Rationale                                                                     |
+| --------------------- | -------------------------------------------- | ----------------------------------------------------------------------------- |
+| ETL framework         | Polars (not Pandas)                          | 10–100× faster, lower memory, Rust-based, native lazy evaluation              |
+| Orchestration         | Dagster planned (Phase 2)                    | Better asset model, built-in data lineage, modern API                         |
+| Data quality          | Great Expectations planned (Phase 2)         | Industry standard, integrates with Dagster, declarative rules                 |
+| Standalone project    | `data-pipeline/` separated from `backend/`  | Enables independent deployment, future MLOps pipeline                         |
+| Clinical data engine  | PostgreSQL 18.1 (schema-per-tenant)          | Unified database, OMOP-native, safe tenant isolation via `search_path`        |
+| Loading strategy      | Truncate + reload (idempotent)               | Safe to re-run; no partial/duplicate state; OMOP concept IDs are stable       |
+| Medical data standard | OMOP CDM v5.4                                | Vendor-neutral, globally adopted, enables cross-institution query portability |
 
 ---
 
 ## Related Documents
 
-| Document                                                                       | Relationship                                                      |
-| ------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
-| [Database-per-Tenant Architecture](schema_per_tenant_rationale.md)             | Why database-per-tenant, the switchboard pattern, schema contract |
-| [Plan 1: Schema Foundation](../plans/active/01_schema_foundation.md)           | Tenant registry, database template — prerequisite for ETL         |
-| [Plan 2: Manual ETL Scripts](../plans/active/02_etl_scripts.md)                | Detailed implementation tasks for Phase 1                         |
-| [Plan 3: Pipeline Orchestration](../plans/active/03_pipeline_orchestration.md) | Dagster wrapping, scheduling, Great Expectations                  |
-| [Evaluation & Prompt Optimization](evaluation_and_finetuning.md)               | How ETL-loaded data is used for agent accuracy testing            |
+| Document                                                                           | Relationship                                                           |
+| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| [Schema-per-Tenant Rationale](schema_per_tenant_rationale.md)                      | Why schema-per-tenant, the switchboard pattern, schema contract        |
+| [Schema Conventions & FK Patterns](schema_conventions_surrogate_fk.md)             | OMOP table conventions, surrogate keys, FK policies                    |
+| [Evaluation & Prompt Optimization](evaluation_and_finetuning.md)                   | How ETL-loaded OMOP data is used for agent accuracy benchmarking       |
+| [Multi-Agent Architecture](multi_agent_architecture.md)                             | How the AI graph queries the OMOP tenant schemas                       |
+| [OMOP CDM v5.4 DDL](../../data-pipeline/omop_ddl/OMOPCDM_postgresql_5.4_ddl.sql)  | Authoritative OMOP table definitions                                   |

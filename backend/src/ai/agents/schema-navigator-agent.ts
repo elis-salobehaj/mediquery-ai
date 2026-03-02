@@ -33,6 +33,36 @@ interface NavigatorContract {
   thought?: string;
 }
 
+const OMOP_FACT_TABLES = new Set([
+  'visit_occurrence',
+  'condition_occurrence',
+  'drug_exposure',
+  'measurement',
+  'procedure_occurrence',
+  'observation',
+  'condition_era',
+  'drug_era',
+]);
+
+const CLINICAL_SIGNAL_TOKENS = new Set([
+  'diagnosis',
+  'diagnoses',
+  'condition',
+  'conditions',
+  'drug',
+  'drugs',
+  'medication',
+  'medications',
+  'visit',
+  'encounter',
+  'measurement',
+  'lab',
+  'vital',
+  'procedure',
+  'observation',
+  'era',
+]);
+
 function tokenize(text: string): string[] {
   return text
     .toLowerCase()
@@ -68,14 +98,37 @@ function computeTableScore(
     }
   }
 
-  if (
-    joinedName.includes('kpi') &&
-    (queryTokens.has('kpi') || queryTokens.has('performance'))
-  ) {
-    score += 2;
+  if (joinedName === 'concept') {
+    for (const token of queryTokens) {
+      if (CLINICAL_SIGNAL_TOKENS.has(token)) {
+        score += 3;
+      }
+    }
   }
 
   return score;
+}
+
+function requiresConceptTable(tables: string[]): boolean {
+  return tables.some((table) => OMOP_FACT_TABLES.has(table));
+}
+
+function enforceConceptTableSelection(
+  selectedTables: string[],
+  allTables: string[],
+): string[] {
+  const unique = Array.from(new Set(selectedTables));
+  const conceptAvailable = allTables.includes('concept');
+
+  if (
+    conceptAvailable &&
+    requiresConceptTable(unique) &&
+    !unique.includes('concept')
+  ) {
+    unique.push('concept');
+  }
+
+  return unique;
 }
 
 async function retrieveCandidateTables(
@@ -335,8 +388,8 @@ User Query: ${state.original_query}
 Return strict JSON only:
 {
   "supported": true,
-  "tables": ["person", "visit_occurrence"],
-  "join_plan": ["person.person_id = visit_occurrence.person_id"],
+  "tables": ["person", "visit_occurrence", "concept"],
+  "join_plan": ["person.person_id = visit_occurrence.person_id", "visit_occurrence.visit_concept_id = concept.concept_id"],
   "confidence": 0.0,
   "thought": "short sentence on retrieval strategy",
   "notes": "optional constraints or caveats"
@@ -391,12 +444,16 @@ Return strict JSON only:
     }
 
     if (selected.length > 0) {
+      const enforcedSelection = enforceConceptTableSelection(
+        selected,
+        allTables,
+      );
       return {
-        selectedTables: selected,
+        selectedTables: enforcedSelection,
         candidateTables,
         contract: {
           ...parsed.contract,
-          tables: selected,
+          tables: enforcedSelection,
         },
       };
     }
@@ -416,8 +473,11 @@ Return strict JSON only:
 
   // Final fallback: return only supported available tables
   if (allTables.includes('person') && allTables.includes('visit_occurrence')) {
-    const fallbackTables = ['person', 'visit_occurrence'].filter((table) =>
-      allTables.includes(table),
+    const fallbackTables = enforceConceptTableSelection(
+      ['person', 'visit_occurrence'].filter((table) =>
+        allTables.includes(table),
+      ),
+      allTables,
     );
     return {
       selectedTables: fallbackTables,
@@ -447,12 +507,16 @@ Return strict JSON only:
   }
 
   const minimalFallback = allTables.slice(0, 1);
+  const enforcedMinimalFallback = enforceConceptTableSelection(
+    minimalFallback,
+    allTables,
+  );
   return {
-    selectedTables: minimalFallback,
+    selectedTables: enforcedMinimalFallback,
     candidateTables,
     contract: {
       supported: true,
-      tables: minimalFallback,
+      tables: enforcedMinimalFallback,
       join_plan: [],
       confidence: 0,
       notes: 'Fallback to first available table',

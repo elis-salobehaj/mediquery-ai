@@ -34,7 +34,7 @@ export class VisualizationService {
     'radius',
     'distance',
     'near',
-    'nearby patients',
+    'nearby persons',
   ];
 
   private readonly VALID_CHART_TYPES = [

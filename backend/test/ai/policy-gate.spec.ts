@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { policyGateNode } from '@/ai/policy-gate';
+import { policyGateNode } from '@/ai/agents/policy-gate';
 import { createInitialState } from '@/ai/state';
 
 describe('policyGateNode', () => {
@@ -15,9 +15,7 @@ describe('policyGateNode', () => {
   });
 
   it('passes supported data requests', async () => {
-    const state = createInitialState(
-      'show top 5 patients by duration this month',
-    );
+    const state = createInitialState('show top 5 diagnoses this month');
     state.routing_decision = 'DATA';
 
     const result = await policyGateNode(state);

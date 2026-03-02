@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { reflectorNode } from '@/ai/reflector';
+import { reflectorNode } from '@/ai/agents/reflector-agent';
 import { createInitialState } from '@/ai/state';
 
 describe('reflectorNode', () => {

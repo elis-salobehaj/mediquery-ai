@@ -4,15 +4,13 @@
 
 - **Node.js**: `24.13.1` (managed via `nvm`). Run `nvm use` in the project root.
 - **Package Manager**: `pnpm` (version 10+ recommended). Run `corepack enable && corepack use pnpm@latest`.
-- **Python Agent**: `uv` (for legacy backend).
+- **uv** (Python package manager): needed only for `data-pipeline/` ETL scripts.
 
 ## Running the Stack
 
 ### ⚡ Hybrid Mode (Recommended)
 
 Runs code locally for fast iteration, using Docker exclusively for the databases.
-
-> All API routes are now served by the TypeScript backend. The Python backend is legacy-only and no longer required for normal development.
 
 **Terminal 1: Start Databases**
 
@@ -58,15 +56,6 @@ pnpm dev
 
 Access the app at **http://localhost:5173**
 
-#### Legacy Python Backend (Optional)
-
-Only needed if testing Python-specific behaviour or running Python tests:
-
-```bash
-cd backend-py-legacy
-uv run uvicorn main:app --reload  # port 8000
-```
-
 ---
 
 ### 🐳 Full Docker Mode
@@ -90,57 +79,6 @@ Access the app at **http://localhost:3000** (Nginx-served production build)
 ---
 
 ## Debugging
-
-### Backend (Python)
-
-#### VS Code Debugger (Preferred)
-
-1. **Start DB**: `docker compose up -d db postgres`
-2. **Set Breakpoints**: Click left gutter in any `.py` file
-3. **Start Debugger**: Press **F5** → Select **"🐍 Backend: Local (FastAPI + uv)"**
-4. **Trigger Code**: Use the frontend or API client
-
-The debugger:
-
-- Uses the `uv`-managed `.venv/bin/python`
-- Auto-loads `.env` variables via Pydantic (config.py)
-- Connects to Docker DB at `localhost:5432`
-
-> **Note**: Environment variables are automatically loaded by Pydantic Settings (`backend-py-legacy/config.py`). No manual `source .env` needed!
-
-#### Terminal Debugging (Local)
-
-```bash
-cd backend-py-legacy
-uv run uvicorn main:app --reload
-# Add breakpoints via `import pdb; pdb.set_trace()`
-```
-
-#### Docker Debugging
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.debug.yml up
-```
-
-Then: **F5** → **"🐍 Backend: Attach to Docker"**
-
-#### Terminal Debugging (Without VS Code)
-
-For debugging via terminal only (e.g., SSH sessions):
-
-```bash
-cd backend-py-legacy
-# Run with debugger listening on port 5678
-uv run python -m debugpy --listen 0.0.0.0:5678 --wait-for-client -m uvicorn main:app --reload
-```
-
-Then attach from any IDE/editor:
-
-- **VS Code**: "Attach to localhost:5678"
-- **PyCharm**: "Python Remote Debug" → Host: `localhost`, Port: `5678`
-- **Terminal**: Use `pdb` commands after attaching
-
----
 
 ### Frontend (React + TypeScript)
 
@@ -197,10 +135,9 @@ If Drizzle prompts for destructive actions during local sync (drop/truncate), re
 ### Linting & Formatting
 
 ```bash
-# Backend
-cd backend-py-legacy
-uv run ruff check .
-uv run ruff format .
+# Backend (TypeScript)
+cd backend
+pnpm lint
 
 # Frontend
 cd frontend
@@ -208,22 +145,17 @@ pnpm lint
 pnpm format
 ```
 
-### Dependency Management (uv)
+### Dependency Management (data-pipeline)
 
 ```bash
-# Install standard dependencies (runtime + test + dev)
-cd backend-py-legacy
+# Install data-pipeline Python dependencies
+cd data-pipeline
 uv sync
 
-# Install with local ML support (Ollama, LlamaIndex)
-uv sync --extra local
-
-# Update dependencies
+# Update lockfile
 uv lock --upgrade
 uv sync
 ```
-
-**Note**: All dependencies (runtime, test, dev) are now installed by default to simplify the workflow.
 
 ### Testing
 
@@ -247,8 +179,6 @@ See **[TESTING_GUIDE.md](TESTING_GUIDE.md)** for comprehensive testing instructi
 
 | Service                  | Mode   | Port | URL                                     |
 | ------------------------ | ------ | ---- | --------------------------------------- |
-| **Backend API (Python)** | Local  | 8000 | http://127.0.0.1:8000                   |
-| **Backend API (Python)** | Docker | 8000 | http://localhost:8000                   |
 | **Backend API (TS)**     | Local  | 8001 | http://127.0.0.1:8001                   |
 | **Backend API (TS)**     | Docker | 8001 | http://localhost:8001                   |
 | **Frontend Dev**         | Local  | 5173 | http://localhost:5173 (Proxies to 8001) |
@@ -309,18 +239,6 @@ DB_PORT=5432
 ```
 
 **Why**: When running backend locally (not in Docker), it needs to connect via `localhost:5432`. Docker Compose automatically overrides this to `mediquery-postgres` when running in containers.
-
-### AWS IMDS timeout errors (bloated logs)
-
-**Error**: `Connect timeout on endpoint URL: "http://169.254.169.254/latest/api/token"`
-
-**Solution**: Already handled! Pydantic Settings (`backend-py-legacy/config.py`) automatically syncs `AWS_EC2_METADATA_DISABLED=true` from `.env` to `os.environ` during startup.
-
-**If still seeing errors**:
-
-1. Verify `.env` has `AWS_EC2_METADATA_DISABLED=true`
-2. Restart the backend
-3. Check `backend-py-legacy/config.py` has `model_post_init()` method
 
 ### Frontend build errors
 

@@ -57,23 +57,26 @@ A version-controlled set of **(question, expected SQL, expected result)** triple
 **Format** (YAML for readability, one file per difficulty tier):
 
 ```yaml
-# golden_queries/kpi_general_easy.yaml
-- id: prod-001
-  question: "How many active patients do we have?"
-  expected_sql: "SELECT COUNT(*) FROM patients WHERE status = 'Active'"
+# golden_queries/omop_easy.yaml
+- id: omop-001
+  question: "How many patients are in the dataset?"
+  expected_sql: "SELECT COUNT(*) FROM person"
   expected_columns: ["count"]
   expected_row_count: 1
   difficulty: easy
-  tags: [aggregation, filter, patients]
+  tags: [aggregation, demographics, person]
 
-- id: prod-002
-  question: "What was total patient billing last month?"
+- id: omop-002
+  question: "What are the top 5 most common diagnoses?"
   expected_sql: >
-    SELECT SUM(oil_vol_bbl) FROM lab_results
-    WHERE production_date >= DATE_FORMAT(CURRENT_DATE - INTERVAL 1 MONTH, '%Y-%m-01')
-    AND production_date < DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
+    SELECT c.concept_name, COUNT(*) AS occurrence_count
+    FROM condition_occurrence co
+    JOIN omop_vocab.concept c ON co.condition_concept_id = c.concept_id
+    GROUP BY c.concept_name
+    ORDER BY occurrence_count DESC
+    LIMIT 5
   difficulty: medium
-  tags: [aggregation, time-series, lab_results]
+  tags: [aggregation, conditions, concept_join, condition_occurrence]
 ```
 
 **Key design choices**:
@@ -89,21 +92,21 @@ A version-controlled set of **(question, expected SQL, expected result)** triple
 A CLI + pytest harness that runs the agent against the golden suite and produces structured reports.
 
 ```bash
-# Run full suite against current provider
-uv run eval run --suite all
+# Run deterministic benchmark (current harness — Mode A + B)
+cd backend
+pnpm benchmark:dev
 
-# Run against a specific provider for comparison
-uv run eval run --suite all --provider bedrock
-uv run eval run --suite all --provider openai
+# Run against a specific provider
+pnpm benchmark:dev -- --provider bedrock
 
-# Run only hard queries
-uv run eval run --suite hard
+# Run live SQL execution mode (Mode B)
+pnpm exec tsx src/ai/benchmarks/dev-benchmark.ts --mode=live
 
-# Compare two providers side-by-side
-uv run eval compare --providers bedrock,openai --suite all
+# Compare two providers side-by-side (planned)
+pnpm benchmark:dev -- --compare bedrock,openai
 
-# Dry run — show which queries would run
-uv run eval run --suite all --dry-run
+# Dry run — validate corpus structure without executing (planned)
+pnpm benchmark:dev -- --dry-run
 ```
 
 **Evaluation metrics per query**:
@@ -131,8 +134,8 @@ uv run eval run --suite all --dry-run
   Hard:        5/10 (50.0%)
 
   Regressions (previously passing, now failing):
-    ⚠ prod-047: "Top 5 patients by cumulative production"
-    ⚠ prod-031: "Monthly patient admission trend"
+    ⚠ omop-047: "Top 5 most common conditions by visit type"
+    ⚠ omop-031: "Monthly condition occurrence trend"
 
   Avg latency: 3.2s | Avg cost: $0.012/query
 ═══════════════════════════════════════════
@@ -172,11 +175,8 @@ backend/agents/prompts/
 ```
 
 ```bash
-# Compare prompt v3 vs v4 on the golden suite
-uv run eval compare-prompts \
-  --baseline prompts/system_prompt.v3.md \
-  --candidate prompts/system_prompt.v4.md \
-  --provider bedrock
+# Compare prompts — run benchmark with a candidate prompt set (planned)
+pnpm benchmark:dev -- --prompts v4
 ```
 
 **Promotion rule**: A prompt change is merged only if the candidate scores >= baseline on the golden suite. Regressions (queries that passed before but fail now) require explicit justification.
@@ -187,36 +187,33 @@ A lightweight but high-impact optimization: collect per-tenant column statistics
 
 **What we collect** (refreshed nightly or on data load):
 
-| Statistic       | Example                                             | Why It Helps                                  |
-| --------------- | --------------------------------------------------- | --------------------------------------------- |
-| Distinct values | `status`: Active, Shut-In, P&A, Clinical, Completed | Agent uses exact values instead of guessing   |
-| Value ranges    | `oil_vol_bbl`: 0 – 12,500                           | Agent knows reasonable bounds for filters     |
-| Null rates      | `mrn_number`: 98% populated                         | Agent knows which columns are reliably filled |
-| Date ranges     | `production_date`: 2019-01-01 to 2026-02-10         | Agent generates valid date filters            |
-| Row counts      | `lab_results`: 847,000 rows                         | Agent knows whether to add LIMIT clauses      |
+| Statistic       | Example                                                                   | Why It Helps                                       |
+| --------------- | ------------------------------------------------------------------------- | -------------------------------------------------- |
+| Distinct values | `gender_concept_id` resolves to `MALE`, `FEMALE` via `omop_vocab.concept` | Agent uses valid vocabulary names instead of guessing |
+| Value ranges    | `measurement_date`: 2011-01-01 to 2025-12-31                              | Agent generates valid date range filters           |
+| Null rates      | `visit_end_date`: 94% populated                                           | Agent knows which columns are reliably filled      |
+| Date ranges     | `condition_start_date`: 2010-01-01 to 2025-11-20                          | Agent generates valid date filters                 |
+| Row counts      | `condition_occurrence`: ~250,000 rows                                     | Agent knows whether to add LIMIT clauses           |
 
-**Impact**: When the agent knows `status` has exactly 5 values, it generates `WHERE status = 'Active'` instead of `WHERE status = 'active'` (case mismatch) or `WHERE status = 'Running'` (hallucinated value). This alone can improve accuracy by 10-15% on filter-heavy queries.
+**Impact**: When the agent knows `gender_concept_id` resolves to `8507` (MALE) and `8532` (FEMALE) via `omop_vocab.concept`, it generates correct concept joins instead of guessing column values. This alone can improve accuracy by 10-15% on vocabulary-heavy queries.
 
 ### 3.6 CI/CD Integration
 
 The golden suite runs in CI on every PR that touches prompts, agent logic, or database schema:
 
 ```yaml
-# .github/workflows/eval.yml (conceptual)
+# .github/workflows/eval.yml (conceptual — planned CI gate)
 eval-gate:
   runs-on: ubuntu-latest
   steps:
     - name: Run golden query suite
-      run: uv run eval run --suite all --provider bedrock --format json
+      run: cd backend && pnpm benchmark:dev --format json
 
     - name: Check for regressions
-      run: uv run eval check-regressions --baseline main --candidate ${{ github.sha }}
-
-    - name: Fail if accuracy drops
       run: |
-        accuracy=$(jq '.overall_accuracy' eval-report.json)
-        if (( $(echo "$accuracy < 0.80" | bc -l) )); then
-          echo "❌ Accuracy dropped below 80% threshold"
+        accuracy=$(jq '.omop_accuracy.table_selection_accuracy' docs/reports/guardrail_benchmark_dev.json)
+        if (( $(echo "$accuracy < 0.90" | bc -l) )); then
+          echo "❌ Table selection accuracy dropped below 90% threshold"
           exit 1
         fi
 ```
@@ -239,24 +236,21 @@ This design is about **maximizing accuracy with the models you already have acce
 
 ## 5. Implementation Approach
 
-This lives inside the Mediquery backend (not the data-pipeline project) since it tests the agent directly:
+This lives inside the Mediquery backend since it tests the agent directly. The current harness is TypeScript-based:
 
 ```
 backend/
-├── tests/
-│   └── golden_queries/            ← the suite itself
-│       ├── easy.yaml
-│       ├── medium.yaml
-│       ├── hard.yaml
-│       └── conftest.py            ← pytest fixtures for eval
-├── eval/                          ← evaluation tooling
-│   ├── runner.py                  ← core eval engine
-│   ├── reporter.py                ← JSON + human-readable output
-│   ├── compare.py                 ← provider & prompt comparison
-│   └── cli.py                     ← Click CLI entrypoint
-└── agents/prompts/                ← versioned prompt files
-    ├── system_prompt.v3.md
-    └── few_shot_examples.v2.yaml
+├── src/ai/benchmarks/
+│   ├── dev-benchmark.ts           ← benchmark harness (Mode A + B)
+│   └── corpus/
+│       └── omop_golden_queries.jsonl  ← 25+ OMOP v5.4 golden queries (JSONL)
+├── test/ai/
+│   └── dev-benchmark.spec.ts      ← Vitest integration for benchmark runner
+├── src/ai/prompts/
+│   ├── system_prompts.yaml        ← Agent system prompts (current production)
+│   └── semantic_view.yaml         ← OMOP retrieval metadata + join graph
+└── docs/reports/
+    └── guardrail_benchmark_dev.json  ← benchmark output report
 ```
 
 ---

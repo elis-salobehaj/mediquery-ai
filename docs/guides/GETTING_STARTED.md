@@ -12,7 +12,7 @@
   ```
 - **Docker Desktop** (for PostgreSQL database)
 - **pnpm** (Node package manager): `nvm use && corepack enable && corepack use pnpm@latest` (requires Node.js installed first)
-- **uv** (Python package manager): `curl -LsSf https://astral.sh/uv/install.sh | sh` (Optional, for legacy python backend only)
+- **uv** (Python package manager): `curl -LsSf https://astral.sh/uv/install.sh | sh` (for `data-pipeline/` ETL scripts only)
 
 ### Recommended
 
@@ -70,10 +70,10 @@ cd packages/db
 pnpm install
 ```
 
-#### Python (Legacy Fallback)
+#### Data Pipeline (OMOP ETL — optional)
 
 ```bash
-cd backend-py-legacy
+cd data-pipeline
 uv sync
 ```
 
@@ -97,20 +97,10 @@ docker ps
 
 ### Test Backend
 
-#### TypeScript (Active)
-
 ```bash
 cd backend
 pnpm run start:dev
 # Port 8001
-```
-
-#### Python (Legacy Fallback — optional)
-
-```bash
-cd backend-py-legacy
-uv run uvicorn main:app --reload
-# Port 8000
 ```
 
 ### Test Frontend

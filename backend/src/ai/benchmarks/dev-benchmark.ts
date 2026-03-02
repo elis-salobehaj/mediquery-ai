@@ -3,7 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { Pool, PoolClient } from 'pg';
-import { policyGateNode } from '@/ai/policy-gate';
+import { policyGateNode } from '@/ai/agents/policy-gate';
 import { createInitialState } from '@/ai/state';
 import { config } from '@/config/env.config';
 

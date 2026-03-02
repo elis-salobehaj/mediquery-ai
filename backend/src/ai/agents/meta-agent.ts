@@ -92,7 +92,7 @@ export async function metaAgentNode(
       .map(([table, schema]) => `${table}: ${schema}`)
       .join('\n');
 
-    const prompt = `You are a medical Industry Expert and Database Schema Specialist.
+    const prompt = `You are an OMOP clinical data expert and database schema specialist.
 The user has asked a question about the data or the medical domain.
 You have access to the following database schema:
 
@@ -103,7 +103,7 @@ User Question: ${state.original_query}
 Your Goal:
 1. Answer the user's question directly and professionally.
 2. If they ask about "what data you have", summarize the tables and what they represent.
-3. If they ask a general medical question (e.g. "What is DURATION?"), explain it using your expert knowledge.
+3. If they ask a general medical question (e.g. "What is hypertension?"), explain it using concise clinical language.
 4. Do NOT generate SQL code. Provide a natural language explanation.
 
 Return strict JSON only:

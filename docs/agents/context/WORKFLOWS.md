@@ -1,30 +1,20 @@
-# Engineering Workflows
+# Workflow Policy (Agent)
 
-## Documentation Workflow (Mandatory)
+## Mandatory Sequence
 
-For any behavior change:
+1. Implement targeted change.
+2. Run focused validation (tests, benchmark as needed).
+3. Update plan checklist in `docs/plans/active/*`.
+4. Update docs if behavior/policy changed.
 
-1. update relevant context/design docs,
-2. update active plan checklist,
-3. update docs index when plan status changes.
+## Trigger Rules
 
-## Backend Workflow
+- Run benchmark for AI SQL behavior changes.
+- Update both agent and human docs when both audiences are impacted.
+- Update `docs/README.md` when doc navigation or status changes.
 
-1. `cd backend && pnpm install`
-2. implement
-3. run focused tests
-4. run benchmark if AI/prompt/schema behavior changed
-5. update docs/plans
+## Prohibited Shortcuts
 
-## Data Pipeline Workflow
-
-1. `cd data-pipeline && uv sync`
-2. run pipeline DB stack
-3. run migration/load pipeline
-4. verify gold OMOP output
-
-## Forbidden Shortcuts
-
-- skipping schema-based config updates for new env keys
-- manual DB schema edits outside migration tooling
-- marking plan phases complete without validation evidence
+- Marking plan tasks complete without validation evidence.
+- Skipping config schema updates for new env keys.
+- Manual schema edits outside migration tooling.

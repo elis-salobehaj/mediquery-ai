@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from '@/auth/auth.service';
 import { DatabaseService } from '@/database/database.service';
 import { JwtService } from '@nestjs/jwt';
-import { vi, describe, beforeEach, beforeAll, it, expect } from 'vitest';
+import { vi, describe, beforeEach, it, expect } from 'vitest';
 
 // Mock argon2 so we don't do real password hashing in unit tests
 vi.mock('argon2', () => ({

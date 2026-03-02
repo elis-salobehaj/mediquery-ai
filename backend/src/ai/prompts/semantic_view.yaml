@@ -6,7 +6,7 @@ database: mediquery
 dialect: postgresql
 hub_table: person
 hub_key: person_id
-supported_table_count: 8
+supported_table_count: 10
 
 join_graph:
   - from: person
@@ -27,9 +27,27 @@ join_graph:
   - from: person
     to: observation
     join: person.person_id = observation.person_id
+  - from: person
+    to: condition_era
+    join: person.person_id = condition_era.person_id
+  - from: person
+    to: drug_era
+    join: person.person_id = drug_era.person_id
   - from: visit_occurrence
     to: condition_occurrence
     join: visit_occurrence.visit_occurrence_id = condition_occurrence.visit_occurrence_id
+  - from: visit_occurrence
+    to: drug_exposure
+    join: visit_occurrence.visit_occurrence_id = drug_exposure.visit_occurrence_id
+  - from: visit_occurrence
+    to: procedure_occurrence
+    join: visit_occurrence.visit_occurrence_id = procedure_occurrence.visit_occurrence_id
+  - from: visit_occurrence
+    to: measurement
+    join: visit_occurrence.visit_occurrence_id = measurement.visit_occurrence_id
+  - from: visit_occurrence
+    to: observation
+    join: visit_occurrence.visit_occurrence_id = observation.visit_occurrence_id
   # Vocabulary joins (Crucial for OMOP)
   - from: condition_occurrence
     to: concept
@@ -37,10 +55,27 @@ join_graph:
   - from: drug_exposure
     to: concept
     join: drug_exposure.drug_concept_id = concept.concept_id
+  - from: measurement
+    to: concept
+    join: measurement.measurement_concept_id = concept.concept_id
+  - from: procedure_occurrence
+    to: concept
+    join: procedure_occurrence.procedure_concept_id = concept.concept_id
+  - from: observation
+    to: concept
+    join: observation.observation_concept_id = concept.concept_id
+  - from: condition_era
+    to: concept
+    join: condition_era.condition_concept_id = concept.concept_id
+  - from: drug_era
+    to: concept
+    join: drug_era.drug_concept_id = concept.concept_id
 
 unsupported_intents:
   - 'Write operations (INSERT, UPDATE, DELETE, DDL)'
-  - 'Financial/Billing data (not currently mapped in current Phase)'
+  - 'Financial cost data (cost table not loaded in current dataset)'
+  - 'Death records (death table not loaded in current dataset)'
+  - 'Provider/care-site details (provider, care_site tables not loaded)'
 
 tables:
   person:
@@ -80,7 +115,9 @@ tables:
       condition_concept_id: 'FK to concept (OMOP standard diag code)'
       condition_start_date: 'Diagnosis start date'
       condition_end_date: 'Diagnosis end date'
+      visit_occurrence_id: 'FK to visit_occurrence'
       condition_source_value: 'Source code (e.g. SNOMED/ICD10 string)'
+      condition_status_concept_id: 'FK to concept for status (Primary, Secondary, etc.)'
 
   drug_exposure:
     description: 'Medication and drug prescriptions/administrations.'
@@ -92,8 +129,10 @@ tables:
       drug_concept_id: 'FK to concept (Standard RxNorm concept)'
       drug_exposure_start_date: 'Start date of medication'
       drug_exposure_end_date: 'End date of medication'
+      visit_occurrence_id: 'FK to visit_occurrence'
       quantity: 'Amount dispensed/taken'
       days_supply: 'Supply duration in days'
+      drug_source_value: 'Source drug code or name'
 
   measurement:
     description: 'Quantitative lab results and vital signs.'
@@ -104,31 +143,92 @@ tables:
       person_id: 'FK to person'
       measurement_concept_id: 'FK to concept (LOINC or similar)'
       measurement_date: 'Date of measurement'
+      visit_occurrence_id: 'FK to visit_occurrence'
       value_as_number: 'Numerical value of the result'
       unit_source_value: 'Source unit (e.g. mg/dL, cm, kg)'
       measurement_source_value: 'Source name for the test'
+      range_low: 'Normal lower bound'
+      range_high: 'Normal upper bound'
+
+  procedure_occurrence:
+    description: 'Surgical procedures and clinical interventions performed on the patient.'
+    aliases: ['procedure', 'surgery', 'intervention', 'operation']
+    primary_key: procedure_occurrence_id
+    columns:
+      procedure_occurrence_id: 'Primary key'
+      person_id: 'FK to person'
+      procedure_concept_id: 'FK to concept (SNOMED procedure code)'
+      procedure_date: 'Date of procedure'
+      visit_occurrence_id: 'FK to visit_occurrence'
+      procedure_source_value: 'Source procedure code or description'
+      quantity: 'Number of times the procedure was performed'
+
+  observation:
+    description: 'Qualitative clinical facts not captured elsewhere — social history, family history, smoking status, survey responses.'
+    aliases: ['observation', 'social history', 'family history', 'survey', 'note']
+    primary_key: observation_id
+    columns:
+      observation_id: 'Primary key'
+      person_id: 'FK to person'
+      observation_concept_id: 'FK to concept (type of observation)'
+      observation_date: 'Date of observation'
+      visit_occurrence_id: 'FK to visit_occurrence'
+      value_as_string: 'Qualitative string value (e.g. Yes, Never, Current)'
+      value_as_number: 'Numeric value if quantitative'
+      value_as_concept_id: 'FK to concept for coded answers'
+      observation_source_value: 'Source observation code or text'
+
+  condition_era:
+    description: 'Collapsed/rolled-up span of continuous condition occurrences. Represents a clinically meaningful period when a patient had a condition.'
+    aliases: ['condition period', 'diagnosis era', 'chronic condition', 'condition span']
+    primary_key: condition_era_id
+    columns:
+      condition_era_id: 'Primary key'
+      person_id: 'FK to person'
+      condition_concept_id: 'FK to concept (same as condition_occurrence)'
+      condition_era_start_date: 'Start of the era'
+      condition_era_end_date: 'End of the era'
+      condition_occurrence_count: 'Number of underlying condition_occurrence records in this era'
+
+  drug_era:
+    description: 'Collapsed/rolled-up span of continuous drug exposures. Represents a period when a patient was receiving a drug.'
+    aliases: ['drug period', 'medication era', 'treatment span', 'drug span']
+    primary_key: drug_era_id
+    columns:
+      drug_era_id: 'Primary key'
+      person_id: 'FK to person'
+      drug_concept_id: 'FK to concept (ingredient-level RxNorm concept)'
+      drug_era_start_date: 'Start of the era'
+      drug_era_end_date: 'End of the era'
+      drug_exposure_count: 'Number of underlying drug_exposure records'
+      gap_days: 'Total gap days within the era'
 
   concept:
-    description: 'The master vocabulary lookup. Use this to find names for concept_id columns. Crucial: concept is usually in the omop_vocab schema.'
+    description: 'The master vocabulary lookup. Use this to find names for concept_id columns. Always prefix with omop_vocab schema: omop_vocab.concept.'
     aliases: ['vocabulary', 'dictionary', 'lookup', 'name map']
     primary_key: concept_id
     columns:
-      concept_id: 'Unique identifier for the concept'
+      concept_id: 'Unique integer identifier for the concept'
       concept_name: 'Human-friendly name'
-      domain_id: 'Domain (Condition, Drug, Measurement, etc.)'
-      vocabulary_id: 'Source vocab (SNOMED, RxNorm, LOINC)'
-      concept_code: 'Source code'
+      domain_id: 'Domain (Condition, Drug, Measurement, Procedure, Observation, etc.)'
+      vocabulary_id: 'Source vocabulary (SNOMED, RxNorm, LOINC, None)'
+      concept_code: 'Source code from the vocabulary'
+      standard_concept: 'S=Standard, C=Classification, null=Non-standard'
 
 reasoning: |
-  Mediquery has transitioned to the OMOP CDM v5.4 standard. 
-  The database is highly normalized. You MUST join fact tables (condition_occurrence, drug_exposure, etc.) with the `concept` table to resolve integer IDs to readable `concept_name`s.
-  Default to `tenant_nexus_health` search_path.
+  Mediquery uses OMOP CDM v5.4. The database is highly normalized.
+  Always join fact tables (condition_occurrence, drug_exposure, measurement, procedure_occurrence, observation, condition_era, drug_era)
+  with `omop_vocab.concept` to resolve integer concept_ids to human-readable concept_names.
+  Always prefix concept table references with `omop_vocab.`: `omop_vocab.concept`.
+  Clinical fact tables live in the tenant schema (default search_path is set at connection level — do NOT inject SET search_path in SQL).
+  For temporal analysis, prefer era tables (condition_era, drug_era) over raw occurrence tables.
+  Always specify explicit column lists; never use SELECT *.
 
 query_patterns:
   - name: 'Top Diagnoses'
     description: 'Find the top 5 most frequent diagnoses'
     example: |
-      SELECT c.concept_name, COUNT(*) as frequency
+      SELECT c.concept_name, COUNT(*) AS frequency
       FROM condition_occurrence co
       JOIN omop_vocab.concept c ON co.condition_concept_id = c.concept_id
       GROUP BY c.concept_name
@@ -138,20 +238,105 @@ query_patterns:
   - name: 'Patient Demographics'
     description: 'Count patients by gender'
     example: |
-      SELECT c.concept_name as gender, COUNT(*) as patient_count
+      SELECT c.concept_name AS gender, COUNT(*) AS patient_count
       FROM person p
       JOIN omop_vocab.concept c ON p.gender_concept_id = c.concept_id
-      GROUP BY c.concept_name;
+      GROUP BY c.concept_name
+      ORDER BY patient_count DESC;
 
   - name: 'Clinical Profile'
     description: 'List medications and diagnoses for a specific patient'
     example: |
-      SELECT 'Condition' as type, c.concept_name
+      SELECT 'Condition' AS type, c.concept_name, co.condition_start_date AS start_date
       FROM condition_occurrence co
       JOIN omop_vocab.concept c ON co.condition_concept_id = c.concept_id
       WHERE co.person_id = 123
       UNION ALL
-      SELECT 'Medication' as type, c.concept_name
+      SELECT 'Medication' AS type, c.concept_name, de.drug_exposure_start_date
       FROM drug_exposure de
       JOIN omop_vocab.concept c ON de.drug_concept_id = c.concept_id
-      WHERE de.person_id = 123;
+      WHERE de.person_id = 123
+      ORDER BY start_date;
+
+  - name: 'Average Inpatient Stay Duration'
+    description: 'Calculate average inpatient visit length in days'
+    example: |
+      SELECT
+        c.concept_name AS visit_type,
+        ROUND(AVG(vo.visit_end_date - vo.visit_start_date), 1) AS avg_length_days,
+        COUNT(*) AS visit_count
+      FROM visit_occurrence vo
+      JOIN omop_vocab.concept c ON vo.visit_concept_id = c.concept_id
+      WHERE c.concept_name ILIKE '%inpatient%'
+      GROUP BY c.concept_name;
+
+  - name: 'Top Procedures'
+    description: 'Most frequently performed procedures'
+    example: |
+      SELECT c.concept_name AS procedure_name, COUNT(*) AS procedure_count
+      FROM procedure_occurrence po
+      JOIN omop_vocab.concept c ON po.procedure_concept_id = c.concept_id
+      GROUP BY c.concept_name
+      ORDER BY procedure_count DESC
+      LIMIT 10;
+
+  - name: 'Chronic Condition Era Duration'
+    description: 'Average duration of chronic condition eras'
+    example: |
+      SELECT
+        c.concept_name AS condition,
+        ROUND(AVG(ce.condition_era_end_date - ce.condition_era_start_date), 0) AS avg_era_days,
+        COUNT(DISTINCT ce.person_id) AS patient_count
+      FROM condition_era ce
+      JOIN omop_vocab.concept c ON ce.condition_concept_id = c.concept_id
+      GROUP BY c.concept_name
+      ORDER BY avg_era_days DESC
+      LIMIT 10;
+
+  - name: 'Drug Era Coverage'
+    description: 'Patients on long-term medications (drug eras > 90 days)'
+    example: |
+      SELECT
+        c.concept_name AS drug_name,
+        COUNT(DISTINCT de.person_id) AS patient_count,
+        ROUND(AVG(de.drug_era_end_date - de.drug_era_start_date), 0) AS avg_era_days
+      FROM drug_era de
+      JOIN omop_vocab.concept c ON de.drug_concept_id = c.concept_id
+      WHERE (de.drug_era_end_date - de.drug_era_start_date) > 90
+      GROUP BY c.concept_name
+      ORDER BY patient_count DESC
+      LIMIT 10;
+
+  - name: 'Comorbidities (Cross-domain)'
+    description: 'Patients with both diabetes and hypertension'
+    example: |
+      SELECT COUNT(DISTINCT p.person_id) AS patient_count
+      FROM person p
+      WHERE p.person_id IN (
+        SELECT ce.person_id FROM condition_era ce
+        JOIN omop_vocab.concept c ON ce.condition_concept_id = c.concept_id
+        WHERE c.concept_name ILIKE '%diabetes%'
+      )
+      AND p.person_id IN (
+        SELECT ce2.person_id FROM condition_era ce2
+        JOIN omop_vocab.concept c2 ON ce2.condition_concept_id = c2.concept_id
+        WHERE c2.concept_name ILIKE '%hypertension%'
+      );
+
+  - name: 'Lab Values (Abnormal)'
+    description: 'Patients with out-of-range lab results'
+    example: |
+      SELECT
+        c.concept_name AS measurement_name,
+        COUNT(*) AS abnormal_count,
+        ROUND(AVG(m.value_as_number), 2) AS avg_value,
+        MIN(m.value_as_number) AS min_value,
+        MAX(m.value_as_number) AS max_value
+      FROM measurement m
+      JOIN omop_vocab.concept c ON m.measurement_concept_id = c.concept_id
+      WHERE m.value_as_number IS NOT NULL
+        AND m.range_high IS NOT NULL
+        AND m.value_as_number > m.range_high
+      GROUP BY c.concept_name
+      ORDER BY abnormal_count DESC
+      LIMIT 10;

@@ -12,8 +12,8 @@ function buildUnsupportedResponse(reason: string): string {
   return [
     `I can't run that request: ${reason}.`,
     'Try one of these supported alternatives:',
-    '- Ask for read-only KPI analysis from existing medical tables',
-    '- Request top/bottom patients, trends by timeframe, or KPI comparisons',
+    '- Ask for read-only clinical analytics from OMOP tables',
+    '- Request top diagnoses, medication trends, visit metrics, or measurement summaries',
     '- Ask what tables/columns are available before querying',
   ].join('\n');
 }
@@ -54,7 +54,7 @@ export async function policyGateNode(
 
   if (UNSUPPORTED_ANALYTICS_PATTERN.test(query)) {
     const reason =
-      'that request is outside supported SQL-based medical KPI analysis';
+      'that request is outside supported SQL-based OMOP clinical analytics';
     addThought(state, `🛡️ Policy Gate: Blocked request - ${reason}`);
 
     return {
@@ -62,7 +62,7 @@ export async function policyGateNode(
         valid: false,
         severity: 'none',
         issues: ['Unsupported intent for current capabilities'],
-        fixes: ['Ask a supported medical KPI question'],
+        fixes: ['Ask a supported OMOP clinical analysis question'],
         error: 'UNSUPPORTED_INTENT',
         row_count: 0,
         warnings: [],

@@ -9,8 +9,6 @@ Benchmarking references:
 
 ### Backend (TypeScript)
 
-We have successfully migrated the primary backend from Python to TypeScript (NestJS). The Python backend remains in the repository strictly as a fallback mechanism for reference until final organizational sign-off. See `docs/plans/active/typescript_backend_migration.md`.
-
 **TypeScript (Active — port 8001)**
 
 - **Framework**: NestJS (Express)
@@ -24,22 +22,6 @@ We have successfully migrated the primary backend from Python to TypeScript (Nes
 - **Logging**: Pino (with file rotation to `../logs/backend.log`)
 - **Health**: Standardized `/health` endpoint for Docker and DB connectivity checks.
 - **Token Usage**: Push-based SSE (`GET /api/v1/token-usage/events`) replaces polling; `TokenUsageEventsService` emits after every token write.
-
-**Python (Legacy Fallback - 3.12+)**
-
-- **Framework**: FastAPI (async-first)
-- **AI Orchestration**: LangGraph (multi-agent workflows)
-- **Database**: PostgreSQL 18.1 (App Data & KPIs) (Docker)
-- **ORM**: SQLAlchemy 2.0 + Alembic migrations
-- **Configuration**: Pydantic Settings v2 (strict mode)
-
-**Key Libraries (Python):**
-
-- `langchain-core` - LLM abstractions
-- `langchain-aws` - AWS Bedrock integration
-- `boto3` - AWS SDK
-- `psycopg2-binary` - PostgreSQL driver
-- `python-jose` - JWT authentication
 
 ### Frontend (React 19)
 
@@ -164,7 +146,8 @@ backend/
 │   │   ├── graph.ts           # LangGraph StateGraph wiring
 │   │   ├── state.ts           # GraphState interface
 │   │   ├── router.ts          # Intent routing agent node
-│   │   ├── schema-navigator.ts# Table selection agent node
+│   │   ├── policy-gate.ts     # Policy enforcement (write-op + unsupported-intent blocking)
+│   │   ├── schema-navigator.ts# OMOP table selection agent node
 │   │   ├── sql-writer.ts      # SQL generation agent node
 │   │   ├── critic.ts          # SQL validation agent node
 │   │   ├── reflector.ts       # Reflexion agent node
@@ -218,6 +201,7 @@ data-pipeline/               # OMOP v5.4 Synthea pipeline
 ├── load_omop.py             # Polars-driven ETL script
 ├── gold_omop_tenant.sql     # Processed, deployable SQL dump
 └── pyproject.toml           # uv Python dependencies (Polars, SQLAlchemy)
+```
 
 ### Data Pipeline & OMOP Migration
 
@@ -227,75 +211,6 @@ The project utilizes a **Medallion Architecture** to handle high-fidelity clinic
 2.  **Silver (Structured)**: A transient PostgreSQL database where raw data is mapped to the **OMOP CDM v5.4** standard using `load_omop.py` and `Polars`. This layer enforces strict relational data models and standard vocabularies.
 3.  **Gold (Curated)**: A portable SQL dump (`gold_omop_tenant.sql`) extracted from the Silver layer. This dump is mounted directly to the production database to allow instantaneous provisioning of tenant clinical data.
 
-### Backend (Python - Legacy)
-
-```
-backend/
-├── api/                 # API layer
-│   └── v1/
-│       ├── schemas/     # Pydantic request/response schemas
-│       │   ├── __init__.py      # Re-exports all schemas
-│       │   ├── auth.py          # Auth schemas (Token, User, UserCreate)
-│       │   ├── query.py         # Query schemas (QueryRequest, QueryResponse, StreamEvent)
-│       │   ├── thread.py        # Thread schemas (ThreadCreate, ThreadResponse, MessageResponse)
-│       │   ├── health.py        # Health schemas (HealthResponse, ModelInfo)
-│       │   └── token_usage.py   # Token usage schemas
-│       ├── endpoints/   # Route handlers (auth, query, threads, token_usage)
-│       │   ├── __init__.py
-│       │   ├── auth.py           # Authentication endpoints
-│       │   ├── queries.py        # Query endpoints
-│       │   ├── threads.py        # Chat thread endpoints
-│       │   └── token_usage.py    # Token usage API endpoints
-│       └── dependencies.py  # Shared dependencies
-├── app/                 # Application layer
-│   ├── agents/          # LangGraph agent nodes
-│   │   ├── router.py    # Intent routing agent
-│   │   ├── schema_navigator.py  # Table selection agent
-│   │   ├── sql_writer.py        # SQL generation agent
-│   │   └── critic.py    # SQL validation agent
-│   ├── services/        # Application services
-│   ├── utils/           # Utilities
-│   │   └── token_tracking.py  # Quota check helpers
-│   ├── prompts/         # Agent system prompts
-│   └── graph.py         # LangGraph workflow definition
-├── services/            # Core business logic
-│   ├── database.py      # PostgreSQL Medical Data database
-│   ├── chat_history.py  # PostgreSQL chat storage
-│   ├── auth_service.py  # JWT authentication
-│   └── token_tracker.py # Token usage tracking & enforcement
-├── domain/              # Domain models
-│   ├── models.py        # SQLAlchemy models (PostgreSQL)
-│   └── agent_state.py   # LangGraph state definitions
-├── alembic/             # Database migrations (PostgreSQL)
-│   └── versions/        # Migration scripts
-├── tests/               # Test suite
-│   ├── test_quota_enforcement.py
-│   ├── test_langgraph_agent.py
-│   └── conftest.py      # Pytest fixtures
-├── config.py            # Pydantic Settings v2
-├── main.py              # FastAPI app entry
-└── pyproject.toml       # uv dependencies
-```
-
-**Architecture Layers:**
-
-- **api/v1/schemas/** - Pydantic models for API validation & OpenAPI docs (organized by domain)
-- **api/v1/endpoints/** - HTTP endpoint handlers for specific features (auth, queries, threads, token_usage)
-- **app/agents/** - LangGraph agent nodes (LLM-powered decision points)
-- **app/services/** - Agent-specific helpers (prompt building, token checks)
-- **services/** - Core business logic (database, auth, tracking)
-- **domain/** - Data models (SQLAlchemy ORM, state definitions)
-
-**Schema Organization:**
-All API schemas are under `api/v1/schemas/` and split by domain:
-
-- `auth.py` - Authentication (Token, User, UserCreate)
-- `query.py` - Queries & streaming (QueryRequest, QueryResponse, StreamEvent)
-- `thread.py` - Chat threads (ThreadCreate, ThreadResponse, MessageResponse)
-- `health.py` - System health (HealthResponse, ModelInfo)
-- `token_usage.py` - Token usage & quotas
-
-Import via: `from api.v1.schemas import Token, QueryRequest, TokenUsageResponse`
 
 ### Frontend
 
@@ -333,14 +248,22 @@ docs/
 │   ├── DEVELOPMENT.md
 │   ├── TESTING_GUIDE.md
 │   └── ...
-├── context/              # Reference documentation
-│   ├── ARCHITECTURE.md   # This file
-│   ├── CONFIGURATION.md  # Settings & Pydantic
-│   ├── SEMANTIC_RETRIEVAL.md # Retrieval architecture and optimization guidance
-│   └── WORKFLOWS.md      # Documentation practices
-├── designs/              # Architecture designs
-│   ├── multi_agent_architecture.md
-│   └── frontend_architecture.md
+├── agents/               # Agent-track docs (concise, policy-focused)
+│   ├── context/
+│   │   ├── ARCHITECTURE.md   # Hard rules + retrieval + benchmark policy
+│   │   ├── CONFIGURATION.md  # Zod/ConfigService rules
+│   │   └── WORKFLOWS.md      # Change loop policy
+│   └── designs/
+│       ├── SYSTEM_DESIGN.md  # Runtime + AI + data design constraints
+│       └── EVOLUTION_ROADMAP.md
+├── humans/               # Human-track docs (rich, explanatory)
+│   ├── context/
+│   │   ├── ARCHITECTURE.md   # This file — full stack reference
+│   │   ├── CONFIGURATION.md  # Zod patterns + lifecycle
+│   │   ├── BENCHMARKING.md   # Benchmark harness detail
+│   │   ├── SEMANTIC_RETRIEVAL.md # Retrieval architecture
+│   │   └── WORKFLOWS.md      # Engineering change workflow
+│   └── designs/          # Deep-dive architecture docs
 ├── plans/                # Project planning
 │   ├── active/           # Current work
 │   ├── implemented/      # Completed plans
@@ -399,8 +322,8 @@ export const ButtonWithModalAndForm = () => { ... };
 ### Backend
 
 - **Never expose raw database errors** to API responses
-- **Validate all inputs** with Pydantic schemas
-- **Use parameterized queries** (SQLAlchemy handles this)
+- **Validate all inputs** with DTOs and Zod schemas
+- **Use parameterized queries** (Drizzle handles app-data queries; pg for clinical read queries)
 - **Hash passwords** with argon2 (never store plaintext)
 
 ### Frontend
@@ -419,13 +342,6 @@ export const ButtonWithModalAndForm = () => { ... };
 2. Generate migration: `pnpm db:generate`
 3. Apply migration to production: `pnpm db:migrate`
 4. For local dev sync without migration files: `pnpm db:push` (⚠️ choose 'No' when prompted to delete unknown tables or truncate data to preserve cross-backend compatibility).
-
-### Migration Workflow (Python - Legacy)
-
-1. Modify SQLAlchemy models in `backend/domain/models.py`
-2. Generate migration: `uv run alembic revision --autogenerate -m "description"`
-3. Review generated migration in `backend/alembic/versions/`
-4. Apply: `uv run alembic upgrade head`
 
 ### Schema Design
 
@@ -450,7 +366,9 @@ graph TD
 
     Router -->|OFF_TOPIC| End2((END))
 
-    Router -->|DATA| SchemaNavigator[Schema Navigator]
+    Router -->|DATA| PolicyGate[Policy Gate]
+    PolicyGate -->|Blocked| End4((END))
+    PolicyGate -->|Allowed| SchemaNavigator[Schema Navigator]
     SchemaNavigator --> SQLWriter[SQL Writer]
     SQLWriter --> Critic
 
@@ -466,11 +384,12 @@ graph TD
 **Agents:**
 
 1. **Router** (`router.ts`): Classifies intent — `DATA`, `DOMAIN_KNOWLEDGE`, or `OFF_TOPIC`
-2. **Schema Navigator** (`schema-navigator.ts`): Selects relevant tables from available schema
-3. **SQL Writer** (`sql-writer.ts`): Generates SQL from question + selected schema context
-4. **Critic** (`critic.ts`): Performs DB syntax validation and semantic critique pass
-5. **Reflector** (`reflector.ts`): Adds retry guidance on failures (reflexion loop)
-6. **Meta-Agent** (`meta-agent.ts`): Answers domain/schema questions without SQL
+2. **Policy Gate** (`policy-gate.ts`): Blocks write operations and unsupported analytical intents before SQL generation
+3. **Schema Navigator** (`schema-navigator.ts`): Selects relevant OMOP tables from available schema
+4. **SQL Writer** (`sql-writer.ts`): Generates SQL from question + selected OMOP schema context
+5. **Critic** (`critic.ts`): Performs DB syntax validation and semantic critique pass
+6. **Reflector** (`reflector.ts`): Adds retry guidance on failures (reflexion loop)
+7. **Meta-Agent** (`meta-agent.ts`): Answers domain/OMOP schema questions without SQL
 
 **Current limitations (tracked for improvement):**
 

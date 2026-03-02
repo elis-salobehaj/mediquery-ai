@@ -106,12 +106,12 @@ Reuses the golden query infrastructure from the [API-based design](evaluation_an
   "messages": [
     {
       "role": "system",
-      "content": "You are a SQL expert. Given the following MySQL database:\n\nTable: patients (id, patient_name, status, mrn_number, ...)\nTable: lab_results (id, patient_id, production_date, oil_vol_bbl, ...)\n\nGenerate a SQL query to answer the user's question."
+      "content": "You are a SQL expert. Given the following PostgreSQL OMOP CDM v5.4 database:\n\nTable: person (person_id, gender_concept_id, year_of_birth, race_concept_id, ...)\nTable: condition_occurrence (condition_occurrence_id, person_id, condition_concept_id, condition_start_date, ...)\nTable: omop_vocab.concept (concept_id, concept_name, domain_id, ...)\n\nGenerate a SQL query to answer the user's question."
     },
-    { "role": "user", "content": "What was total patient billing last month?" },
+    { "role": "user", "content": "What are the top 5 most common diagnoses?" },
     {
       "role": "assistant",
-      "content": "SELECT SUM(oil_vol_bbl) FROM lab_results WHERE production_date >= DATE_FORMAT(CURRENT_DATE - INTERVAL 1 MONTH, '%Y-%m-01') AND production_date < DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')"
+      "content": "SELECT c.concept_name, COUNT(*) AS occurrence_count FROM condition_occurrence co JOIN omop_vocab.concept c ON co.condition_concept_id = c.concept_id GROUP BY c.concept_name ORDER BY occurrence_count DESC LIMIT 5"
     }
   ]
 }

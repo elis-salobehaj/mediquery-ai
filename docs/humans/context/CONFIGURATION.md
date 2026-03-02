@@ -97,16 +97,10 @@ const dbHost = process.env.DB_HOST || "localhost";
 
 ---
 
-## Legacy Mode (Python) Compatibility
-
-In the legacy Python backend, Pydantic settings are synced directly to `os.environ` so `boto3` can interact directly without complaining about missing IMDS configurations (`AWS_EC2_METADATA_DISABLED`). In the new nestjs setup, we interact with LangChain.js which relies heavily on standard exported envs out-of-the-box making explicit syncs to the environment less necessary than with traditional boto3 code.
-
----
-
 ## Database Security
 
 - **Read-Only Access**: Agents have Read-Only access to production KPI tables.
-- **NEVER** modify the DB schema manually. Always use Drizzle migrations (or Alembic for legacy).
+- **NEVER** modify the DB schema manually. Always use Drizzle migrations (`packages/db`).
 - **NEVER** commit the raw `init.sql` dump if it contains real-world data.
 
 ---

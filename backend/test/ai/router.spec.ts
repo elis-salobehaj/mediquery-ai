@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { routerNode } from '@/ai/router';
+import { routerNode } from '@/ai/agents/router-agent';
 import { createInitialState } from '@/ai/state';
 
 function buildDeps(content: string) {

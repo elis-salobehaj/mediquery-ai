@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { criticNode } from '@/ai/critic';
+import { criticNode } from '@/ai/agents/critic-agent';
 import { createInitialState } from '@/ai/state';
 
 describe('criticNode', () => {

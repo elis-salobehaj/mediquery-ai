@@ -38,17 +38,17 @@ pnpm test
 
 > Coverage last measured: 2026-02-22 · **113 tests, 12 files** · Overall: ~26% stmts (auth: 66%, threads: 100%, token-usage: 91%)
 
-### Integration Tests (Manual Only)
+### Integration Tests (Live API Keys)
 
-These tests require live API keys (e.g., Bedrock/Gemini) and are **excluded** from standard CI runs to avoid costs and flakiness.
+These tests require live API keys (e.g., Bedrock/Gemini) and are **excluded** from standard CI runs to avoid costs and flakiness. In the NestJS backend they are handled by the E2E test suite (`vitest.config.e2e.ts`) and require the full stack to be running.
 
 ```bash
-# Run from backend-py-legacy directory
-cd backend-py-legacy
-uv run pytest -m "integration"
+# From the backend directory — requires live DB + API keys in .env
+cd backend
+pnpm test:e2e
 ```
 
-**What it runs:**
+**What it covers:**
 
 - Real LLM connectivity checks
 - Complex multi-agent flows

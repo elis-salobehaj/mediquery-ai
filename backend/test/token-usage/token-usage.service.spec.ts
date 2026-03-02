@@ -80,18 +80,6 @@ describe('TokenUsageService', () => {
   // ─── calculateCost ───────────────────────────────────────────────────────────
 
   describe('calculateCost (private)', () => {
-    const calc = (
-      provider: Provider,
-      model: string,
-      input: number,
-      output: number,
-    ) =>
-      (
-        service as unknown as {
-          calculateCost: (typeof service)['getUsageStatus'] &
-            ((p: Provider, m: string, i: number, o: number) => number);
-        }
-      ).calculateCost(provider, model, input, output);
 
     it('calculates bedrock sonnet cost by alias', () => {
       expect(

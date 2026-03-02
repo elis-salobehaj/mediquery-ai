@@ -79,8 +79,17 @@ export function autoCorrectTableNames(
 
   // Map of common incorrect names to correct names (medical Domain)
   const tableCorrections: Record<string, string> = {
-    '\\bpatient\\b': 'patients',
-    '\\blabs\\b': 'medical_data_kpis',
+    '\\bpatients?\\b': 'person',
+    '\\bencounters?\\b': 'visit_occurrence',
+    '\\bvisits?\\b': 'visit_occurrence',
+    '\\blabs?\\b': 'measurement',
+    '\\bmeasurements?\\b': 'measurement',
+    '\\bdiagnos(?:is|es)\\b': 'condition_occurrence',
+    '\\bconditions?\\b': 'condition_occurrence',
+    '\\bmedications?\\b': 'drug_exposure',
+    '\\bdrugs?\\b': 'drug_exposure',
+    '\\bprocedures?\\b': 'procedure_occurrence',
+    '\\bobservations?\\b': 'observation',
   };
 
   for (const [pattern, replacement] of Object.entries(tableCorrections)) {

@@ -45,9 +45,11 @@ Text-to-SQL platform for medical KPI analysis using natural language.
 ## 🧭 Documentation Sub-Structure
 
 - **Agent docs (authoritative, concise)**:
+  - `docs/agents/README.md`
    - `docs/agents/context/*`
    - `docs/agents/designs/*`
 - **Human docs (expanded onboarding and rationale)**:
+  - `docs/humans/README.md`
    - `docs/humans/context/*`
    - `docs/humans/designs/*`
 

@@ -52,10 +52,8 @@ docker exec -it mediquery-ai-ollama ollama list
 ### 5. Access the Application
 
 - **Frontend**: http://localhost:3000
-- **Backend API (Legacy)**: http://localhost:8000
-- **Backend API (TypeScript)**: via frontend proxy at `http://localhost:3000/api/v1/*`
-- **API Docs (TypeScript)**: http://localhost:3000/api/docs
-- **API Docs (Legacy)**: http://localhost:8000/docs
+- **Backend API**: via frontend proxy at `http://localhost:3000/api/v1/*`
+- **API Docs**: http://localhost:3000/api/docs
 - **Ollama**: http://localhost:11434
 - **PostgreSQL**: http://localhost:5432
 
@@ -69,19 +67,17 @@ Running Docker containers on a remote server? Access them locally using SSH port
 
 ```bash
 # Linux/Mac/Windows
-ssh -L 3000:localhost:3000 -L 8000:localhost:8000 -L 11434:localhost:11434 username@server_ip
+ssh -L 3000:localhost:3000 -L 11434:localhost:11434 username@server_ip
 ```
 
 This forwards:
 
 - **Port 3000**: Frontend (React/Nginx)
-- **Port 8000**: Backend API (FastAPI)
 - **Port 11434**: Ollama (optional, for model management)
 
 After connecting, access on your local machine:
 
 - Frontend: http://localhost:3000
-- Backend API: http://localhost:8000/docs
 - Ollama: http://localhost:11434
 
 **Keep the SSH session open** while using the application.
@@ -108,13 +104,6 @@ After connecting, access on your local machine:
 - **Image Build**: `migrator.Dockerfile`
 - **Package Source**: `packages/db`
 - **Role**: Applies PostgreSQL migrations before backend startup
-
-### 🔧 Backend (FastAPI - Legacy)
-
-- **Container**: `mediquery-backend-py-legacy`
-- **Port**: 8000
-- **Volumes**:
-  - `./backend-py-legacy` → `/app` (code)
 
 ### 🎨 Frontend (React + Nginx)
 
@@ -429,7 +418,6 @@ docker stats mediquery-ai-ollama
 docker compose ps
 
 # Test endpoints
-curl http://localhost:8000/health
 curl http://localhost:11434/api/tags
 curl http://localhost:3000
 ```

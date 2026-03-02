@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { sqlWriterNode } from '@/ai/sql-writer';
+import { sqlWriterNode } from '@/ai/agents/sql-writer-agent';
 import { createInitialState } from '@/ai/state';
 
 function buildDeps(responseContent: string) {
@@ -35,7 +35,8 @@ describe('sqlWriterNode', () => {
     const state = createInitialState('top person by duration');
     state.selected_tables = ['person', 'visit_occurrence'];
     state.table_schemas = {
-      person: 'CREATE TABLE person (person_id integer, person_source_value text)',
+      person:
+        'CREATE TABLE person (person_id integer, person_source_value text)',
       visit_occurrence:
         'CREATE TABLE visit_occurrence (person_id integer, visit_start_date date, visit_end_date date)',
     };

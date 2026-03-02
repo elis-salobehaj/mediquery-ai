@@ -19,14 +19,14 @@ related_files:
   - frontend/tests/
   - docker-compose.yml
 depends_on:
-  - docs/plans/active/omop_synthea_migration.md
+  - docs/plans/implemented/omop_synthea_migration.md
 blocks: []
 assignee: null
 completion:
   - [x] Phase 1 — Root README.md & AGENTS.md Overhaul
   - [x] Phase 2 — Benchmarking Framework (Golden Dataset)
-  - [ ] Phase 3 — Prompt & Semantic View Alignment
-  - [ ] Phase 4 — Agent Layer Refactor (LangGraph)
+  - [x] Phase 3 — Prompt & Semantic View Alignment
+  - [x] Phase 4 — Agent Layer Refactor (LangGraph)
   - [ ] Phase 5 — Memory System Tailoring
   - [ ] Phase 6 — Test Suite Overhaul
   - [ ] Phase 7 — Live Stack Verification & Agent Iteration

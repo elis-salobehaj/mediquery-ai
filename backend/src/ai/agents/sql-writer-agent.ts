@@ -151,11 +151,11 @@ export async function sqlWriterNode(
     addThought(state, formatMemoryThought(state.scoped_memory));
 
     const sqlWriterConfig = deps.promptService.getPrompt('sql_writer');
-    const role = sqlWriterConfig?.role || 'medical KPI SQL Writer';
+    const role = sqlWriterConfig?.role || 'OMOP SQL Writer';
     const instructions =
       sqlWriterConfig?.instructions ||
-      'Generate MySQL 8.4 compatible SQL queries.';
-    const dialect = sqlWriterConfig?.dialect || 'mysql';
+      'Generate PostgreSQL SQL queries for OMOP CDM v5.4.';
+    const dialect = sqlWriterConfig?.dialect || 'postgresql';
 
     const systemPrompt = `${role}
 
@@ -202,7 +202,7 @@ Rules:
 7. Use aggregations (SUM, AVG, COUNT) when appropriate
 8. Do NOT include semicolons at the end
 9. For complex queries, use CTEs (WITH clause) for clarity
-10. Start directly with SELECT, WITH, INSERT, UPDATE, DELETE, or CREATE
+10. Start directly with SELECT or WITH only (read-only SQL)
 11. ALWAYS use the exact table names from the schema above - do NOT invent or modify table names
 12. Target dialect: ${dialect}`;
 

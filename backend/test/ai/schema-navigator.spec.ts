@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { schemaNavigatorNode } from '@/ai/schema-navigator';
+import { schemaNavigatorNode } from '@/ai/agents/schema-navigator-agent';
 import { createInitialState } from '@/ai/state';
 
 function buildDeps(
@@ -16,10 +16,15 @@ function buildDeps(
       getAllTableNames: vi.fn(async () => tables),
       getTableSchema: vi.fn(
         options?.getTableSchema ||
-        (async (tableName: string) => [
-          ['person_id', 'integer'],
-          [tableName === 'person' ? 'person_source_value' : 'visit_concept_id', 'text'],
-        ]),
+          (async (tableName: string) => [
+            ['person_id', 'integer'],
+            [
+              tableName === 'person'
+                ? 'person_source_value'
+                : 'visit_concept_id',
+              'text',
+            ],
+          ]),
       ),
     },
     promptService: {
@@ -48,18 +53,22 @@ function buildDeps(
 
 describe('schemaNavigatorNode', () => {
   it('parses JSON contract and keeps only valid existing tables', async () => {
-    const state = createInitialState('show medical performance');
+    const state = createInitialState('show visit distribution by type');
     const deps = buildDeps(
       JSON.stringify({
         supported: true,
-        tables: ['person', 'concept', 'visit_occurrence'],
+        tables: ['person', 'visit_occurrence'],
       }),
-      { tables: ['person', 'concept', 'visit_occurrence', 'observation'] }
+      { tables: ['person', 'concept', 'visit_occurrence', 'observation'] },
     );
 
     const result = await schemaNavigatorNode(state, deps as never);
 
-    expect(result.selected_tables).toEqual(['person', 'concept', 'visit_occurrence']);
+    expect(result.selected_tables).toEqual([
+      'person',
+      'visit_occurrence',
+      'concept',
+    ]);
   });
 
   it('returns empty selection for supported=false JSON contract', async () => {
@@ -77,22 +86,26 @@ describe('schemaNavigatorNode', () => {
   });
 
   it('uses supported fallback when LLM output has no valid tables', async () => {
-    const state = createInitialState('list all kpis');
-    const filteredTables = ['person', 'visit_occurrence'];
+    const state = createInitialState('list all visits by person');
+    const filteredTables = ['person', 'visit_occurrence', 'concept'];
     const deps = buildDeps('invalid1, invalid2', { tables: filteredTables });
 
     const result = await schemaNavigatorNode(state, deps as never);
 
-    expect(result.selected_tables).toEqual(['person', 'visit_occurrence']);
+    expect(result.selected_tables).toEqual([
+      'person',
+      'visit_occurrence',
+      'concept',
+    ]);
   });
 
   it('includes candidate shortlist count in thoughts', async () => {
-    const state = createInitialState('show patient performance');
+    const state = createInitialState('show person visit trends');
     const deps = buildDeps(
       JSON.stringify({
         supported: true,
         tables: ['person', 'visit_occurrence'],
-        thought: 'Using patient and performance related tables',
+        thought: 'Using person and visit_occurrence tables',
       }),
     );
 
@@ -107,7 +120,7 @@ describe('schemaNavigatorNode', () => {
   });
 
   it('falls back to all tables when candidate pre-ranking fails', async () => {
-    const state = createInitialState('show medical performance');
+    const state = createInitialState('show encounter trends by month');
     let shouldFailOnce = true;
     const deps = buildDeps('person,visit_occurrence', {
       tables: ['person', 'visit_occurrence', 'billing'],

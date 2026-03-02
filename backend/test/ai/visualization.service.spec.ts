@@ -29,26 +29,26 @@ describe('VisualizationService', () => {
   it('prefers scattermapbox for map intent when latitude/longitude exist', async () => {
     const service = buildService();
     const data: KpiQueryResult = {
-      columns: ['patient_name', 'LATITUDE', 'LONGITUDE', 'DURATION'],
+      columns: ['person_source_value', 'LATITUDE', 'LONGITUDE', 'visit_duration_days'],
       row_count: 3,
       data: [
         {
-          patient_name: 'A',
+          person_source_value: 'A',
           LATITUDE: 29.7,
           LONGITUDE: -95.3,
-          DURATION: 45.1,
+          visit_duration_days: 45.1,
         },
         {
-          patient_name: 'B',
+          person_source_value: 'B',
           LATITUDE: 29.9,
           LONGITUDE: -95.1,
-          DURATION: 43.5,
+          visit_duration_days: 43.5,
         },
       ],
     };
 
     const visType = await service.determineVisualization(
-      'show these patients on a map by duration',
+      'show these persons on a map by visit duration',
       data,
     );
 
@@ -58,11 +58,19 @@ describe('VisualizationService', () => {
   it('does not default to sunburst for map intent without geospatial columns', async () => {
     const service = buildService();
     const data: KpiQueryResult = {
-      columns: ['patient_name', 'CLINIC_NAME', 'BASIN'],
+      columns: ['person_source_value', 'care_site_name', 'department'],
       row_count: 3,
       data: [
-        { patient_name: 'A', CLINIC_NAME: 'R1', BASIN: 'Permian' },
-        { patient_name: 'B', CLINIC_NAME: 'R1', BASIN: 'Permian' },
+        {
+          person_source_value: 'A',
+          care_site_name: 'Site A',
+          department: 'Cardiology',
+        },
+        {
+          person_source_value: 'B',
+          care_site_name: 'Site A',
+          department: 'Cardiology',
+        },
       ],
     };
 
@@ -77,26 +85,26 @@ describe('VisualizationService', () => {
   it('keeps sunburst for true hierarchical non-map requests', async () => {
     const service = buildService();
     const data: KpiQueryResult = {
-      columns: ['COUNTRY', 'STATE', 'CLINIC_NAME', 'patient_name'],
+      columns: ['COUNTRY', 'STATE', 'care_site_name', 'person_source_value'],
       row_count: 4,
       data: [
         {
           COUNTRY: 'USA',
           STATE: 'TX',
-          CLINIC_NAME: 'R1',
-          patient_name: 'A',
+          care_site_name: 'Site A',
+          person_source_value: 'A',
         },
         {
           COUNTRY: 'USA',
           STATE: 'TX',
-          CLINIC_NAME: 'R1',
-          patient_name: 'B',
+          care_site_name: 'Site A',
+          person_source_value: 'B',
         },
       ],
     };
 
     const visType = await service.determineVisualization(
-      'show hierarchy by country, state, clinic and patient',
+      'show hierarchy by country, state, care site and person',
       data,
     );
 
@@ -106,11 +114,11 @@ describe('VisualizationService', () => {
   it('maps generic LLM "map" output to scattermapbox when lat/lon columns exist', async () => {
     const service = buildService('map');
     const data: KpiQueryResult = {
-      columns: ['patient_name', 'lat', 'lon'],
+      columns: ['person_source_value', 'lat', 'lon'],
       row_count: 2,
       data: [
-        { patient_name: 'A', lat: 29.7, lon: -95.3 },
-        { patient_name: 'B', lat: 30.1, lon: -95.8 },
+        { person_source_value: 'A', lat: 29.7, lon: -95.3 },
+        { person_source_value: 'B', lat: 30.1, lon: -95.8 },
       ],
     };
 
@@ -125,26 +133,24 @@ describe('VisualizationService', () => {
   it('prefers bar for ranked KPI comparisons to avoid sunburst overuse', async () => {
     const service = buildService();
     const data: KpiQueryResult = {
-      columns: ['patient_name', 'BASIN', 'CLINIC_NAME', 'visit_duration'],
+      columns: ['person_source_value', 'care_site_name', 'visit_duration'],
       row_count: 10,
       data: [
         {
-          patient_name: 'A',
-          BASIN: 'Permian',
-          CLINIC_NAME: 'R1',
+          person_source_value: 'A',
+          care_site_name: 'Site A',
           visit_duration: 45.1,
         },
         {
-          patient_name: 'B',
-          BASIN: 'Permian',
-          CLINIC_NAME: 'R2',
+          person_source_value: 'B',
+          care_site_name: 'Site B',
           visit_duration: 43.0,
         },
       ],
     };
 
     const visType = await service.determineVisualization(
-      'show top 10 patients by duration',
+      'show top 10 persons by visit duration',
       data,
     );
 

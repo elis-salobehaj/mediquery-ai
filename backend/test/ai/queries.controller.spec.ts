@@ -110,7 +110,7 @@ describe('QueriesController', () => {
     it('passes model_provider and model_id as selected_provider / selected_model_override', async () => {
       await controller.query(
         {
-          question: 'show patients',
+          question: 'show persons',
           model_id: 'gpt-5.2',
           model_provider: 'openai',
         },
@@ -123,7 +123,7 @@ describe('QueriesController', () => {
     });
 
     it('passes undefined provider/model when neither field is supplied', async () => {
-      await controller.query({ question: 'show patients' }, mockReq);
+      await controller.query({ question: 'show persons' }, mockReq);
 
       const invokeArg = mockWorkflow.invoke.mock.calls[0][0];
       expect(invokeArg.selected_provider).toBeUndefined();
@@ -133,7 +133,7 @@ describe('QueriesController', () => {
     it('forwards model_provider to insightService and visualizationService', async () => {
       await controller.query(
         {
-          question: 'show patients',
+          question: 'show persons',
           model_provider: 'gemini',
           model_id: 'gemini-1.5-pro',
         },
@@ -141,13 +141,13 @@ describe('QueriesController', () => {
       );
 
       expect(insightService.generateInsight).toHaveBeenCalledWith(
-        'show patients',
+        'show persons',
         expect.anything(),
         'user-1',
         'gemini',
       );
       expect(visualizationService.determineVisualization).toHaveBeenCalledWith(
-        'show patients',
+        'show persons',
         expect.anything(),
         'user-1',
         'gemini',
@@ -156,7 +156,7 @@ describe('QueriesController', () => {
 
     it('returns sql, data, insight, visualization_type and meta', async () => {
       const result = await controller.query(
-        { question: 'show patients' },
+        { question: 'show persons' },
         mockReq,
       );
       expect(result).toMatchObject({
@@ -170,7 +170,7 @@ describe('QueriesController', () => {
 
     it('skips memory when enable_memory is false', async () => {
       await controller.query(
-        { question: 'show patients', enable_memory: false },
+        { question: 'show persons', enable_memory: false },
         mockReq,
       );
 

@@ -9,7 +9,7 @@ function buildDeps(
     getTableSchema?: (tableName: string) => Promise<Array<[string, string]>>;
   },
 ) {
-  const tables = options?.tables || ['person', 'visit_occurrence', 'billing'];
+  const tables = options?.tables || ['person', 'visit_occurrence', 'concept'];
 
   return {
     dbService: {
@@ -123,7 +123,7 @@ describe('schemaNavigatorNode', () => {
     const state = createInitialState('show encounter trends by month');
     let shouldFailOnce = true;
     const deps = buildDeps('person,visit_occurrence', {
-      tables: ['person', 'visit_occurrence', 'billing'],
+      tables: ['person', 'visit_occurrence', 'condition_occurrence'],
       getTableSchema: vi.fn(async (tableName: string) => {
         if (shouldFailOnce) {
           shouldFailOnce = false;
@@ -131,8 +131,8 @@ describe('schemaNavigatorNode', () => {
         }
 
         return [
-          ['patient_id', 'varchar(255)'],
-          [tableName === 'person' ? 'patient_name' : 'VALUE', 'text'],
+          ['person_id', 'integer'],
+          [tableName === 'person' ? 'person_source_value' : 'value_as_number', 'text'],
         ] as [string, string][];
       }),
     });
@@ -145,7 +145,22 @@ describe('schemaNavigatorNode', () => {
     const prompt = invokeMock.mock.calls[0][0][0].content as string;
 
     expect(prompt).toContain(
-      'Candidate Tables (pre-ranked): person, visit_occurrence, billing',
+      'Candidate Tables (pre-ranked): person, visit_occurrence, condition_occurrence',
     );
+  });
+
+  it('includes concept when selecting condition_era tables', async () => {
+    const state = createInitialState('show average condition era duration by diagnosis');
+    const deps = buildDeps(
+      JSON.stringify({
+        supported: true,
+        tables: ['condition_era'],
+      }),
+      { tables: ['condition_era', 'concept', 'person'] },
+    );
+
+    const result = await schemaNavigatorNode(state, deps as never);
+
+    expect(result.selected_tables).toEqual(['condition_era', 'concept']);
   });
 });

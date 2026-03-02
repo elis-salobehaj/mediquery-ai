@@ -29,6 +29,10 @@ import { UserMemoryPreferencesService } from '@/threads/user-memory-preferences.
 import { QueryRequestDto, QueryRequestSchema } from './dto/query-request.dto';
 import { ZodValidationPipe } from '@/common/pipes/zod-validation.pipe';
 
+function isClinicalUnitSystem(value?: string): value is 'SI' | 'conventional' {
+  return value === 'SI' || value === 'conventional';
+}
+
 @Controller('api/v1/queries')
 export class QueriesController {
   constructor(
@@ -49,7 +53,7 @@ export class QueriesController {
   ) {
     if (enableMemory === false) {
       return {
-        active_patients: [],
+        active_persons: [],
         confidence: 0,
         summary: 'Memory disabled by user settings',
         updated_at: new Date().toISOString(),
@@ -73,8 +77,8 @@ export class QueriesController {
 
     const mergedMemory = {
       ...derived,
-      preferred_units:
-        derived.preferred_units ||
+      preferred_clinical_units:
+        derived.preferred_clinical_units ||
         persistedPreferences?.preferredUnits ||
         undefined,
     };
@@ -86,13 +90,13 @@ export class QueriesController {
     );
 
     if (
-      scopedMemory.preferred_units &&
-      scopedMemory.preferred_units !== persistedPreferences?.preferredUnits
+      isClinicalUnitSystem(scopedMemory.preferred_clinical_units) &&
+      scopedMemory.preferred_clinical_units !== persistedPreferences?.preferredUnits
     ) {
       await this.userMemoryPreferencesService.upsertUserMemoryPreferences(
         userId,
         {
-          preferredUnits: scopedMemory.preferred_units,
+          preferredUnits: scopedMemory.preferred_clinical_units,
         },
       );
     }

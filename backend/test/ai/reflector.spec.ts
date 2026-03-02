@@ -4,14 +4,14 @@ import { createInitialState } from '@/ai/state';
 
 describe('reflectorNode', () => {
   it('adds reflection + streamed thought from parsed reflector contract', async () => {
-    const state = createInitialState('top 10 patients by duration');
-    state.generated_sql = 'SELECT * FROM visits';
+    const state = createInitialState('top 10 diagnoses by prevalence');
+    state.generated_sql = 'SELECT * FROM condition_occurrence';
     state.attempt_count = 1;
     state.validation_result = {
       valid: false,
       error: 'column does not exist',
       issues: ['column does not exist'],
-      fixes: ['use visit_duration'],
+      fixes: ['use condition_concept_id'],
       severity: 'high',
       row_count: 0,
       warnings: [],
@@ -33,8 +33,8 @@ describe('reflectorNode', () => {
           invoke: vi.fn(async () => ({
             content: JSON.stringify({
               root_cause: 'wrong column',
-              fix: 'Use visit_duration column and regroup by patient.',
-              next_tables: ['visits', 'patients'],
+              fix: 'Use condition_concept_id and regroup by person.',
+              next_tables: ['condition_occurrence', 'concept'],
               keep_or_replace_query: 'replace',
             }),
           })),
@@ -54,10 +54,10 @@ describe('reflectorNode', () => {
     });
     expect(result.reflections).toBeDefined();
     expect((result.reflections as string[])[0]).toContain(
-      'Use visit_duration column and regroup by patient.',
+      'Use condition_concept_id and regroup by person.',
     );
     expect(state.thoughts).toContain(
-      '🪞 Reflector: Use visit_duration column and regroup by patient. (root cause: wrong column)',
+      '🪞 Reflector: Use condition_concept_id and regroup by person. (root cause: wrong column)',
     );
   });
 });

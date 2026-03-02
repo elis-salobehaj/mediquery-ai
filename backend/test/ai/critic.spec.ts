@@ -4,12 +4,12 @@ import { createInitialState } from '@/ai/state';
 
 describe('criticNode', () => {
   it('downgrades alias false-positives and advisory notes to warnings', async () => {
-    const state = createInitialState('top 10 patients by duration');
+    const state = createInitialState('top 10 diagnoses by prevalence');
     state.generated_sql =
-      'SELECT wm.patient_name, rk.CLINIC_STATE_medical FROM patients wm';
+      'SELECT co.condition_concept_id FROM condition_occurrence co';
     state.table_schemas = {
-      CLINIC_STATE_KPIS: 'CLINIC_STATE_medical',
-      patients: 'patient_id, patient_name',
+      condition_occurrence: 'person_id, condition_concept_id',
+      concept: 'concept_id, concept_name',
     };
 
     const deps = {
@@ -37,7 +37,7 @@ describe('criticNode', () => {
               valid: false,
               severity: 'high',
               issues: [
-                'Column `rk.CLINIC_STATE_medical` does not exist in CLINIC_STATE_KPIS — the correct column name is `CLINIC_STATE_medical` (this exists).',
+                'Column `co.condition_concept_id` does not exist in condition_occurrence — the correct column name is `condition_concept_id` (this exists).',
                 'LEFT JOIN may include rows with NULL metrics and could skew ranking.',
               ],
               fixes: ['Add stricter filters for ranking columns'],
@@ -56,7 +56,7 @@ describe('criticNode', () => {
 
     expect(result.validation_result?.valid).toBe(true);
     expect(result.validation_result?.warnings).toContain(
-      'Column `rk.CLINIC_STATE_medical` does not exist in CLINIC_STATE_KPIS — the correct column name is `CLINIC_STATE_medical` (this exists).',
+      'Column `co.condition_concept_id` does not exist in condition_occurrence — the correct column name is `condition_concept_id` (this exists).',
     );
     expect(result.validation_result?.warnings).toContain(
       'LEFT JOIN may include rows with NULL metrics and could skew ranking.',
@@ -64,8 +64,8 @@ describe('criticNode', () => {
   });
 
   it('keeps blocking behavior for concrete semantic errors', async () => {
-    const state = createInitialState('show duration by patient');
-    state.generated_sql = 'SELECT bad_column FROM visits';
+    const state = createInitialState('show diagnosis counts by person');
+    state.generated_sql = 'SELECT bad_column FROM condition_occurrence';
 
     const deps = {
       dbService: {
@@ -91,8 +91,10 @@ describe('criticNode', () => {
             content: JSON.stringify({
               valid: false,
               severity: 'high',
-              issues: ['Column `bad_column` does not exist in `visits`.'],
-              fixes: ['Replace `bad_column` with `visit_duration`.'],
+              issues: [
+                'Column `bad_column` does not exist in `condition_occurrence`.',
+              ],
+              fixes: ['Replace `bad_column` with `condition_concept_id`.'],
             }),
             usage_metadata: { input_tokens: 1, output_tokens: 1 },
           })),
@@ -108,10 +110,10 @@ describe('criticNode', () => {
 
     expect(result.validation_result?.valid).toBe(false);
     expect(result.validation_result?.error).toBe(
-      'Column `bad_column` does not exist in `visits`.',
+      'Column `bad_column` does not exist in `condition_occurrence`.',
     );
     expect(result.validation_result?.issues).toEqual([
-      'Column `bad_column` does not exist in `visits`.',
+      'Column `bad_column` does not exist in `condition_occurrence`.',
     ]);
   });
 });

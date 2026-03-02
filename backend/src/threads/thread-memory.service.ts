@@ -61,16 +61,16 @@ export class ThreadMemoryService {
     const existing = this.getThreadMemory(threadId);
 
     const merged: ScopedConversationMemory = {
-      active_patients: Array.from(
+      active_persons: Array.from(
         new Set([
-          ...(existing?.active_patients || []),
-          ...(incoming.active_patients || []),
+          ...(existing?.active_persons || []),
+          ...(incoming.active_persons || []),
         ]),
       ).slice(0, 10),
       active_timeframe: incoming.active_timeframe || existing?.active_timeframe,
-      active_kpi_intent:
-        incoming.active_kpi_intent || existing?.active_kpi_intent,
-      preferred_units: incoming.preferred_units || existing?.preferred_units,
+      active_clinical_intent:
+        incoming.active_clinical_intent || existing?.active_clinical_intent,
+      preferred_clinical_units: incoming.preferred_clinical_units || existing?.preferred_clinical_units,
       summary: incoming.summary || existing?.summary,
       confidence: Math.max(incoming.confidence, existing?.confidence || 0),
       updated_at: new Date().toISOString(),

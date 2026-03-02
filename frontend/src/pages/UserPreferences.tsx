@@ -43,8 +43,13 @@ interface MemoryPreferencesResponse {
   preferred_chart_style: string | null;
 }
 
-const DEFAULT_UNITS = 'm/hr';
+const CLINICAL_UNIT_SYSTEMS = ['SI', 'conventional'] as const;
+const DEFAULT_UNITS = 'SI';
 const DEFAULT_CHART_STYLE = 'table';
+
+function isClinicalUnitSystem(value: string | null): value is string {
+  return !!value && CLINICAL_UNIT_SYSTEMS.includes(value as never);
+}
 
 const UserPreferences: React.FC<UserPreferencesProps> = ({
   enable_memory,
@@ -65,7 +70,11 @@ const UserPreferences: React.FC<UserPreferencesProps> = ({
         const res = await axios.get(getApiUrl('/memory/preferences'));
         const data = res.data as MemoryPreferencesResponse;
 
-        setPreferredUnits(data.preferred_units || DEFAULT_UNITS);
+        setPreferredUnits(
+          isClinicalUnitSystem(data.preferred_units)
+            ? data.preferred_units
+            : DEFAULT_UNITS,
+        );
         setPreferredChartStyle(
           data.preferred_chart_style || DEFAULT_CHART_STYLE,
         );
@@ -160,7 +169,7 @@ const UserPreferences: React.FC<UserPreferencesProps> = ({
           </CardHeader>
           <CardContent className="space-y-6 p-4">
             <div className="space-y-2 rounded-md border border-(--border-subtle) p-4">
-              <Label htmlFor="preferred-units">Preferred Units</Label>
+              <Label htmlFor="preferred-units">Preferred Unit System</Label>
               <Select
                 value={preferredUnits}
                 onValueChange={async (value) => {
@@ -169,11 +178,13 @@ const UserPreferences: React.FC<UserPreferencesProps> = ({
                 }}
               >
                 <SelectTrigger id="preferred-units" className="w-full">
-                  <SelectValue placeholder="Select units" />
+                  <SelectValue placeholder="Select unit system" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="m/hr">Metric (m/hr)</SelectItem>
-                  <SelectItem value="ft/hr">Imperial (ft/hr)</SelectItem>
+                  <SelectItem value="SI">SI (e.g., mmol/L, kg, cm)</SelectItem>
+                  <SelectItem value="conventional">
+                    Conventional (e.g., mg/dL)
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>

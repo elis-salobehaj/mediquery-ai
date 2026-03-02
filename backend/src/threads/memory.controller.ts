@@ -14,8 +14,10 @@ import { UserMemoryPreferencesService } from '@/threads/user-memory-preferences.
 import { z } from 'zod';
 import { ZodValidationPipe } from '@/common/pipes/zod-validation.pipe';
 
+const ClinicalUnitSystemSchema = z.enum(['SI', 'conventional']);
+
 const MemoryPreferencesSchema = z.object({
-  preferred_units: z.string().min(1).max(64).optional(),
+  preferred_units: ClinicalUnitSystemSchema.optional(),
   preferred_chart_style: z.string().min(1).max(64).optional(),
 });
 

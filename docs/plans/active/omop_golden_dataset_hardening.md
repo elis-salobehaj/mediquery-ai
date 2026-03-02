@@ -27,8 +27,8 @@ completion:
   - [x] Phase 2 — Benchmarking Framework (Golden Dataset)
   - [x] Phase 3 — Prompt & Semantic View Alignment
   - [x] Phase 4 — Agent Layer Refactor (LangGraph)
-  - [ ] Phase 5 — Memory System Tailoring
-  - [ ] Phase 6 — Test Suite Overhaul
+  - [x] Phase 5 — Memory System Tailoring
+  - [x] Phase 6 — Test Suite Overhaul
   - [ ] Phase 7 — Live Stack Verification & Agent Iteration
   - [ ] Phase 8 — Full Documentation Purge
 ---

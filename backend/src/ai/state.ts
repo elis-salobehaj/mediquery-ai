@@ -1,10 +1,10 @@
 import type { BaseMessage } from '@langchain/core/messages';
 
 export interface ScopedConversationMemory {
-  active_patients: string[];
+  active_persons: string[];
   active_timeframe?: string;
-  active_kpi_intent?: string;
-  preferred_units?: string;
+  active_clinical_intent?: string;
+  preferred_clinical_units?: string;
   summary?: string;
   confidence: number;
   updated_at: string;
@@ -114,7 +114,7 @@ export const createInitialState = (
   thoughts: [],
   agent_mode: 'multi',
   scoped_memory: {
-    active_patients: [],
+    active_persons: [],
     confidence: 0,
     updated_at: new Date().toISOString(),
   },

@@ -39,7 +39,7 @@ describe('routerNode', () => {
   });
 
   it('falls back to legacy type/reason JSON shape', async () => {
-    const state = createInitialState('show top 10 patients by duration');
+    const state = createInitialState('show top 10 diagnoses by prevalence');
     const deps = buildDeps(
       JSON.stringify({
         type: 'DATA',

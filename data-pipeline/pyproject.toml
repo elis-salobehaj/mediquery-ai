@@ -12,3 +12,25 @@ dependencies = [
     "pydantic-settings>=2.13.1",
     "sqlalchemy>=2.0.47",
 ]
+
+# Console entry points so uv can run the pipeline as named commands.
+[project.scripts]
+pipeline-full = "main:main"
+pipeline-etl = "main:run_etl_only"
+
+# PEP 517 build backend required so uv can package/install this project.
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# Tell uv to treat this repo as a package (so project.scripts are installed).
+[tool.uv]
+package = true
+
+# Include flat top-level modules used by the entry points/import graph.
+[tool.setuptools]
+py-modules = ["main", "config", "load_omop"]
+
+# Include the vocabulary package directory and any subpackages.
+[tool.setuptools.packages.find]
+include = ["vocabulary*"]

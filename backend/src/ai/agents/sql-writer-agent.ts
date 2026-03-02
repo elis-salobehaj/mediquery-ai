@@ -93,10 +93,52 @@ function tryParseJsonContract(raw: string): SQLWriterResponse | null {
   return null;
 }
 
+function unescapeJsonSql(sql: string): string {
+  return sql
+    .replace(/\\n/g, '\n')
+    .replace(/\\t/g, '\t')
+    .replace(/\\r/g, '\r')
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, '\\');
+}
+
+function tryExtractJsonLikeSql(raw: string): SQLWriterResponse | null {
+  const unwrapped = unwrapCodeFence(raw);
+  const match = unwrapped.match(
+    /"sql"\s*:\s*"([\s\S]*?)"\s*(?:,\s*"(?:thought|table_strategy|notes|confidence|join_plan)"|\})/i,
+  );
+  if (!match) {
+    return null;
+  }
+
+  const sql = unescapeJsonSql(match[1]).trim();
+  if (!sql) {
+    return null;
+  }
+
+  const thoughtMatch = unwrapped.match(/"thought"\s*:\s*"([\s\S]*?)"\s*(?:,|\})/i);
+  const tableStrategyMatch = unwrapped.match(
+    /"table_strategy"\s*:\s*"([\s\S]*?)"\s*(?:,|\})/i,
+  );
+
+  return {
+    sql,
+    thought: thoughtMatch ? unescapeJsonSql(thoughtMatch[1]).trim() : undefined,
+    table_strategy: tableStrategyMatch
+      ? unescapeJsonSql(tableStrategyMatch[1]).trim()
+      : undefined,
+  };
+}
+
 function parseSqlWriterResponse(raw: string): SQLWriterResponse {
   const parsedContract = tryParseJsonContract(raw);
   if (parsedContract) {
     return parsedContract;
+  }
+
+  const jsonLikeContract = tryExtractJsonLikeSql(raw);
+  if (jsonLikeContract) {
+    return jsonLikeContract;
   }
 
   return { sql: unwrapCodeFence(raw) };

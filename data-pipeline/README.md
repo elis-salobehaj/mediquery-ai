@@ -10,7 +10,7 @@ This directory contains the Python-based data engineering toolchain for generati
 ## End-to-End Data Flow
 
 ```mermaid
-flowchart LR
+flowchart TD
     A[Synthea Generator] -->|generate_synthea.sh| B[Bronze CSVs]
     B -->|docker compose up| C[Silver DB Bootstrap]
     C -->|alembic upgrade head| D[Profile-Aware ETL]
@@ -29,11 +29,30 @@ flowchart LR
 ```
 
 ## Setup
-1. Run `uv sync` to install dependencies.
-2. Ensure you have the `.env` in the root folder with the pipeline configuration (`PIPELINE_DB_USER` etc).
-3. Start the transient database: `docker compose up -d`
-4. Deploy the OMOP schemas: `uv run alembic upgrade head`
-5. Run ETL through the profile-aware entrypoint: `uv run main.py`
+1. Ensure the root `.env` file is present and configured (`PIPELINE_DB_*`, `PIPELINE_PROFILE`, `SYNTHEA_*`).
+2. Install Python dependencies once: `uv sync`
+3. Run the full pipeline with a single command (no env var injection needed):
+
+  ```bash
+  uv run pipeline-full
+  ```
+
+### What `uv run pipeline-full` does
+
+The command is fully `.env`-driven and runs all phases in order:
+
+1. Starts PostgreSQL container (`docker compose up -d postgres`) when `PIPELINE_DB_HOST=localhost`
+2. Waits for DB readiness using `PIPELINE_DB_HOST/PORT/USER/PASSWORD/NAME`
+3. Generates Bronze Synthea CSVs using `SYNTHEA_POPULATION_SIZE` and `SYNTHEA_SEED`
+4. Applies Silver schema migrations (`alembic upgrade head`)
+5. Runs profile-aware ETL and vocabulary loading
+6. Exports fresh Gold artifact to `data-pipeline/gold_omop_tenant.sql`
+
+For ETL-only reruns (skip Synthea/migrations/export), use:
+
+```bash
+uv run pipeline-etl
+```
 
 ## Pipeline Profiles (Phase 0/1)
 

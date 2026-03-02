@@ -97,6 +97,21 @@ function parseNavigatorContract(content: string): {
   return null;
 }
 
+function extractJsonLikeTableList(content: string): string[] {
+  const match = content.match(/"tables"\s*:\s*\[([\s\S]*?)\]/i);
+  if (!match) {
+    return [];
+  }
+
+  const tableNames: string[] = [];
+  const tableRegex = /"([a-zA-Z0-9_]+)"/g;
+  let tableMatch: RegExpExecArray | null;
+  while ((tableMatch = tableRegex.exec(match[1])) !== null) {
+    tableNames.push(tableMatch[1]);
+  }
+  return tableNames;
+}
+
 const OMOP_FACT_TABLES = new Set([
   'visit_occurrence',
   'condition_occurrence',
@@ -195,6 +210,21 @@ function enforceConceptTableSelection(
   return unique;
 }
 
+function isClinicalQuery(query: string): boolean {
+  const tokens = tokenize(query);
+  return tokens.some((token) => CLINICAL_SIGNAL_TOKENS.has(token));
+}
+
+function isClinicalTable(table: string): boolean {
+  return (
+    OMOP_FACT_TABLES.has(table) ||
+    table === 'person' ||
+    table === 'concept' ||
+    table === 'observation_period' ||
+    table === 'location'
+  );
+}
+
 async function retrieveCandidateTables(
   userQuery: string,
   allTables: string[],
@@ -260,6 +290,23 @@ function parseNavigatorSelection(
         thought: parsed.thought,
       },
       selected: [],
+    };
+  }
+
+  const jsonLikeTables = extractJsonLikeTableList(content)
+    .map((table) => table.trim())
+    .filter((table) => valid.has(table));
+  if (jsonLikeTables.length > 0) {
+    return {
+      contract: {
+        supported: true,
+        tables: jsonLikeTables,
+        join_plan: [],
+        confidence: 0,
+        notes: 'Recovered tables from JSON-like navigator output',
+        thought: 'Selected tables by recovering JSON-like tables array',
+      },
+      selected: jsonLikeTables,
     };
   }
 
@@ -454,7 +501,7 @@ Return strict JSON only:
     );
 
     // 2. Parse table names (JSON contract first, CSV fallback)
-    const parsed = parseNavigatorSelection(content, candidateTables);
+    const parsed = parseNavigatorSelection(content, allTables);
     const selected = parsed.selected;
 
     // 3. Track Usage
@@ -488,10 +535,23 @@ Return strict JSON only:
     }
 
     if (selected.length > 0) {
-      const enforcedSelection = enforceConceptTableSelection(
-        selected,
-        allTables,
-      );
+      let enforcedSelection = enforceConceptTableSelection(selected, allTables);
+
+      if (
+        isClinicalQuery(state.original_query) &&
+        !enforcedSelection.some((table) => isClinicalTable(table))
+      ) {
+        const clinicalCandidates = candidateTables.filter((table) =>
+          isClinicalTable(table),
+        );
+        if (clinicalCandidates.length > 0) {
+          enforcedSelection = enforceConceptTableSelection(
+            clinicalCandidates.slice(0, 3),
+            allTables,
+          );
+        }
+      }
+
       return {
         selectedTables: enforcedSelection,
         candidateTables,

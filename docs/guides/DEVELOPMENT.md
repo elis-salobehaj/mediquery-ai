@@ -185,6 +185,31 @@ uv lock --upgrade
 uv sync
 ```
 
+### Data Pipeline (First-Time Setup, Single Command)
+
+After `.env` is configured, run the full OMOP data pipeline from `data-pipeline/` using one command:
+
+```bash
+cd data-pipeline
+uv sync
+uv run pipeline-full
+```
+
+`uv run pipeline-full` uses `.env` values directly (no inline env overrides needed) and performs:
+
+- DB bootstrap (when `PIPELINE_DB_HOST=localhost`)
+- Synthea Bronze generation
+- Alembic migrations
+- Profile-aware ETL + vocabulary load
+- Gold export to `data-pipeline/gold_omop_tenant.sql`
+
+If you only want to rerun ETL logic after data is already generated:
+
+```bash
+cd data-pipeline
+uv run pipeline-etl
+```
+
 ### Data Pipeline Profile Defaults
 
 For local and CI runs, keep the pipeline in open/synthetic mode:

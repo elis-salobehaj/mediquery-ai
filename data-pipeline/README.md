@@ -11,21 +11,21 @@ This directory contains the Python-based data engineering toolchain for generati
 
 ```mermaid
 flowchart LR
-    A["Synthea Generator<br/>generate_synthea.sh<br/>population + seed"] --> B["Bronze CSVs<br/>bronze/synthea/csv/"]
-    B --> C["Silver DB Bootstrap<br/>docker compose up<br/>alembic upgrade head"]
-    C --> D["Profile-Aware ETL<br/>load_omop.py"]
+    A[Synthea Generator] -->|generate_synthea.sh| B[Bronze CSVs]
+    B -->|docker compose up| C[Silver DB Bootstrap]
+    C -->|alembic upgrade head| D[Profile-Aware ETL]
 
-    D --> E1["Tenant Facts<br/>tenant_nexus_health.*"]
-    D --> E2["Vocabulary Layer<br/>omop_vocab.concept + support tables"]
-    D --> E3["Concept Mirror<br/>tenant_nexus_health.concept"]
+    D --> E1[Tenant Fact Tables]
+    D --> E2[Vocabulary Layer]
+    D --> E3[Tenant Concept Mirror]
 
-    E1 --> F["QA / Validation Gates<br/>required concepts · join coverage · non-empty tables"]
+    E1 --> F[QA and Validation Gates]
     E2 --> F
     E3 --> F
 
-    F --> G["Gold Artifact<br/>gold_omop_tenant.sql"]
-    G --> H["App Runtime DB<br/>omop_db loaded in Docker"]
-    H --> I["Backend AI Query Path<br/>SQL generation + concept joins"]
+    F -->|pg_dump| G[Gold Artifact]
+    G -->|Docker volume| H[App Runtime DB]
+    H --> I[Backend AI Query Path]
 ```
 
 ## Setup

@@ -20,6 +20,28 @@ RUN pnpm install --frozen-lockfile
 RUN cd backend && pnpm run build
 RUN cd packages/db && pnpm run build
 
+# ─── unit-test stage ─────────────────────────────────────────────────────────
+# Installs all deps (incl. devDeps) and runs Vitest via SWC.
+# No app build needed — vitest transpiles on-the-fly.
+FROM node:24.13.1-alpine AS unit-test
+
+WORKDIR /app
+RUN apk add --no-cache curl
+RUN corepack enable && corepack use pnpm@latest
+
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY backend/package.json ./backend/
+COPY packages/db/package.json ./packages/db/
+
+COPY backend/ ./backend/
+COPY packages/ ./packages/
+
+RUN pnpm install --frozen-lockfile
+RUN cd packages/db && pnpm run build
+
+WORKDIR /app/backend
+CMD ["pnpm", "test"]
+
 # ─── test stage ──────────────────────────────────────────────────────────────
 FROM node:24.13.1-alpine AS test
 

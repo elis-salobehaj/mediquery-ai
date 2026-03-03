@@ -1,6 +1,22 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FiMessageSquare, FiMoreVertical, FiEdit2, FiTrash2, FiShare2, FiCheck, FiX } from 'react-icons/fi';
+import {
+  FiMessageSquare,
+  FiMoreVertical,
+  FiEdit2,
+  FiTrash2,
+  FiShare2,
+} from 'react-icons/fi';
 import { RiPushpinFill, RiPushpinLine } from 'react-icons/ri';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import type { Thread } from '../../App';
 
 interface ThreadItemProps {
@@ -22,29 +38,17 @@ const ThreadItem: React.FC<ThreadItemProps> = ({
   onRename,
   onDelete,
   onPin,
-  onShare
+  onShare,
 }) => {
-  const [showMenu, setShowMenu] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [editTitle, setEditTitle] = useState(thread.title);
-  const menuRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  // Close menu on click outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   // Focus input when renaming starts
   useEffect(() => {
     if (isRenaming && inputRef.current) {
       inputRef.current.focus();
+      inputRef.current.select();
     }
   }, [isRenaming]);
 
@@ -53,7 +57,7 @@ const ThreadItem: React.FC<ThreadItemProps> = ({
     if (editTitle.trim()) {
       onRename(thread.id, editTitle.trim());
     } else {
-      setEditTitle(thread.title); // Revert if empty
+      setEditTitle(thread.title);
     }
     setIsRenaming(false);
   };
@@ -66,19 +70,22 @@ const ThreadItem: React.FC<ThreadItemProps> = ({
     }
   };
 
+  // Collapsed icon-only view
   if (!isSidebarOpen) {
     return (
       <button
         onClick={() => onSelect(thread.id)}
-        className={`
-          w-full flex items-center justify-center p-2 my-1 rounded-md transition-colors relative group
-          ${isActive ? 'bg-[var(--accent-primary)] text-white' : 'hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'}
-        `}
+        className={cn(
+          'group relative my-1 flex w-full cursor-pointer items-center justify-center rounded-md p-2 transition-colors',
+          isActive
+            ? 'bg-primary/10 text-primary'
+            : 'text-muted-foreground hover:bg-accent',
+        )}
         title={thread.title}
       >
         <FiMessageSquare size={18} />
         {thread.pinned && (
-          <div className="absolute top-1 right-1 w-2 h-2 bg-yellow-500 rounded-full border border-[var(--bg-secondary)]" />
+          <div className="border-card absolute top-1 right-1 h-2 w-2 rounded-full border bg-yellow-500" />
         )}
       </button>
     );
@@ -86,84 +93,90 @@ const ThreadItem: React.FC<ThreadItemProps> = ({
 
   return (
     <div
-      className={`
-        group flex items-center gap-2 px-3 py-2 my-1 rounded-full transition-colors relative cursor-pointer
-        ${isActive ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]' : 'hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'}
-      `}
+      className={cn(
+        'group relative my-0.5 flex cursor-pointer items-center rounded-full pr-1 pl-4',
+        isActive
+          ? 'bg-primary/30 text-primary hover:bg-primary/50 hover:text-accent-foreground'
+          : 'text-muted-foreground hover:bg-primary/50 hover:text-accent-foreground',
+      )}
       onClick={() => !isRenaming && onSelect(thread.id)}
     >
-      {/* Icon */}
-      <div className={`shrink-0 ${isActive ? 'text-[var(--accent-primary)]' : 'text-[var(--text-tertiary)]'}`}>
-        <FiMessageSquare size={16} />
-      </div>
-
       {/* Content */}
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0 flex-1">
         {isRenaming ? (
-          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-            <input
+          <div onClick={(e) => e.stopPropagation()}>
+            <Input
               ref={inputRef}
-              type="text"
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
               onKeyDown={handleKeyDown}
               onBlur={() => handleRenameSubmit()}
-              className="w-full bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded px-1 py-0.5 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-primary)]"
+              aria-label="Rename thread"
+              className="h-8 py-0 text-sm"
             />
           </div>
         ) : (
-          <div className="flex items-center justify-between">
-            <span className={`truncate text-sm ${isActive ? 'font-medium' : ''}`}>
+          <div className="flex items-center justify-between gap-1">
+            <span
+              className={cn('w-40 truncate text-sm', isActive && 'font-medium')}
+            >
               {thread.title}
             </span>
-            {thread.pinned && <RiPushpinFill size={12} className="shrink-0 text-yellow-500 ml-2" />}
+            {thread.pinned && (
+              <RiPushpinFill
+                size={11}
+                className="ml-1 shrink-0 text-yellow-500"
+              />
+            )}
           </div>
         )}
       </div>
 
-      {/* Actions (Hover Only or Menu Open) */}
+      {/* Context menu (visible on hover or when open) */}
       {!isRenaming && (
-        <div className="relative" ref={menuRef} onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={() => setShowMenu(!showMenu)}
-            className={`
-              p-1 rounded-md hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] cursor-pointer
-              ${showMenu ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity
-            `}
-          >
-            <FiMoreVertical size={16} />
-          </button>
-
-          {/* Context Menu */}
-          {showMenu && (
-            <div className="absolute right-0 top-full mt-1 w-48 bg-[var(--bg-secondary)] border border-[var(--border-subtle)] rounded-lg shadow-xl z-50 overflow-hidden animate-fade-in">
-              <button
-                onClick={() => { onShare(thread.id); setShowMenu(false); }}
-                className="w-full text-left px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] flex items-center gap-2 cursor-pointer"
+        <div onClick={(e) => e.stopPropagation()}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="text-muted-foreground hover:bg-primary hover:text-foreground h-8 w-8 cursor-pointer rounded-full opacity-0 transition-all group-hover:opacity-100 data-[state=open]:opacity-100"
+                aria-label="Thread options"
               >
-                <FiShare2 size={14} /> Share conversation
-              </button>
-              <button
-                onClick={() => { onRename(thread.id, editTitle); setIsRenaming(true); setShowMenu(false); }}
-                className="w-full text-left px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] flex items-center gap-2 cursor-pointer"
+                <FiMoreVertical size={14} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem
+                className="cursor-pointer gap-2"
+                onClick={() => onShare(thread.id)}
               >
-                <FiEdit2 size={14} /> Rename
-              </button>
-              <button
-                onClick={() => { onPin(thread.id, !thread.pinned); setShowMenu(false); }}
-                className="w-full text-left px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] flex items-center gap-2 cursor-pointer"
+                <FiShare2 size={13} />
+                Share conversation
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer gap-2"
+                onClick={() => setIsRenaming(true)}
               >
-                <RiPushpinLine size={14} /> {thread.pinned ? 'Unpin' : 'Pin'}
-              </button>
-              <div className="h-px bg-[var(--border-subtle)] my-1" />
-              <button
-                onClick={() => { onDelete(thread.id); setShowMenu(false); }}
-                className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-500/10 flex items-center gap-2 cursor-pointer"
+                <FiEdit2 size={13} />
+                Rename
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="cursor-pointer gap-2"
+                onClick={() => onPin(thread.id, !thread.pinned)}
               >
-                <FiTrash2 size={14} /> Delete
-              </button>
-            </div>
-          )}
+                <RiPushpinLine size={13} />
+                {thread.pinned ? 'Unpin' : 'Pin'}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive cursor-pointer gap-2"
+                onClick={() => onDelete(thread.id)}
+              >
+                <FiTrash2 size={13} />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       )}
     </div>

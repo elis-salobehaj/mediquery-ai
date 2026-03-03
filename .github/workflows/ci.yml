@@ -22,22 +22,17 @@ jobs:
 
       - name: Build and Run Backend Unit Tests
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # JWT_SECRET_KEY has a safe Zod default; injecting from Secrets is
+          # still best-practice so we never accidentally leak a real value.
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
-          CHAT_HISTORY_RETENTION_HOURS: 24
-          USE_LOCAL_MODEL: false
         run: |
-          # Build backend-unit service with ci profile
+          # Build the unit-test Docker stage (TypeScript / NestJS + Vitest)
           docker compose -f docker-compose.test.yml --profile ci build backend-unit
-            
-          # Run tests with ci profile, skipping integration tests
+
+          # Run Vitest unit tests – all external deps are mocked, no DB or LLM needed
           docker compose -f docker-compose.test.yml --profile ci run \
-            -e GEMINI_API_KEY \
             -e JWT_SECRET_KEY \
-            -e CHAT_HISTORY_RETENTION_HOURS \
-            -e USE_LOCAL_MODEL \
-            --rm backend-unit \
-            python -m pytest -m "not integration" -v
+            --rm backend-unit
 
   frontend-test:
     runs-on: ubuntu-latest

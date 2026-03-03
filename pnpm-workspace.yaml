@@ -1,0 +1,15 @@
+packages:
+  - backend
+  - frontend
+  - packages/*
+
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - '@swc/core'
+  - argon2
+  - cpu-features
+  - es5-ext
+  - esbuild
+  - msw
+  - protobufjs
+  - ssh2

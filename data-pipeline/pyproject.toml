@@ -1,0 +1,37 @@
+[project]
+name = "data-pipeline"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.18.4",
+    "polars>=1.38.1",
+    "psycopg[binary]>=3.3.3",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.13.1",
+    "sqlalchemy>=2.0.47",
+]
+
+# Console entry points so uv can run the pipeline as named commands.
+[project.scripts]
+pipeline-full = "scripts.run_full_pipeline:main"
+pipeline-etl = "main:run_etl_only"
+pipeline-export-gold = "scripts.export_gold:main"
+
+# PEP 517 build backend required so uv can package/install this project.
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# Tell uv to treat this repo as a package (so project.scripts are installed).
+[tool.uv]
+package = true
+
+# Include flat top-level modules used by the entry points/import graph.
+[tool.setuptools]
+py-modules = ["main", "config", "load_omop"]
+
+# Include the vocabulary and scripts package directories.
+[tool.setuptools.packages.find]
+include = ["vocabulary*", "scripts*"]

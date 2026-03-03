@@ -13,8 +13,11 @@ dist-ssr
 *.local
 
 # Editor directories and files
+# Allow .vscode for team settings - only exclude user-specific files
 .vscode/*
+!.vscode/settings.json
 !.vscode/extensions.json
+!.vscode/launch.json
 .idea
 .DS_Store
 *.suo
@@ -27,4 +30,3 @@ dist-ssr
 /playwright-report/
 /test-results/
 /playwright/.cache/
-

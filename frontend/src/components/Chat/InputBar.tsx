@@ -1,40 +1,68 @@
-import React, { useState, type KeyboardEvent } from 'react';
-import { FiSend, FiCpu, FiMoreHorizontal } from 'react-icons/fi';
+import React, { useState, useRef, type KeyboardEvent } from 'react';
+import { FiSend } from 'react-icons/fi';
+import { Loader2, Zap, Cpu } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 
 interface InputBarProps {
   onSend: (text: string) => void;
   isLoading: boolean;
   onStop?: () => void;
-  fastMode: boolean;
-  setFastMode: (enabled: boolean) => void;
-  multiAgent: boolean;
-  setMultiAgent: (enabled: boolean) => void;
-  models: Array<{ id: string, name: string }>;
+  agentMode: 'fast' | 'multi-agent';
+  setAgentMode: (mode: 'fast' | 'multi-agent') => void;
+  models: Array<{ id: string; name: string }>;
   selectedModel: string;
   setSelectedModel: (id: string) => void;
 }
 
+const AGENT_MODES = [
+  {
+    value: 'fast',
+    label: 'Fast',
+    icon: Zap,
+    emoji: '⚡',
+    tooltip: 'Fast Mode: Straightshot execution. Lowest cost & latency.',
+  },
+  {
+    value: 'multi-agent',
+    label: 'Multi-Agent',
+    icon: Cpu,
+    emoji: '🤖',
+    tooltip: 'Multi-Agent: Full orchestration. Highest capability.',
+  },
+] as const;
+
 const InputBar: React.FC<InputBarProps> = ({
   onSend,
   isLoading,
-  fastMode,
-  setFastMode,
-  multiAgent,
-  setMultiAgent,
+  agentMode,
+  setAgentMode,
   models,
   selectedModel,
-  setSelectedModel
+  setSelectedModel,
 }) => {
   const [input, setInput] = useState('');
-  const [showOptions, setShowOptions] = useState(true);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (input.trim() && !isLoading) {
-        onSend(input);
-        setInput('');
-      }
+      handleSubmit();
     }
   };
 
@@ -42,104 +70,131 @@ const InputBar: React.FC<InputBarProps> = ({
     if (input.trim() && !isLoading) {
       onSend(input);
       setInput('');
+      // Reset height
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
     }
   };
 
+  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    // Auto-resize
+    const target = e.target;
+    target.style.height = 'auto';
+    target.style.height = `${Math.min(target.scrollHeight, 200)}px`;
+  };
+
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 pb-6">
-      <div className="relative group">
-        <div className={`
-          gemini-input flex flex-col transition-all duration-300
-          ${isLoading ? 'opacity-80' : 'opacity-100'}
-          bg-[var(--bg-input)]
-        `}>
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask Mediquery..."
-            className="w-full bg-transparent border-none outline-none resize-none min-h-[50px] max-h-[200px] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] py-2"
-            rows={1}
-            style={{ height: 'auto', minHeight: '24px' }}
-            onInput={(e) => {
-              const target = e.target as HTMLTextAreaElement;
-              target.style.height = 'auto'; // Reset height
-              target.style.height = `${Math.min(target.scrollHeight, 200)}px`; // Set new height
-            }}
-          />
+    <div className="mx-auto w-full max-w-4xl px-4 pb-6">
+      {/* Input container */}
+      <div
+        className={cn(
+          'bg-card flex flex-col gap-2 rounded-2xl px-5 py-3 shadow-sm',
+          isLoading && 'opacity-80',
+        )}
+      >
+        {/* Textarea */}
+        <Textarea
+          ref={textareaRef}
+          value={input}
+          onChange={handleInput}
+          onKeyDown={handleKeyDown}
+          placeholder="Ask Mediquery..."
+          rows={1}
+          className={cn(
+            'max-h-50 min-h-7 resize-none border-none bg-inherit shadow-none',
+            'text-foreground placeholder:text-muted-foreground p-1 text-base focus-visible:ring-0',
+          )}
+          style={{ height: 'auto', background: 'inherit' }}
+        />
 
-          <div className="flex items-center justify-between mt-2 pt-2 border-t border-[var(--border-subtle)]/30">
-            {/* Left: Toggles & Options */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowOptions(!showOptions)}
-                className={`btn-icon p-2 rounded-full hover:bg-[var(--bg-tertiary)] cursor-pointer ${showOptions ? 'text-[var(--accent-primary)] bg-[var(--bg-tertiary)]' : ''}`}
-                title="Model Settings"
-              >
-                <FiMoreHorizontal size={18} />
-              </button>
+        {/* Toolbar */}
+        <div className="flex items-center justify-between bg-transparent pt-1">
+          {/* Left: Model + Agent Mode */}
+          <div className="flex items-center gap-2">
+            {/* Model selector */}
+            {models.length > 0 && (
+              <Select value={selectedModel} onValueChange={setSelectedModel}>
+                <SelectTrigger className="text-muted-foreground hover:bg-primary/20 hover:text-foreground h-7 w-auto max-w-40 cursor-pointer rounded-full border-none pl-4 text-xs font-medium shadow-none transition-colors focus:ring-0">
+                  <SelectValue placeholder="Select model" />
+                </SelectTrigger>
+                <SelectContent>
+                  {models.map((m) => (
+                    <SelectItem key={m.id} value={m.id} className="text-xs">
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
 
-              {showOptions && (
-                <div className="flex items-center gap-2 animate-fade-in bg-[var(--bg-primary)] px-2 py-1 rounded-full border border-[var(--border-subtle)] shadow-sm">
-                  {/* Model Select */}
-                  <select
-                    value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
-                    className="text-xs bg-transparent border-none outline-none text-[var(--text-secondary)] font-medium cursor-pointer max-w-[120px] truncate"
-                  >
-                    {models.map(m => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
-                  </select>
+            <Separator orientation="vertical" className="h-4" />
 
-                  <div className="w-px h-3 bg-[var(--border-subtle)] mx-1"></div>
-
-                  {/* Fast Mode Toggle */}
-                  <button
-                    onClick={() => setFastMode(!fastMode)}
-                    className={`text-xs px-2 py-0.5 rounded-full transition-colors font-medium border cursor-pointer ${fastMode ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] border-[var(--accent-primary)]/20' : 'text-[var(--text-tertiary)] border-transparent hover:bg-[var(--bg-tertiary)]'}`}
-                    title="Fast Mode uses simpler models for speed"
-                  >
-                    ⚡ Fast
-                  </button>
-
-                  {/* Multi-Agent Toggle */}
-                  <button
-                    onClick={() => setMultiAgent(!multiAgent)}
-                    className={`text-xs px-2 py-0.5 rounded-full transition-colors font-medium border cursor-pointer ${multiAgent ? 'bg-purple-500/10 text-purple-600 border-purple-500/20' : 'text-[var(--text-tertiary)] border-transparent hover:bg-[var(--bg-tertiary)]'}`}
-                    title="Multi-Agent Mode uses specialized agents"
-                  >
-                    🤖 Agents
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Right: Send Button */}
-            <button
-              onClick={handleSubmit}
-              disabled={!input.trim() || isLoading}
-              className={`
-                p-2 rounded-full transition-all duration-200
-                ${input.trim() && !isLoading
-                  ? 'bg-[var(--accent-primary)] text-white shadow-md hover:bg-[var(--accent-hover)] transform hover:scale-105'
-                  : 'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] cursor-not-allowed'}
-              `}
+            {/* Agent mode toggle group */}
+            <ToggleGroup
+              type="single"
+              value={agentMode}
+              onValueChange={(v) => {
+                if (v) setAgentMode(v as typeof agentMode);
+              }}
+              className="gap-0.5"
+              style={{ background: 'inherit' }}
             >
-              {isLoading ? (
-                <FiCpu className="animate-spin" size={18} />
-              ) : (
-                <FiSend size={18} className={input.trim() ? 'ml-0.5' : ''} />
-              )}
-            </button>
+              {AGENT_MODES.map(({ value, label, emoji, tooltip }) => (
+                <Tooltip key={value}>
+                  <TooltipTrigger asChild>
+                    <ToggleGroupItem
+                      value={value}
+                      aria-label={label}
+                      className={cn(
+                        'text-muted-foreground hover:bg-primary/20 hover:text-foreground h-7',
+                        'cursor-pointer bg-transparent px-2 text-xs transition-colors',
+                        agentMode === value &&
+                          'bg-primary/20 text-primary ring-primary/20 ring-1',
+                      )}
+                    >
+                      {emoji}
+                      {label}
+                    </ToggleGroupItem>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="top"
+                    className="max-w-50 text-center text-xs"
+                  >
+                    {tooltip}
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </ToggleGroup>
           </div>
+
+          {/* Right: Send button */}
+          <Button
+            onClick={handleSubmit}
+            disabled={!input.trim() || isLoading}
+            size="icon"
+            className={cn(
+              'h-8 w-8 cursor-pointer rounded-full',
+              input.trim() && !isLoading
+                ? 'shadow-md hover:scale-105'
+                : 'opacity-50',
+            )}
+            aria-label="Send message"
+          >
+            {isLoading ? (
+              <Loader2 size={15} className="animate-spin" />
+            ) : (
+              <FiSend size={15} />
+            )}
+          </Button>
         </div>
       </div>
-      <div className="text-center mt-2">
-        <p className="text-[10px] text-[var(--text-tertiary)]">
-          Mediquery can make mistakes. Use with professional verification.
-        </p>
-      </div>
+
+      {/* Footer */}
+      <p className="text-muted-foreground mt-2 text-center text-[10px]">
+        Mediquery can make mistakes. Use with professional verification.
+      </p>
     </div>
   );
 };

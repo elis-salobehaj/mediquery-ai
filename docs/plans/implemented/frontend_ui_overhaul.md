@@ -52,7 +52,7 @@ completion:
 **Target**: `Login.tsx`, `ChatInterface.tsx`, `Sidebar.tsx`
 - [x] CSS variable migration (replaced hardcoded colors)
 - [x] Container queries for responsive sizing
-- [x] Theme types updated to include `drilling-slate`
+- [x] Theme types updated to include `clinical-slate`
 - [x] Cursor-pointer on interactive elements
 
 ### Phase 2.5: Configuration & Verification 🔄
@@ -144,7 +144,7 @@ class Settings(BaseSettings):
 ### Theming (All 3 Modes)
 - [ ] **Light Mode**: Clean whites/grays
 - [ ] **Dark Mode (Abyss)**: Deep, not flat black
-- [ ] **Drilling Slate**: Slate 800 background with industry accents
+- [ ] **Clinical Slate**: Slate 800 background with industry accents
 - [ ] **Dynamic Toggle**: All elements update instantly
 
 ### Visualizations

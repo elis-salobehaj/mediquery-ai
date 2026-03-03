@@ -1,21 +1,52 @@
 services:
+  # PostgreSQL 18.3 Database (Token Tracking, Users, Chat, KPI Data)
+  postgres:
+    image: postgres:18.3-alpine
+    container_name: mediquery-postgres
+    restart: always
+    env_file: .env
+    environment:
+      - PGDATA=/var/lib/postgresql/data
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${APP_DB_NAME}
+      - OMOP_DB_NAME=${OMOP_DB_NAME}
+      - OMOP_TENANT_SCHEMA=${OMOP_TENANT_SCHEMA}
+      - OMOP_VOCAB_SCHEMA=${OMOP_VOCAB_SCHEMA}
+      - APP_DB_SCHEMA=${APP_DB_SCHEMA}
+      - OMOP_ETL_USER=${OMOP_ETL_USER}
+      - OMOP_ETL_PASSWORD=${OMOP_ETL_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init-multi-db.sh:/docker-entrypoint-initdb.d/01_init_multi_db.sh:ro
+      - ./data-pipeline/gold_omop_tenant.sql.gz:/seed/gold_omop_tenant.sql.gz:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   # Ollama service (local LLM) - Only starts when using local model
   ollama:
     profiles:
-      - local-model  # Only start with --profile local-model or when USE_LOCAL_MODEL=true
+      - local-model # Only start with --profile local-model or when USE_LOCAL_MODEL=true
     build:
       context: .
       dockerfile: ollama.Dockerfile
-    container_name: mediquery-ai-ollama
+    container_name: mediquery-ollama
     ports:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
       - ./ollama_entrypoint.sh:/entrypoint.sh
+    env_file: .env
     environment:
       - OLLAMA_ORIGINS=*
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: [ "CMD", "curl", "-f", "http://localhost:11434/api/tags" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -28,45 +59,55 @@ services:
           devices:
             - driver: nvidia
               count: 1
-              capabilities: [gpu]
+              capabilities: [ gpu ]
 
-  # Backend service (FastAPI)
+  # Database Migrator - Runs DB migrations before backend starts
+  migrator:
+    build:
+      context: .
+      dockerfile: migrator.Dockerfile
+    container_name: mediquery-migrator
+    env_file: .env
+    environment:
+      - NODE_ENV=production
+      - POSTGRES_HOST=mediquery-postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - default
+
+  # Backend service (TypeScript - Active)
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
-      args:
-        # Use 'bedrock' for lightweight cloud deployment (no PyTorch/HuggingFace)
-        # Use 'local' for Ollama + semantic search (includes heavy ML libraries)
-        # Use 'full' for all features
-        BUILD_MODE: ${DOCKER_BUILD_MODE:-bedrock}
-    container_name: mediquery-ai-backend
+      context: .
+      dockerfile: backend.Dockerfile
+    container_name: mediquery-backend
     ports:
-      - "8000:8000"
+      - "8001:8001"
     volumes:
       - ./backend:/app
-      - ./backend/data:/app/data
+      - /app/node_modules
+    env_file: .env
     environment:
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - CHAT_HISTORY_RETENTION_HOURS=${CHAT_HISTORY_RETENTION_HOURS}
-      - USE_LOCAL_MODEL=${USE_LOCAL_MODEL}
-      - LOCAL_MODEL_NAME=${LOCAL_MODEL_NAME}
-      - OLLAMA_HOST=http://mediquery-ai-ollama:11434
-      - USE_BEDROCK=${USE_BEDROCK}
-      - AWS_BEDROCK_REGION=${AWS_BEDROCK_REGION}
-      - AWS_BEARER_TOKEN_BEDROCK=${AWS_BEARER_TOKEN_BEDROCK}
-      - BEDROCK_SQL_WRITER_MODEL=${BEDROCK_SQL_WRITER_MODEL}
-      - BEDROCK_NAVIGATOR_MODEL=${BEDROCK_NAVIGATOR_MODEL}
-      - BEDROCK_CRITIC_MODEL=${BEDROCK_CRITIC_MODEL}
-    # No hard dependency on Ollama - backend will work with or without it
+      - NODE_ENV=development
+      - PORT=8001
+      - POSTGRES_HOST=mediquery-postgres
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: [ "CMD", "curl", "-f", "${VITE_API_URL:-http://localhost:8001}/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
     restart: unless-stopped
+    networks:
+      - default
 
   # Frontend service (React + Nginx)
   frontend:
@@ -74,25 +115,30 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       target: production
-    container_name: mediquery-ai-frontend
+      args:
+        VITE_APP_TITLE: ${VITE_APP_TITLE:-Mediquery}
+    container_name: mediquery-frontend
     ports:
       - "3000:80"
     depends_on:
       - backend
-    environment:
-      - VITE_API_URL=http://localhost:8000
+    env_file: .env
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      test: [ "CMD", "curl", "-f", "http://localhost:80" ]
       interval: 30s
       timeout: 10s
       retries: 3
     restart: unless-stopped
 
 volumes:
+  postgres_data:
+    driver: local
+  mediquery_data:
+    driver: local
   ollama_data:
     driver: local
 
 networks:
   default:
-    name: mediquery-ai-network
+    name: mediquery-network
     driver: bridge

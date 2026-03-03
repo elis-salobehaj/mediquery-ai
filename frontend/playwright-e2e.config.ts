@@ -1,14 +1,18 @@
 import { defineConfig, devices } from '@playwright/test';
+import { frontendTestEnv } from './tests/env';
 
 export default defineConfig({
   testDir: './tests',
+  testMatch: /.*\.spec\.ts/, // Only match .spec.ts files (E2E), ignore .spec.tsx (Component CT)
+  testIgnore: 'components/**',
   fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  forbidOnly: frontendTestEnv.isCi,
+  retries: frontendTestEnv.isCi ? 2 : 0,
+  workers: frontendTestEnv.isCi ? 1 : '50%',
   reporter: 'html',
   use: {
-    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:3000',
+    baseURL:
+      frontendTestEnv.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:3000',
     trace: 'on-first-retry',
   },
   projects: [

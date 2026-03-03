@@ -2,21 +2,19 @@ services:
   # ==========================================
   # 1. CI Services (Isolated Unit/Component)
   # ==========================================
-  
-  # Isolated Backend Unit Tests (Pytest)
+
+  # Isolated Backend Unit Tests (TypeScript / NestJS + Vitest)
+  # All dependencies are mocked – no DB or LLM keys required.
   backend-unit:
     profiles: ["ci"]
     build:
-      context: ./backend
-      dockerfile: Dockerfile
-      args:
-        BUILD_MODE: ci
+      context: .
+      dockerfile: backend/Dockerfile
+      target: unit-test
     environment:
-      - USE_LOCAL_MODEL=true
-      - GEMINI_API_KEY=test
-      - ANTHROPIC_API_KEY=test
-    # No volumes! We rely on COPY in Dockerfile for hermetic builds.
-    command: python -m pytest -v
+      - NODE_ENV=test
+    # No volumes – hermetic build relies on COPY in Dockerfile.
+    command: pnpm test
 
   # Isolated Frontend Component Tests (Playwright CT)
   frontend-component:
@@ -28,65 +26,128 @@ services:
     environment:
       - CI=true
     # No volumes!
-    command: npx playwright test
+    command: pnpm exec playwright test
 
   # ==========================================
   # 2. E2E Services (Full Stack Integration)
   # ==========================================
 
-  # Real Backend (Mocked LLM for stability)
-  backend:
+  # Isolated PostgreSQL for E2E (matches production service config)
+  test-postgres:
     profiles: ["e2e"]
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      args:
-        BUILD_MODE: production
+    image: postgres:18.3-alpine
+    restart: always
     environment:
-      - USE_LOCAL_MODEL=true
-      - GEMINI_API_KEY=test
-      - ANTHROPIC_API_KEY=test
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${APP_DB_NAME}
+    volumes:
+      - test_postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init-multi-db.sh:/docker-entrypoint-initdb.d/01_init_multi_db.sh:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${APP_DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 20
-      start_period: 10s
+
+  # Real Backend TS (NestJS – E2E integration server)
+  backend:
+    profiles: ["e2e"]
+    container_name: mediquery-test-backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: test
+    environment:
+      - NODE_ENV=test
+      - PORT=8001
+      - POSTGRES_HOST=test-postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - APP_DB_NAME=${APP_DB_NAME}
+      - APP_DB_SCHEMA=${APP_DB_SCHEMA:-mediquery_app}
+      - OMOP_DB_NAME=${OMOP_DB_NAME:-omop_db}
+      - OMOP_TENANT_SCHEMA=${OMOP_TENANT_SCHEMA:-tenant_nexus_health}
+      - OMOP_VOCAB_SCHEMA=${OMOP_VOCAB_SCHEMA:-omop_vocab}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - USE_BEDROCK=false
+      - USE_OPENAI=false
+      - USE_GEMINI=false
+      - USE_ANTHROPIC=false
+      - USE_LOCAL_MODEL=true
+    depends_on:
+      test-postgres:
+        condition: service_healthy
+    command: >
+      sh -c "pnpm run db:push && node dist/test/main.test.js"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
 
   # Real Frontend (Nginx)
   frontend:
     profiles: ["e2e"]
+    container_name: mediquery-test-frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile
       target: production
-      args:
-        # Bake in the internal docker network URL
-        - VITE_API_URL=http://backend:8000
     depends_on:
       backend:
         condition: service_healthy
     ports:
-      - "3000:80" # Exposed so we can debug locally if needed
+      - "3000:80"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80"]
       interval: 5s
       timeout: 5s
       retries: 20
 
-  # E2E Runner (Ephemerally runs tests against the stack)
+  # E2E Runner (Playwright – runs against the full stack)
   e2e-runner:
     profiles: ["e2e"]
-    image: mcr.microsoft.com/playwright:v1.57.0-jammy
+    image: mcr.microsoft.com/playwright:v1.58.2-noble
     working_dir: /app
     volumes:
       - ./frontend:/app
     environment:
       - CI=true
-      # Point Playwright to the internal frontend service name
       - PLAYWRIGHT_TEST_BASE_URL=http://frontend:80
+      - VITE_API_URL=
     depends_on:
       frontend:
         condition: service_healthy
     command: >
-      sh -c "npm install && npx playwright test -c playwright-e2e.config.ts"
+      sh -c "corepack enable && pnpm install && pnpm exec playwright test -c playwright-e2e.config.ts --workers=2 --trace on --shard=$${PLAYWRIGHT_SHARD:-1/1}"
+
+  # Backend E2E Runner (Database Integration Tests via Vitest)
+  backend-e2e:
+    profiles: ["e2e"]
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: test
+    environment:
+      - NODE_ENV=test
+      - POSTGRES_HOST=test-postgres
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - APP_DB_NAME=${APP_DB_NAME}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: >
+      pnpm test:e2e test/database.e2e-spec.ts
+
+networks:
+  default:
+    name: mediquery-test-network
+    driver: bridge
+
+volumes:
+  test_postgres_data:

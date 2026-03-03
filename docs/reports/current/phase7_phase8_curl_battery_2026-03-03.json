@@ -1,0 +1,99 @@
+{
+  "generated_at": "2026-03-03T15:54:17.924765+00:00",
+  "base_url": "http://localhost:8001/api/v1",
+  "total": 10,
+  "passed": 10,
+  "failed": 0,
+  "results": [
+    {
+      "index": 1,
+      "question": "What are the top 5 most common diagnoses?",
+      "http_status": "200",
+      "passed": true,
+      "reason": "ok",
+      "bytes": 8030,
+      "row_count": 5
+    },
+    {
+      "index": 2,
+      "question": "Show patient distribution by gender",
+      "http_status": "200",
+      "passed": true,
+      "reason": "ok",
+      "bytes": 5903,
+      "row_count": 2
+    },
+    {
+      "index": 3,
+      "question": "What medications is the most prescribed?",
+      "http_status": "200",
+      "passed": true,
+      "reason": "ok",
+      "bytes": 11563,
+      "row_count": 20
+    },
+    {
+      "index": 4,
+      "question": "Average duration of inpatient visits",
+      "http_status": "200",
+      "passed": true,
+      "reason": "ok",
+      "bytes": 6606,
+      "row_count": 1
+    },
+    {
+      "index": 5,
+      "question": "Show latest blood pressure for each patient",
+      "http_status": "200",
+      "passed": true,
+      "reason": "ok",
+      "bytes": 15416,
+      "row_count": 20
+    },
+    {
+      "index": 6,
+      "question": "How many patients have both diabetes and hypertension?",
+      "http_status": "200",
+      "passed": true,
+      "reason": "ok",
+      "bytes": 6621,
+      "row_count": 1
+    },
+    {
+      "index": 7,
+      "question": "List all procedures performed during emergency visits",
+      "http_status": "200",
+      "passed": true,
+      "reason": "ok",
+      "bytes": 17442,
+      "row_count": 20
+    },
+    {
+      "index": 8,
+      "question": "What is the average number of conditions per patient?",
+      "http_status": "200",
+      "passed": true,
+      "reason": "ok",
+      "bytes": 7408,
+      "row_count": 1
+    },
+    {
+      "index": 9,
+      "question": "Show drug exposure duration by medication class",
+      "http_status": "200",
+      "passed": true,
+      "reason": "ok",
+      "bytes": 8869,
+      "row_count": 1
+    },
+    {
+      "index": 10,
+      "question": "Distribution of visit types (inpatient vs outpatient vs ER)",
+      "http_status": "200",
+      "passed": true,
+      "reason": "ok",
+      "bytes": 7082,
+      "row_count": 3
+    }
+  ]
+}

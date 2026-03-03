@@ -1,11 +1,29 @@
-import React, { useState } from 'react';
-import { FiMenu, FiSettings, FiPlus } from 'react-icons/fi';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  FiMenu,
+  FiPlus,
+  FiBarChart2,
+  FiShield,
+  FiSettings,
+} from 'react-icons/fi';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Separator } from '@/components/ui/separator';
+import { cn } from '@/lib/utils';
 import SettingsMenu from './SettingsMenu';
 import ThreadItem from './ThreadItem';
 import type { Thread } from '../../App';
+import { isAdmin } from '../../utils/auth';
 
 interface SidebarProps {
   onNewChat: () => void;
+  onLogout: () => void;
   threads: Thread[];
   currentChatId: string | null;
   onSelectThread: (id: string) => void;
@@ -15,12 +33,14 @@ interface SidebarProps {
   onShareThread: (id: string) => void;
   isOpen: boolean;
   onToggle: () => void;
-  theme: 'light' | 'dark' | 'drilling-slate' | 'system';
-  setTheme: (theme: 'light' | 'dark' | 'drilling-slate' | 'system') => void;
+  theme: 'light' | 'dark' | 'clinical-slate' | 'system';
+  setTheme: (theme: 'light' | 'dark' | 'clinical-slate' | 'system') => void;
+  onOpenPreferences: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
   onNewChat,
+  onLogout,
   threads,
   currentChatId,
   onSelectThread,
@@ -31,123 +51,203 @@ const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   onToggle,
   theme,
-  setTheme
+  setTheme,
+  onOpenPreferences,
 }) => {
-  const [showSettings, setShowSettings] = useState(false);
-  const settingsBtnRef = React.useRef<HTMLButtonElement>(null);
-  const settingsMenuRef = React.useRef<HTMLDivElement>(null);
-
-  // Close settings when clicking outside
-  React.useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        showSettings &&
-        settingsMenuRef.current &&
-        !settingsMenuRef.current.contains(event.target as Node) &&
-        settingsBtnRef.current &&
-        !settingsBtnRef.current.contains(event.target as Node)
-      ) {
-        setShowSettings(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [showSettings]);
+  const navigate = useNavigate();
+  const userIsAdmin = isAdmin();
+  const appTitle = (
+    import.meta as ImportMeta & { env?: { VITE_APP_TITLE?: string } }
+  ).env?.VITE_APP_TITLE;
 
   return (
     <div
-      className={`fixed top-0 left-0 h-full bg-[var(--bg-secondary)] border-r border-[var(--border-subtle)] transition-all duration-300 ease-in-out z-40 flex flex-col
-      ${isOpen ? 'w-64' : 'w-16'}
-      `}
+      className={cn('bg-card flex h-full flex-col', isOpen ? 'w-64' : 'w-14')}
     >
-      {/* Header / Hamburger */}
-      <div className="flex items-center p-4">
-        <button
-          onClick={onToggle}
-          className="btn-icon p-2 rounded-full hover:bg-[var(--bg-tertiary)] cursor-pointer"
-        >
-          <FiMenu size={20} />
-        </button>
+      {/* ── Header / Hamburger ── */}
+      <div
+        className={cn(
+          'flex items-center p-3',
+          isOpen ? 'gap-3' : 'justify-center',
+        )}
+      >
+        {isOpen ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggle}
+            className="text-muted-foreground hover:bg-primary/20 hover:text-foreground h-9 w-9 cursor-pointer rounded-full"
+            aria-label="Toggle Sidebar"
+          >
+            <FiMenu size={18} />
+          </Button>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onToggle}
+                className="text-muted-foreground hover:bg-primary/20 hover:text-foreground h-9 w-9 cursor-pointer rounded-full"
+                aria-label="Toggle Sidebar"
+              >
+                <FiMenu size={18} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Open Sidebar</TooltipContent>
+          </Tooltip>
+        )}
         {isOpen && (
-          <span className="ml-3 font-heading font-semibold text-[var(--text-secondary)]">
-            {import.meta.env.VITE_APP_TITLE || 'MediqueryAI'}
+          <span className="font-heading text-muted-foreground truncate font-semibold">
+            {appTitle || 'MediqueryAI'}
           </span>
         )}
       </div>
 
-      {/* New Chat Button */}
-      <div className="px-4 mb-4">
-        <button
-          onClick={onNewChat}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 bg-[var(--accent-primary)] text-white rounded-lg hover:bg-[var(--accent-hover)] transition-colors shadow-sm cursor-pointer
-          ${!isOpen && 'justify-center'}
-          `}
-          title="New Chat"
-        >
-          <FiPlus size={24} className={isOpen ? 'text-[var(--text-secondary)] shrink-0' : 'text-[var(--text-secondary)] mx-auto shrink-0'} />
-          {isOpen && <span className="font-medium text-[var(--text-primary)] text-sm">New chat</span>}
-        </button>
-      </div>
-
-      {/* Thread List */}
-      <div className="flex-1 overflow-y-auto px-2 custom-scrollbar">
-        {isOpen && (
-          <div className="mb-2 px-4 text-xs font-bold text-[var(--text-primary)] opacity-60 uppercase tracking-wider">
-            Recent
-          </div>
+      {/* ── New Chat ── */}
+      <div
+        className={cn(
+          'mb-3 flex items-center px-3',
+          isOpen ? 'gap-3' : 'justify-center',
         )}
-
-        {threads.length === 0 && isOpen && (
-          <div className="px-4 py-8 text-sm text-[var(--text-tertiary)] text-center italic">
-            No recent chats
-          </div>
-        )}
-
-        {threads.map((thread) => (
-          <ThreadItem
-            key={thread.id}
-            thread={thread}
-            isActive={currentChatId === thread.id}
-            isSidebarOpen={isOpen}
-            onSelect={onSelectThread}
-            onRename={onRenameThread}
-            onDelete={onDeleteThread}
-            onPin={onPinThread}
-            onShare={onShareThread}
-          />
-        ))}
-      </div>
-
-      {/* Bottom Actions */}
-      <div className="p-3 mt-auto border-t border-[var(--border-subtle)]">
-        <div className="relative">
-          <button
-            ref={settingsBtnRef}
-            onClick={() => setShowSettings(!showSettings)}
-            className={`
-               flex items-center gap-3 w-full p-3 rounded-md hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)] cursor-pointer
-               ${!isOpen && 'justify-center'}
-               ${showSettings ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]' : ''}
-             `}
+      >
+        {isOpen ? (
+          <Button
+            onClick={onNewChat}
+            className="bg-primary/90 hover:bg-primary h-9 w-full cursor-pointer gap-2 rounded-full"
+            title="New Chat"
           >
-            <FiSettings size={20} />
-            {isOpen && <span className="text-sm font-medium">Settings</span>}
-          </button>
+            <FiPlus size={16} />
+            New chat
+          </Button>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                onClick={onNewChat}
+                size="icon"
+                className="bg-primary/90 hover:bg-primary h-9 w-9 cursor-pointer rounded-full"
+                title="New Chat"
+              >
+                <FiPlus size={18} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">New Chat</TooltipContent>
+          </Tooltip>
+        )}
+      </div>
 
-          {/* Settings Context Menu */}
-          {showSettings && (
-            <div ref={settingsMenuRef}>
-              <SettingsMenu
-                theme={theme}
-                setTheme={setTheme}
-                onClose={() => setShowSettings(false)}
-                isSidebarOpen={isOpen}
-              />
-            </div>
-          )}
-        </div>
+      {/* ── Thread List ── */}
+      <ScrollArea className="flex-1 px-2">
+        {isOpen && threads.length > 0 && (
+          <p className="text-muted-foreground mb-2 px-2 text-sm font-bold tracking-wider uppercase opacity-70">
+            Recent
+          </p>
+        )}
+
+        {isOpen && threads.length === 0 && (
+          <p className="text-muted-foreground px-4 py-8 text-center text-sm italic">
+            No recent chats
+          </p>
+        )}
+
+        {isOpen &&
+          threads.map((thread: Thread) => (
+            <ThreadItem
+              key={thread.id}
+              thread={thread}
+              isActive={currentChatId === thread.id}
+              isSidebarOpen={isOpen}
+              onSelect={onSelectThread}
+              onRename={onRenameThread}
+              onDelete={onDeleteThread}
+              onPin={onPinThread}
+              onShare={onShareThread}
+            />
+          ))}
+      </ScrollArea>
+
+      {/* ── Bottom Actions ── */}
+      <div className="mt-auto space-y-1 p-3">
+        <Separator />
+
+        {/* Usage Dashboard */}
+        {isOpen ? (
+          <Button
+            className="hover:bg-primary/20 text-foreground h-9 w-full cursor-pointer justify-start gap-3 rounded-full bg-transparent"
+            onClick={() => navigate('/dashboard')}
+          >
+            <FiBarChart2 size={18} />
+            <span className="text-sm">Usage Dashboard</span>
+          </Button>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                className="hover:bg-primary/20 text-foreground h-9 w-9 cursor-pointer rounded-full bg-transparent"
+                onClick={() => navigate('/dashboard')}
+                aria-label="Usage Dashboard"
+              >
+                <FiBarChart2 size={18} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Usage Dashboard</TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* Admin: Quota Management */}
+        {userIsAdmin &&
+          (isOpen ? (
+            <Button
+              className="hover:bg-primary/20 text-foreground h-9 w-full cursor-pointer justify-start gap-3 rounded-full bg-transparent"
+              onClick={() => navigate('/admin')}
+            >
+              <FiShield size={18} />
+              <span className="text-sm">Quota Management</span>
+            </Button>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  className="hover:bg-primary/20 text-foreground h-9 w-9 cursor-pointer rounded-full bg-transparent"
+                  onClick={() => navigate('/admin')}
+                  aria-label="Quota Management"
+                >
+                  <FiShield size={18} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Quota Management</TooltipContent>
+            </Tooltip>
+          ))}
+
+        {/* Settings (DropdownMenu) */}
+        <SettingsMenu
+          theme={theme}
+          setTheme={setTheme}
+          onOpenPreferences={onOpenPreferences}
+          onClose={() => {}}
+          isSidebarOpen={isOpen}
+          onLogout={onLogout}
+          trigger={
+            isOpen ? (
+              <Button className="hover:bg-primary/20 text-foreground h-9 w-full cursor-pointer justify-start gap-3 rounded-full bg-transparent">
+                <FiSettings size={18} />
+                <span className="text-sm">Settings</span>
+              </Button>
+            ) : (
+              <Button
+                size="icon"
+                className="hover:bg-primary/20 text-foreground h-9 w-9 cursor-pointer rounded-full bg-transparent"
+                aria-label="Settings"
+                title="Settings"
+              >
+                <FiSettings size={18} />
+              </Button>
+            )
+          }
+        />
       </div>
     </div>
   );

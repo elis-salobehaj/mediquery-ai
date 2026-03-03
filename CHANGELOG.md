@@ -6,7 +6,7 @@
 
 * **Complete architectural overhaul**: Migrated from a single-agent LangGraph workflow to a sophisticated multi-agent system with specialized agents (Navigator, Writer, Critic).
 * **API Response Format Update**: The `/query` endpoint now returns detailed agent thoughts and metadata in the `meta` field.
-* **Frontend Theme System**: Complete redesign of the UI with dynamic CSS variables and 3 premium themes (Light, Dark, Drilling Slate).
+* **Frontend Theme System**: Complete redesign of the UI with dynamic CSS variables and 3 premium themes (Light, Dark, Clinical Slate).
 
 ### Multi-Agent SQL Architecture (LangGraph)
 
@@ -24,7 +24,7 @@
 
 ### Frontend UI/UX Overhaul
 
-* **Premium Theme Suite**: Introduced "Light", "Dark", and "Drilling Slate" with a glassmorphism design.
+* **Premium Theme Suite**: Introduced "Light", "Dark", and "Clinical Slate" with a glassmorphism design.
 * **Theme-Aware Architecture**: Replaced all hardcoded colors with a centralized CSS variable system.
 * **Enhanced Thread Management**: Full CRUD operations for chat threads including pinning and list management.
 

@@ -1,5 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
-@import "tailwindcss";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
 
 @theme {
   /* OKLCH Color Space - Perceptually Uniform */
@@ -15,7 +19,7 @@
   /* Chart Palette (Soft, Professional) */
   --color-chart-accent-1: oklch(70% 0.15 250);
   /* Soft Sky */
-  --color-chart-accent-2: oklch(65% 0.20 280);
+  --color-chart-accent-2: oklch(65% 0.2 280);
   /* Soft Violet */
   --color-chart-accent-3: oklch(68% 0.18 160);
   /* Soft Emerald */
@@ -23,31 +27,66 @@
   /* Soft Amber */
   --color-chart-accent-5: oklch(70% 0.18 350);
   /* Soft Pink */
-  --color-chart-accent-6: oklch(68% 0.20 300);
+  --color-chart-accent-6: oklch(68% 0.2 300);
   /* Soft Lavender */
+
+  /* Map Palette (Light - Clean & minimal) */
+  --map-land: oklch(98% 0.01 260);
+  /* Very light grey */
+  --map-ocean: oklch(90% 0.02 240);
+  /* Soft blue-grey */
+  --map-lake: oklch(90% 0.02 240);
+  /* Match ocean */
+  --map-border: oklch(85% 0.01 260);
+  /* Subtle borders */
+  --map-coastline: oklch(80% 0.02 260);
 
   /* Design Tokens */
   --radius-xl: 1rem;
   --font-body: 'Inter', sans-serif;
   --font-heading: 'Outfit', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+
+  /* Table Specific Tokens (Light) - Using Hex for Plotly Compatibility */
+  --color-table-text: #000000;
+  --table-header-bg: #f0f0f0;
+  /* oklch(94% 0.01 260) approx */
+  --table-cell-row-odd: #ffffff;
+  /* oklch(98% 0.01 260) approx */
+  --table-cell-row-even: #f8f8f8;
+  /* oklch(96% 0.01 260) approx */
+  --table-border-color: #e5e5e5;
+  /* oklch(90% 0.01 260) approx */
 }
 
 /* Dark Theme Overrides (Abyss Mode) */
-[data-theme="dark"] {
+[data-theme='dark'] {
   --color-surface: oklch(15% 0.05 260);
   --color-surface-elevated: oklch(18% 0.05 260);
   --color-text: oklch(98% 0.02 260);
   --color-text-secondary: oklch(65% 0.03 260);
   --color-text-tertiary: oklch(45% 0.03 260);
-  --color-brand: oklch(75% 0.20 260);
-  --color-border: oklch(25% 0.03 260);
+  --color-brand: oklch(75% 0.2 260);
+  --color-border: oklch(45% 0.03 260);
+
+  /* Map Palette (Dark - Abyss / Meteorite Style) */
+  /* Replicating the "scatter-tile-maps" dark aesthetic strictly with OKLCH */
+  --map-land: oklch(25% 0 0);
+  /* Dark grey land */
+  --map-ocean: oklch(10% 0 0);
+  /* Almost black ocean */
+  --map-lake: oklch(10% 0 0);
+  /* Match ocean */
+  --map-border: oklch(35% 0 0);
+  /* Subtle grey borders */
+  --map-coastline: oklch(35% 0 0);
+  /* Match borders */
 
   /* Chart colors remain same - OKLCH ensures perceptual consistency */
 }
 
-/* Drilling Slate Theme (Oil & Gas Industry) */
-[data-theme="drilling-slate"] {
+/* Clinical Slate Theme (Healthcare Industry) */
+[data-theme='clinical-slate'] {
   --color-surface: oklch(25% 0.02 250);
   /* Slate 800: #1e293b */
   --color-surface-elevated: oklch(28% 0.02 250);
@@ -55,7 +94,7 @@
   /* Slate 200: #e2e8f0 */
   --color-text-secondary: oklch(70% 0.01 250);
   --color-text-tertiary: oklch(50% 0.02 250);
-  --color-brand: oklch(75% 0.20 260);
+  --color-brand: oklch(75% 0.2 260);
   --color-border: oklch(35% 0.02 250);
 
   /* Industry-Specific Accents */
@@ -66,6 +105,16 @@
   --color-flow-green: oklch(70% 0.18 145);
   /* #22c55e - Steady Production */
 
+  /* Map Palette (Clinical Slate - Blueprint Style) */
+  --map-land: oklch(35% 0.03 250);
+  /* Blueprint Blue-Grey */
+  --map-ocean: oklch(22% 0.03 250);
+  /* Darker Blue Background */
+  --map-lake: oklch(22% 0.03 250);
+  --map-border: oklch(45% 0.04 250);
+  /* Lighter Blue lines */
+  --map-coastline: oklch(45% 0.04 250);
+
   /* Chart colors remain same - OKLCH ensures perceptual consistency */
 }
 
@@ -73,15 +122,20 @@
 :root {
   /* Map to OKLCH variables */
   --bg-primary: var(--color-surface);
-  --bg-secondary: oklch(96% 0.01 260);
-  --bg-tertiary: oklch(93% 0.01 260);
+  --bg-secondary: oklch(97% 0.01 260);
+  --bg-tertiary: oklch(95% 0.01 260);
   --bg-input: var(--color-surface);
+  --bg-muted: oklch(80% 0.01 260);
 
   --text-primary: var(--color-text);
   --text-secondary: var(--color-text-secondary);
   --text-tertiary: var(--color-text-tertiary);
 
-  --border-subtle: var(--color-border);
+  /* Light mode border: explicit value — do NOT use var(--color-border) here.
+     @theme tokens are compiled statically and cannot be overridden by
+     [data-theme] blocks when referenced via var() in :root.
+     Each theme block below sets its own --border-subtle directly. */
+  --border-subtle: oklch(88% 0.01 260);
   --accent-primary: var(--color-brand);
   --accent-hover: oklch(60% 0.25 260);
 
@@ -104,6 +158,63 @@
   --chart-fill-area: oklch(70% 0.15 250 / 0.2);
   --chart-fill-hover: oklch(70% 0.15 250 / 0.4);
   --chart-link-color: oklch(70% 0.15 250 / 0.3);
+  /* =====================================================
+     SHADCN TOKEN BRIDGE — Mapped to our OKLCH variables
+     All Shadcn components inherit the Mediquery palette
+     ===================================================== */
+  --radius: 0.625rem;
+
+  /* Surface / background */
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
+
+  /* Card surfaces */
+  --card: var(--bg-secondary);
+  --card-foreground: var(--text-primary);
+
+  /* Popover / dropdown surfaces */
+  --popover: var(--bg-secondary);
+  --popover-foreground: var(--text-primary);
+
+  /* Primary action (brand) */
+  --primary: var(--accent-primary);
+  --primary-foreground: oklch(99% 0 0);
+
+  /* Secondary / muted */
+  --secondary: var(--bg-secondary);
+  --secondary-foreground: var(--text-primary);
+
+  --muted: var(--bg-muted);
+  --muted-foreground: var(--text-secondary);
+
+  /* Accent (hover surface) */
+  --accent: var(--bg-tertiary);
+  --accent-foreground: var(--text-primary);
+
+  /* Destructive */
+  --destructive: oklch(65% 0.25 25);
+
+  /* Border + input ring */
+  --border: var(--border-subtle);
+  --input: var(--border-subtle);
+  --ring: var(--accent-primary);
+
+  /* Shadcn chart tokens — mapped to our palette */
+  --chart-1: var(--color-chart-accent-1);
+  --chart-2: var(--color-chart-accent-2);
+  --chart-3: var(--color-chart-accent-3);
+  --chart-4: var(--color-chart-accent-4);
+  --chart-5: var(--color-chart-accent-5);
+
+  /* Sidebar (Shadcn v4 extras) */
+  --sidebar: var(--bg-secondary);
+  --sidebar-foreground: var(--text-primary);
+  --sidebar-primary: var(--accent-primary);
+  --sidebar-primary-foreground: oklch(99% 0 0);
+  --sidebar-accent: var(--bg-tertiary);
+  --sidebar-accent-foreground: var(--text-primary);
+  --sidebar-border: var(--border-subtle);
+  --sidebar-ring: var(--accent-primary);
 }
 
 [data-theme='dark'] {
@@ -112,13 +223,14 @@
   --bg-secondary: oklch(12% 0.05 260);
   --bg-tertiary: oklch(16% 0.05 260);
   --bg-input: oklch(12% 0.05 260);
+  --bg-muted: oklch(30% 0.05 260);
 
   --text-primary: oklch(98% 0.02 260);
   --text-secondary: oklch(65% 0.03 260);
   --text-tertiary: oklch(45% 0.03 260);
 
-  --border-subtle: oklch(25% 0.03 260);
-  --accent-primary: oklch(75% 0.20 260);
+  --border-subtle: oklch(50% 0.05 260);
+  --accent-primary: oklch(75% 0.2 260);
   --accent-hover: oklch(80% 0.18 260);
 
   /* Chart Colors (Dark - Abyss) */
@@ -126,30 +238,42 @@
   --chart-bg-plot: transparent;
   --chart-text: oklch(95% 0.02 260);
   --chart-grid: oklch(25% 0.03 260 / 0.3);
-  --chart-primary: oklch(75% 0.20 260);
+  --chart-primary: oklch(75% 0.2 260);
+
+  /* Table Specific Tokens (Dark) - Using Hex for Plotly Compatibility */
+  --color-table-text: #cfd1da;
+  --table-header-bg: #2d3142;
+  /* oklch(25% 0.05 260) darker */
+  --table-cell-row-odd: #262729;
+  /* oklch(15% 0.05 260) */
+  --table-cell-row-even: #131314;
+  /* oklch(12% 0.05 260) */
+  --table-border-color: #3f4455;
+  /* oklch(35% 0.03 260) */
 }
 
-[data-theme='drilling-slate'] {
-  /* Drilling Slate Mode (Oil & Gas Industry) */
+[data-theme='clinical-slate'] {
+  /* Clinical Slate Mode (Healthcare Industry) */
   --bg-primary: oklch(25% 0.02 250);
   --bg-secondary: oklch(28% 0.02 250);
   --bg-tertiary: oklch(32% 0.02 250);
   --bg-input: oklch(28% 0.02 250);
+  --bg-muted: oklch(45% 0.05 260);
 
   --text-primary: oklch(92% 0.01 250);
   --text-secondary: oklch(70% 0.01 250);
   --text-tertiary: oklch(50% 0.02 250);
 
-  --border-subtle: oklch(35% 0.02 250);
-  --accent-primary: oklch(75% 0.20 260);
+  --border-subtle: oklch(40% 0.02 250);
+  --accent-primary: oklch(75% 0.2 260);
   --accent-hover: oklch(80% 0.18 260);
 
-  /* Chart Colors (Drilling Slate) */
+  /* Chart Colors (Clinical Slate) */
   --chart-bg-paper: transparent;
   --chart-bg-plot: transparent;
   --chart-text: oklch(92% 0.01 250);
   --chart-grid: oklch(35% 0.02 250 / 0.3);
-  --chart-primary: oklch(75% 0.20 260);
+  --chart-primary: oklch(75% 0.2 260);
 
   /* Industry Accents */
   --accent-safety: oklch(70% 0.18 35);
@@ -158,13 +282,23 @@
   /* Crude Gold */
   --accent-flow: oklch(70% 0.18 145);
   /* Flow Green */
+
+  /* Table Specific Tokens (Clinical Slate) - Using Hex for Plotly Compatibility */
+  --color-table-text: #cfd1da;
+  --table-header-bg: #334155;
+  /* slate-700 */
+  --table-cell-row-odd: #273449;
+  /* slate-800 */
+  --table-cell-row-even: #17223a;
+  /* slate-900 */
+  --table-border-color: #475569;
+  /* slate-600 */
 }
 
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-body);
-  transition: background-color 0.3s ease, color 0.3s ease;
   overflow: hidden;
 }
 
@@ -197,25 +331,7 @@ body {
   background: var(--text-secondary);
 }
 
-/* Gemini Input (Refined for Abyss) */
-.gemini-input {
-  background-color: var(--bg-input);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-primary);
-  font-family: var(--font-body);
-  font-size: 1rem;
-  width: 100%;
-  padding: 16px 24px;
-  border-radius: 24px;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-}
 
-.gemini-input:focus {
-  outline: none;
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 2px var(--accent-primary);
-}
 
 /* Plotly Override - Force Transparent Backgrounds */
 .js-plotly-plot .main-svg {
@@ -226,20 +342,92 @@ body {
   fill: transparent !important;
 }
 
-/* Animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
 /* Scroll Stability */
 .custom-scrollbar {
   scrollbar-gutter: stable;
+}
+
+/* Chat Text Clamping & Styling (Added per user request) */
+.chat-message-text {
+  font-size: clamp(0.625rem, 0.55rem + 0.25vw, 0.8rem);
+  /* ~10px to 12.8px */
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.thinking-process-text {
+  font-size: clamp(0.5rem, 0.7rem + 0.2vw, 0.7rem);
+  /* ~8.8px to 11.2px */
+  line-height: 1.2;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* =====================================================
+   SHADCN DARK MODE BRIDGE
+   Shadcn expects `.dark` class; our app uses data-theme attributes.
+   Token values are already inherited via var() references in :root above —
+   the [data-theme] blocks update --bg-primary, --text-primary, etc. which
+   cascade into --background, --foreground, etc. automatically.
+   We only need to signal dark color-scheme to the browser here.
+   ===================================================== */
+[data-theme='dark'],
+[data-theme='clinical-slate'] {
+  color-scheme: dark;
+}
+
+/* Shadcn components that rely on the `.dark` class selector also activate */
+.dark {
+  color-scheme: dark;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }

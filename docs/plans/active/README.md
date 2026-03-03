@@ -1,63 +1,45 @@
 # Active Plans
 
-**Last Updated**: 2026-01-24
+**Current Active Plans**: 2
 
-## 🔥 In Progress
+**Last Updated**: 2026-03-03
 
-### [Frontend UI Overhaul (2026)](frontend_ui_overhaul.md)
-**Priority**: High | **Status**: In Progress (0/6 phases complete)  
-**Target**: 2026-01-31
+## 🚀 In Progress
 
-Migrating to high-performance Tailwind CSS v4 architecture:
-- ✅ Phase 1 - Global Style Definition (OKLCH, @theme)
-- ✅ Phase 2 - Container Query Components
-- ✅ Phase 2.5 - Configuration & Verification
-- ✅ Phase 2.6 - User Preference Persistence
-- ✅ Phase 3 - Dynamic Theme Toggle
-- ✅ Phase 4 - Visualizer Refactor
-- ✅ Phase 5 - UX Polish (Cursors)
-- ✅ Phase 6 - README & Documentation Update
-
-**Related Files**: `frontend/src/index.css`, `frontend/src/components/*`
-
----
-
-### [LangGraph Refactor](langgraph-refactor.md)
-**Priority**: High | **Status**: In Progress (2/5 steps complete)  
-**Target**: 2026-01-25
-
-Refactoring multi-agent workflow to use LangGraph for:
-- ✅ AWS Bedrock integration with Bearer Token auth
-- ✅ Modular requirements and dependencies added
-- 🔄 Better state management with conditional routing
-- 🔄 SQL deduplication to prevent infinite retries
-
-**Related Files**: `backend/services/langgraph_agent.py`, `backend/main.py`
-
----
+| #   | Plan                                                         | Status       | Est. Hours |
+| --- | ------------------------------------------------------------ | ------------ | ---------- |
+| 1   | **Automated Benchmarking & Evaluation Pipeline** ([plan](automated_benchmarking_evaluation_pipeline.md)) | 🔄 Phase 1A/5 (corpus + dev baseline done) | 20-35h     |
+| 2   | **OMOP Vocabulary Automation (Open-License, No Manual Steps)** ([plan](omop_vocabulary_automation_open_data.md)) | 🔄 Phase 5/6 (CI runbook pending) | 5-8h     |
 
 ## ✅ Recently Completed
 
-### [UI Polish & Persistence](ui_polish_persistence.md)
-**Status**: Completed | **Completed**: 2026-01-24
-
-- ✅ React 19 and Tailwind v4 upgrade
-- ✅ Pydantic Settings v2 configuration
-- ✅ Dependency isolation (google-genai removed from Bedrock mode)
+- ✅ **[OMOP Golden Dataset Hardening](../implemented/omop_golden_dataset_hardening.md)** — all 8 phases complete, 162 tests passing, 10/10 curl battery (2026-03-03)
+- ✅ **[OMOP & Synthea Migration](../implemented/omop_synthea_migration.md)** — completed and moved to implemented
+- ✅ **[Shadcn v4 UI Overhaul](../implemented/shadcn_v4_ui_overhaul.md)** — completed and moved to implemented (2026-02-27)
+- ✅ **[LLM Routing & Agentic Optimization](../implemented/llm_routing_agentic_optimization.md)** — completed and moved to implemented (2026-02-27)
+- ✅ **[LangGraph Workflow Refactor](../implemented/langgraph_workflow_refactor.md)** — implemented partially as architecture evolved (moved from backlog)
+- ✅ **[Multi-Agent Reflexion](../implemented/multi-agent-reflexion.md)** — already implemented; retained as historical design context
+- ✅ **[Token Consumption Tracking - Phase 2](../implemented/token_tracking_phase2.md)** — already implemented; superseded by current TS implementation
 
 ---
 
-## 📋 Instructions for AI Agents
+When starting new work:
 
-**When completing a phase from a plan**:
-1. ✅ Check off the phase in the plan's frontmatter `completion` list
-2. 📅 Update `date_updated` in the plan frontmatter
-3. 📝 Update progress in this README
-4. 🔄 Update `docs/INDEX.md` to reflect current status
-5. 🛑 **STOP** and wait for user verification before next phase
+1. Create a plan file in this directory
+2. Use the frontmatter template from [`../README.md`](../README.md)
+3. Update `docs/README.md` to list the new active plan
+4. Link related files in the frontmatter
 
-**When complete**:
-1. Move plan to `../implemented/`
+## Plan Lifecycle
+
+```
+backlog/ → active/ → implemented/
+   ↓         ↓            ↓
+  idea → in progress → complete
+```
+
+When a plan here is 100% complete:
+
+1. Move it to `implemented/`
 2. Update frontmatter: `status: implemented`, add `date_completed`
-3. Create final report in `docs/reports/archive/{year}/`
-4. Update `docs/INDEX.md`
+3. Update `docs/README.md` to reflect completion

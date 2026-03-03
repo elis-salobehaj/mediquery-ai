@@ -56,7 +56,7 @@ Additionally, we want to add AWS Bedrock as a cloud LLM provider using the **new
 | **Architecture** | One LLM does everything | Specialized LLMs per task |
 | **Reliability** | Lower - one failure = total failure | Higher - each agent validates others |
 | **Cost** | Lower - one call | Higher - multiple calls |
-| **Speed** | Faster - single round-trip | Slower - sequential agents |
+| **Speed** | Faster - single round-visit | Slower - sequential agents |
 
 **How they combine**: Our multi-agent workflow uses **fast models for lightweight agents** (Navigator, Critic) and a **thinking model for the heavy-lifting agent** (SQL Writer). This balances:
 - **Speed**: Fast models keep Navigator/Critic quick (~500ms each)

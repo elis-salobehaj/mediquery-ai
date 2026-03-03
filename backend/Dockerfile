@@ -1,54 +1,85 @@
-# Backend Dockerfile - Optimized for CI Size & Prod Performance
-FROM python:3.12-slim
-
-# Build argument to control which dependencies to install
-# Options: 'bedrock', 'local', 'full', 'ci' (default: bedrock for lightweight cloud deployment)
-ARG BUILD_MODE=bedrock
+FROM node:24.13.1-alpine AS builder
 
 WORKDIR /app
+RUN apk add --no-cache curl
+RUN corepack enable && corepack use pnpm@latest
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    libffi-dev \
-    libssl-dev \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Copy workspace setup
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 
-# Copy all requirements files for better caching
-COPY requirements*.txt ./
+# Copy backend and packages
+COPY backend/package.json ./backend/
+COPY packages/db/package.json ./packages/db/
 
-# Use BuildKit cache mount to persist pip cache across builds
-RUN --mount=type=cache,target=/root/.cache/pip \
-    case "$BUILD_MODE" in \
-        bedrock) \
-            echo "Bedrock Mode: Installing lightweight cloud dependencies (no heavy ML)"; \
-            pip install -r requirements-bedrock.txt; \
-            ;; \
-        local) \
-            echo "Local Mode: Installing dependencies for local models (includes LlamaIndex/HuggingFace)"; \
-            pip install -r requirements-local.txt; \
-            ;; \
-        full) \
-            echo "Full Mode: Installing all dependencies"; \
-            pip install -r requirements-full.txt; \
-            ;; \
-        ci) \
-            echo "CI Mode: Installing test dependencies without heavy ML"; \
-            pip install -r requirements-ci.txt; \
-            ;; \
-        *) \
-            echo "Unknown BUILD_MODE: $BUILD_MODE, defaulting to bedrock"; \
-            pip install -r requirements-bedrock.txt; \
-            ;; \
-    esac
+# Copy source
+COPY backend/ ./backend/
+COPY packages/ ./packages/
 
-# Copy application code
-COPY . .
+# Install dependencies and build
+RUN pnpm install --frozen-lockfile
+RUN cd backend && pnpm run build
+RUN cd packages/db && pnpm run build
 
-# Expose port
-EXPOSE 8000
+# ─── unit-test stage ─────────────────────────────────────────────────────────
+# Installs all deps (incl. devDeps) and runs Vitest via SWC.
+# No app build needed — vitest transpiles on-the-fly.
+FROM node:24.13.1-alpine AS unit-test
 
-# Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+WORKDIR /app
+RUN apk add --no-cache curl
+RUN corepack enable && corepack use pnpm@latest
+
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY backend/package.json ./backend/
+COPY packages/db/package.json ./packages/db/
+
+COPY backend/ ./backend/
+COPY packages/ ./packages/
+
+RUN pnpm install --frozen-lockfile
+RUN cd packages/db && pnpm run build
+
+WORKDIR /app/backend
+CMD ["pnpm", "test"]
+
+# ─── test stage ──────────────────────────────────────────────────────────────
+FROM node:24.13.1-alpine AS test
+
+WORKDIR /app
+RUN apk add --no-cache curl
+RUN corepack enable && corepack use pnpm@latest
+
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY backend/package.json ./backend/
+COPY packages/db/package.json ./packages/db/
+
+COPY backend/ ./backend/
+COPY packages/ ./packages/
+
+RUN pnpm install --frozen-lockfile
+RUN cd backend && pnpm exec nest build -p tsconfig.e2e.json
+RUN cd packages/db && pnpm run build
+
+EXPOSE 8001
+WORKDIR /app/backend
+CMD ["node", "dist/test/main.test.js"]
+
+# ─── production runner ────────────────────────────────────────────────────────
+FROM node:24.13.1-alpine AS runner
+
+WORKDIR /app
+RUN apk add --no-cache curl
+RUN corepack enable && corepack use pnpm@latest
+
+COPY backend/package.json ./backend/
+COPY packages/db/package.json ./packages/db/
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+
+RUN pnpm install --prod --frozen-lockfile
+
+COPY --from=builder /app/backend/dist ./backend/dist
+COPY --from=builder /app/packages/db/dist ./packages/db/dist
+
+EXPOSE 8001
+WORKDIR /app/backend
+CMD ["node", "dist/src/main.js"]

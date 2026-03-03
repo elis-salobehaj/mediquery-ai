@@ -1,6 +1,8 @@
 # Docker Deployment Guide
 
-Complete guide for running the AI Healthcare Data Agent with Docker Compose.
+> **📌 Note**: For standard development workflow, see **[DEVELOPMENT.md](DEVELOPMENT.md)**. This guide covers advanced Docker-specific deployment scenarios.
+
+Complete guide for running the Mediquery AI Data Agent with Docker Compose.
 
 ## Quick Start
 
@@ -12,9 +14,6 @@ Complete guide for running the AI Healthcare Data Agent with Docker Compose.
 - **8GB RAM minimum** (for Ollama model)
 - **NVIDIA GPU** (optional, for faster inference)
 
-### 2. Setup Environment
-
-```bash
 ### 2. Setup Environment
 
 ```bash
@@ -31,7 +30,7 @@ cp .env.example .env
 
 ```bash
 # Build and start all containers
-docker compose up -d
+docker compose up -d --build
 
 # View logs
 docker compose logs -f
@@ -53,12 +52,12 @@ docker exec -it mediquery-ai-ollama ollama list
 ### 5. Access the Application
 
 - **Frontend**: http://localhost:3000
-- **Backend API**: http://localhost:8000
-- **API Docs**: http://localhost:8000/docs
+- **Backend API**: via frontend proxy at `http://localhost:3000/api/v1/*`
+- **API Docs**: http://localhost:3000/api/docs
 - **Ollama**: http://localhost:11434
+- **PostgreSQL**: http://localhost:5432
 
 ---
-
 
 ---
 
@@ -68,17 +67,17 @@ Running Docker containers on a remote server? Access them locally using SSH port
 
 ```bash
 # Linux/Mac/Windows
-ssh -L 3000:localhost:3000 -L 8000:localhost:8000 -L 11434:localhost:11434 username@server_ip
+ssh -L 3000:localhost:3000 -L 11434:localhost:11434 username@server_ip
 ```
 
 This forwards:
+
 - **Port 3000**: Frontend (React/Nginx)
-- **Port 8000**: Backend API (FastAPI)
 - **Port 11434**: Ollama (optional, for model management)
 
 After connecting, access on your local machine:
+
 - Frontend: http://localhost:3000
-- Backend API: http://localhost:8000/docs
 - Ollama: http://localhost:11434
 
 **Keep the SSH session open** while using the application.
@@ -86,20 +85,29 @@ After connecting, access on your local machine:
 ## Services Overview
 
 ### 🤖 Ollama (Local LLM)
+
 - **Container**: `mediquery-ai-ollama`
 - **Port**: 11434
 - **Volume**: `ollama_data` (persists models)
 - **Model**: qwen2.5-coder:7b
 
-### 🔧 Backend (FastAPI)
-- **Container**: `mediquery-ai-backend`
-- **Port**: 8000
-- **Volumes**: 
+### 🔧 Backend (TypeScript — Active)
+
+- **Container**: `mediquery-backend`
+- **Port**: 8001 (internal Docker network only; not published to host)
+- **Volumes**:
   - `./backend` → `/app` (code)
-  - `./backend/data` → `/app/data` (CSV files)
+
+### 🧱 Migrator (TypeScript Drizzle Runtime)
+
+- **Container**: `mediquery-migrator`
+- **Image Build**: `migrator.Dockerfile`
+- **Package Source**: `packages/db`
+- **Role**: Applies PostgreSQL migrations before backend startup
 
 ### 🎨 Frontend (React + Nginx)
-- **Container**: `mediquery-ai-frontend`
+
+- **Container**: `mediquery-frontend`
 - **Port**: 3000
 - **Built with**: Multi-stage Docker build
 
@@ -119,8 +127,12 @@ docker compose down
 # Restart a specific service
 docker compose restart backend
 
+# Run migrations on demand
+docker compose run --rm migrator
+
 # View logs
 docker compose logs -f backend
+docker compose logs -f migrator
 docker compose logs -f ollama
 ```
 
@@ -158,14 +170,14 @@ docker compose logs -f backend
 
 ```bash
 # Access backend container
-docker exec -it mediquery-ai-backend bash
+docker exec -it mediquery-backend bash
 
-# View chat history database
-docker exec -it mediquery-ai-backend ls -lh chat_history.db
+# Verify database wait_time
+docker exec -it mediquery-postgres psql -U mediquery -d mediquery_tokens -c "\dt"
 
-# Backup data
-docker cp mediquery-ai-backend:/app/chat_history.db ./backup/
-docker cp mediquery-ai-backend:/app/data ./backup/
+# Backup data (PostgreSQL)
+docker exec mediquery-postgres pg_dump -U mediquery mediquery_tokens > backup.sql
+docker cp mediquery-backend:/app/data ./backup/
 ```
 
 ---
@@ -189,6 +201,7 @@ LOCAL_MODEL_NAME=qwen2.5-coder:7b
 ### Switch Between Local and Cloud
 
 **Use Local Ollama (Free):**
+
 ```bash
 # In .env
 USE_LOCAL_MODEL=true
@@ -198,6 +211,7 @@ docker compose restart backend
 ```
 
 **Use Google Gemini (Cloud):**
+
 ```bash
 # In .env
 USE_LOCAL_MODEL=false
@@ -292,7 +306,7 @@ docker compose logs frontend
 # Change ports in docker-compose.yml
 ports:
   - "3001:80"  # Frontend (was 3000)
-  - "8001:8000"  # Backend (was 8000)
+  - "8001:8001"  # Backend (was 8001)
 ```
 
 ### Out of Memory
@@ -341,13 +355,13 @@ services:
       resources:
         limits:
           memory: 8G
-          cpus: '4'
+          cpus: "4"
   backend:
     deploy:
       resources:
         limits:
           memory: 2G
-          cpus: '2'
+          cpus: "2"
 ```
 
 ---
@@ -363,11 +377,11 @@ mkdir -p backup
 # Backup volumes
 docker run --rm -v ollama_data:/data -v $(pwd)/backup:/backup alpine tar czf /backup/ollama_data.tar.gz -C /data .
 
-# Backup database
-docker cp mediquery-ai-backend:/app/chat_history.db ./backup/
+# Backup Database (PostgreSQL)
+docker exec -t mediquery-postgres pg_dump -U mediquery mediquery_tokens > backup/mediquery_tokens.sql
 
 # Backup CSV data
-docker cp mediquery-ai-backend:/app/data ./backup/
+docker cp mediquery-backend:/app/data ./backup/
 ```
 
 ### Restore
@@ -376,8 +390,8 @@ docker cp mediquery-ai-backend:/app/data ./backup/
 # Restore Ollama data
 docker run --rm -v ollama_data:/data -v $(pwd)/backup:/backup alpine tar xzf /backup/ollama_data.tar.gz -C /data
 
-# Restore database
-docker cp ./backup/chat_history.db mediquery-ai-backend:/app/
+# Restore Database
+cat backup/mediquery_tokens.sql | docker exec -i mediquery-postgres psql -U mediquery mediquery_tokens
 
 # Restart services
 docker compose restart
@@ -404,7 +418,6 @@ docker stats mediquery-ai-ollama
 docker compose ps
 
 # Test endpoints
-curl http://localhost:8000/health
 curl http://localhost:11434/api/tags
 curl http://localhost:3000
 ```
@@ -448,4 +461,4 @@ docker system prune -a --volumes
 4. ✅ Test queries and visualizations
 5. ✅ Monitor logs: `docker compose logs -f`
 
-**Your AI Healthcare Data Agent is now running in Docker!** 🚀
+**Your mediquery AI Data Agent is now running in Docker!** 🚀

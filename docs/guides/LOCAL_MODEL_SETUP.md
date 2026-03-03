@@ -1,4 +1,6 @@
-# Local Model Setup Guide (Ollama)
+# Local Model Setup Guide (Ollama) [LEGACY - Not Actively Maintained]
+
+> **⚠️ Status**: This guide is legacy documentation for local Ollama model setup. Due to resource constraints, local model support is not actively maintained. **Recommended**: Use AWS Bedrock or Gemini API for production deployments (see [DEVELOPMENT.md](DEVELOPMENT.md)).
 
 This guide explains how to set up and use local open-source models with Ollama.
 
@@ -14,7 +16,7 @@ We have removed the need for local Ollama installation. The project now runs ent
 
 ### 2. Configure Environment
 
-Edit `backend/.env` (create from `.env.example`):
+Edit `backend/.env`:
 ```bash
 USE_LOCAL_MODEL=true
 LOCAL_MODEL_NAME=qwen2.5-coder:7b
@@ -67,7 +69,7 @@ GEMINI_API_KEY=your_api_key_here
 
 ## Troubleshooting
 
-### Error: "Connection refused" or "Ollama not found"
+### Error: "Wait_time refused" or "Ollama not found"
 
 **Solution:** Make sure Ollama is running
 ```bash

@@ -4,28 +4,31 @@
 # ==========================================
 # Target: test (Component Tests)
 # ==========================================
-FROM mcr.microsoft.com/playwright:v1.57.0-jammy AS test
+FROM mcr.microsoft.com/playwright:v1.58.2-noble AS test
 WORKDIR /app
 
+# Install pnpm via corepack (respects version in package.json)
+RUN corepack enable && corepack use pnpm@latest
+
 # Install dependencies (Cached Layer)
-COPY package*.json ./
-RUN npm install
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
 # Copy source code (Frequent changes layer)
 COPY . .
 
 # Default command
-CMD ["npx", "playwright", "test"]
+CMD ["pnpm", "exec", "playwright", "test"]
 
 # ==========================================
 # Shared Builder Stage (for Production)
 # ==========================================
-FROM node:23-alpine AS builder
+FROM node:24.13.1-alpine AS builder
 
 WORKDIR /app
 
 # Install pnpm
-RUN npm install -g pnpm
+RUN corepack enable && corepack use pnpm@latest
 
 # Copy package files
 COPY package.json pnpm-lock.yaml ./

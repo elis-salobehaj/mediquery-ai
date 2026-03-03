@@ -2,7 +2,7 @@
 set -euo pipefail
 
 BASE=${VITE_API_URL:-http://localhost:8001/api/v1}
-OUT=/home/elis/projects/mediquery-ai/docs/reports/current/phase7_phase8_curl_battery_2026-03-03.json
+OUT=/home/elis-wsl/projects/github/mediquery-ai/docs/reports/current/phase7_phase8_curl_battery_2026-03-03.json
 
 TOKEN=$(curl -sS -X POST "$BASE/auth/guest" -H 'Content-Type: application/json' | jq -r '.access_token')
 

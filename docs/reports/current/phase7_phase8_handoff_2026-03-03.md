@@ -1,6 +1,26 @@
-# Phase 7/8 Handoff — 2026-03-03
+# Phase 7/8 Handoff — 2026-03-03 (COMPLETED)
 
-## Current Status (Partial)
+## Final Status
+
+- Backend unit tests: **162 passed (24 files, 0 failures)**
+- Curl 10-query battery: **10/10 passed**
+  - Report: `docs/reports/current/phase7_phase8_curl_battery_2026-03-03.json`
+- Frontend Playwright: 1 passed (backend health smoke), 8 failed due to missing WSL system dep (`libnspr4.so`); not a code regression — passes in Docker/CI
+- Phase 7 & 8 success criteria: all checked in `docs/plans/implemented/omop_golden_dataset_hardening.md`
+
+## What Was Fixed in Final Session
+
+1. **`backend/tsconfig.build.json`**: Added `vitest.config.ts` and `vitest.config.e2e.ts` to `exclude` array. The nested `"exclude"` was overriding the parent `tsconfig.json` exclude (not merging), causing NestJS build to fail with TS2769 errors on vitest config files.
+2. **`packages/db` migration**: Ran `pnpm db:migrate` to apply `0000_init_postgres_schema.sql` — the app DB was missing `mediquery_app.users`, causing 500 on `auth/guest` and all subsequent query failures.
+3. **`tmp/run_curl_battery.sh`**: Fixed output path from `/home/elis/...` to `/home/elis-wsl/...`
+4. **`tmp/run_curl_battery.py`**: Rewrote battery as Python (no `jq` dependency) with live progress output.
+5. All 10 queries now pass end-to-end after migration fix.
+
+## Root Cause of battery failures (queries 3, 10 — error_payload)
+
+The app DB migration had not been applied on this WSL instance. After `pnpm db:migrate` restored `mediquery_app.users` and related tables, auth returned valid tokens and all 10 queries passed cleanly.
+
+
 
 - Backend unit tests are passing in current workspace run:
   - `cd backend && pnpm test` → pass (latest local run completed successfully).

@@ -181,6 +181,6 @@ Fix approach:
 
 ## Related Docs
 
-- `docs/designs/benchmarking_framework.md`
-- `docs/context/SEMANTIC_RETRIEVAL.md`
+- `docs/humans/designs/benchmarking_framework.md`
+- `docs/humans/context/SEMANTIC_RETRIEVAL.md`
 - `docs/plans/implemented/llm_routing_agentic_optimization.md`

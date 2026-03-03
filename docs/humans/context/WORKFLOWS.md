@@ -12,9 +12,9 @@
 - `docs/guides/TESTING_GUIDE.md` - Test strategies
 
 ### Context (Reference)
-- `docs/context/ARCHITECTURE.md` - Stack conventions
-- `docs/context/CONFIGURATION.md` - Settings & security
-- `docs/context/WORKFLOWS.md` - This file
+- `docs/humans/context/ARCHITECTURE.md` - Stack conventions
+- `docs/humans/context/CONFIGURATION.md` - Settings & security
+- `docs/humans/context/WORKFLOWS.md` - This file
 
 ### Plans
 - `docs/plans/active/` - Current implementation plans
@@ -38,7 +38,7 @@
 ### When Creating Artifacts
 - **Reports**: Save to `docs/reports/current/`
 - **Plans**: Start in `docs/plans/active/`
-- **Designs**: Save to `docs/designs/`
+- **Designs**: Save to `docs/humans/designs/`
 
 ---
 

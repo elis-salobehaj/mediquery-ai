@@ -19,7 +19,7 @@ related_files:
   - backend/src/database/database.service.ts
   - backend/src/ai/prompts/semantic_view.yaml
   - docs/guides/DEVELOPMENT.md
-  - docs/plans/active/omop_golden_dataset_hardening.md
+  - docs/plans/implemented/omop_golden_dataset_hardening.md
 depends_on:
   - docs/plans/implemented/omop_synthea_migration.md
 blocks: []
@@ -292,7 +292,7 @@ Gate failure stops export.
 - `backend/src/database/database.service.ts`
 - `backend/src/ai/prompts/semantic_view.yaml`
 - `backend/src/ai/benchmarks/corpus/omop_golden_queries.jsonl`
-- `docs/plans/active/omop_golden_dataset_hardening.md`
+- `docs/plans/implemented/omop_golden_dataset_hardening.md`
 
 ### Changes
 

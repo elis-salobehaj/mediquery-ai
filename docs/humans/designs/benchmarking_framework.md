@@ -204,8 +204,8 @@ Regression criteria (development phase):
 
 ## References
 
-- `docs/context/BENCHMARKING.md`
-- `docs/context/ARCHITECTURE.md`
-- `docs/context/SEMANTIC_RETRIEVAL.md`
-- `docs/designs/multi_agent_architecture.md`
+- `docs/humans/context/BENCHMARKING.md`
+- `docs/humans/context/ARCHITECTURE.md`
+- `docs/humans/context/SEMANTIC_RETRIEVAL.md`
+- `docs/humans/designs/multi_agent_architecture.md`
 - `backend/src/ai/benchmarks/corpus/omop_golden_queries.jsonl`

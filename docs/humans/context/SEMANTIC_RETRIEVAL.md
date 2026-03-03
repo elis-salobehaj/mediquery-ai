@@ -2,11 +2,11 @@
 
 This document describes the active retrieval implementation in the TypeScript backend and how it reduces token usage while preserving relevance.
 
-For benchmark execution and metrics interpretation, see `docs/context/BENCHMARKING.md`.
+For benchmark execution and metrics interpretation, see `docs/humans/context/BENCHMARKING.md`.
 
 ## Current State (Implemented)
 
-`schema-navigator.ts` now uses **hybrid candidate retrieval + LLM reranking**:
+`agents/schema-navigator-agent.ts` now uses **hybrid candidate retrieval + LLM reranking**:
 
 - Prompt guidance from `backend/src/ai/prompts/system_prompts.yaml`
 - Schema metadata from `backend/src/ai/prompts/semantic_view.yaml`
@@ -29,7 +29,7 @@ graph LR
 
 Follow-up context is now handled through scoped memory instead of transcript replay:
 
-- Thread memory stores normalized facts (`active_patients`, timeframe, KPI intent, units)
+- Thread memory stores normalized facts (`active_persons`, timeframe, clinical intent, units)
 - SQL writer receives compact `SCOPED CONVERSATION MEMORY`
 - Memory confidence decays over time; TTL and low-confidence invalidation remove stale state
 - Users can disable memory per request (`enable_memory=false`) or clear all memory via `DELETE /api/v1/memory`

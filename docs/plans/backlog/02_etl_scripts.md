@@ -15,6 +15,10 @@ tags:
   - standalone
 ---
 
+> **⚠️ LEGACY PLAN**: This plan describes a MySQL-based ETL pipeline loading `lab_results`, `patients`, `wait_times`.
+> The active stack uses the Synthea → OMOP CDM v5.4 ETL pipeline in `data-pipeline/` (Python + Polars).
+> See `data-pipeline/README.md` for the current OMOP ETL workflow.
+
 ## Alignment Update (2026-02-27)
 
 Plan 2 should reuse the active benchmark contract in [docs/plans/active/automated_benchmarking_evaluation_pipeline.md](../active/automated_benchmarking_evaluation_pipeline.md) as the acceptance gate for ETL correctness.

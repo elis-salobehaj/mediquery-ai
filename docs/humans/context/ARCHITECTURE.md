@@ -4,8 +4,8 @@
 
 Benchmarking references:
 
-- Context workflow: `docs/context/BENCHMARKING.md`
-- Design framework: `docs/designs/benchmarking_framework.md`
+- Context workflow: `docs/humans/context/BENCHMARKING.md`
+- Design framework: `docs/humans/designs/benchmarking_framework.md`
 
 ### Backend (TypeScript)
 
@@ -13,7 +13,7 @@ Benchmarking references:
 
 - **Framework**: NestJS (Express)
 - **AI Orchestration**: `@langchain/langgraph` — multi-agent graph (Router → Schema Navigator → SQL Writer → Critic ↔ Reflector, Meta-Agent)
-- **Retrieval**: Prompt-guided schema navigation with heuristic candidate pre-ranking and LLM reranking in `schema-navigator.ts`
+- **Retrieval**: Prompt-guided schema navigation with heuristic candidate pre-ranking and LLM reranking in `agents/schema-navigator-agent.ts`
 - **Memory Policy**: Scoped per-thread memory (`memory-context.ts` + `thread-memory.service.ts`) with confidence decay, TTL invalidation, request-time enable/disable (`enable_memory`), and clear-memory endpoint
 - **Database**: PostgreSQL 18.1 (App Data & KPIs)
 - **ORM Strategy**:
@@ -145,13 +145,14 @@ backend/
 │   │   ├── ai.module.ts
 │   │   ├── graph.ts           # LangGraph StateGraph wiring
 │   │   ├── state.ts           # GraphState interface
-│   │   ├── router.ts          # Intent routing agent node
-│   │   ├── policy-gate.ts     # Policy enforcement (write-op + unsupported-intent blocking)
-│   │   ├── schema-navigator.ts# OMOP table selection agent node
-│   │   ├── sql-writer.ts      # SQL generation agent node
-│   │   ├── critic.ts          # SQL validation agent node
-│   │   ├── reflector.ts       # Reflexion agent node
-│   │   ├── meta-agent.ts      # Domain Q&A agent node
+│   │   ├── agents/            # LangGraph Agent Nodes
+│   │   │   ├── router-agent.ts        # Intent routing
+│   │   │   ├── policy-gate.ts         # Policy enforcement (write-op + unsupported-intent blocking)
+│   │   │   ├── schema-navigator-agent.ts  # OMOP table selection
+│   │   │   ├── sql-writer-agent.ts    # SQL generation
+│   │   │   ├── critic-agent.ts        # SQL validation
+│   │   │   ├── reflector-agent.ts     # Reflexion
+│   │   │   └── meta-agent.ts          # Domain Q&A
 │   │   ├── llm.service.ts     # LLM factory (multi-provider)
 │   │   ├── insight.service.ts # Post-query insight generation
 │   │   ├── visualization.service.ts
@@ -383,13 +384,13 @@ graph TD
 
 **Agents:**
 
-1. **Router** (`router.ts`): Classifies intent — `DATA`, `DOMAIN_KNOWLEDGE`, or `OFF_TOPIC`
-2. **Policy Gate** (`policy-gate.ts`): Blocks write operations and unsupported analytical intents before SQL generation
-3. **Schema Navigator** (`schema-navigator.ts`): Selects relevant OMOP tables from available schema
-4. **SQL Writer** (`sql-writer.ts`): Generates SQL from question + selected OMOP schema context
-5. **Critic** (`critic.ts`): Performs DB syntax validation and semantic critique pass
-6. **Reflector** (`reflector.ts`): Adds retry guidance on failures (reflexion loop)
-7. **Meta-Agent** (`meta-agent.ts`): Answers domain/OMOP schema questions without SQL
+1. **Router** (`agents/router-agent.ts`): Classifies intent — `DATA`, `DOMAIN_KNOWLEDGE`, or `OFF_TOPIC`
+2. **Policy Gate** (`agents/policy-gate.ts`): Blocks write operations and unsupported analytical intents before SQL generation
+3. **Schema Navigator** (`agents/schema-navigator-agent.ts`): Selects relevant OMOP tables from available schema
+4. **SQL Writer** (`agents/sql-writer-agent.ts`): Generates SQL from question + selected OMOP schema context
+5. **Critic** (`agents/critic-agent.ts`): Performs DB syntax validation and semantic critique pass
+6. **Reflector** (`agents/reflector-agent.ts`): Adds retry guidance on failures (reflexion loop)
+7. **Meta-Agent** (`agents/meta-agent.ts`): Answers domain/OMOP schema questions without SQL
 
 **Current limitations (tracked for improvement):**
 

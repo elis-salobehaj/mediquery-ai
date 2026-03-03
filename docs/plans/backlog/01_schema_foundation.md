@@ -17,6 +17,11 @@ tags:
   - database-isolation
 ---
 
+> **⚠️ LEGACY PLAN**: This plan describes a MySQL-based multi-tenant schema.
+> The active stack uses PostgreSQL + OMOP CDM v5.4 with per-tenant schemas (`tenant_nexus_health`).
+> Backend file paths reference the old Python backend.
+> See `docs/plans/implemented/migrate_tenant_db_to_postgres.md` for the current architecture.
+
 ## Alignment Update (2026-02-27)
 
 This plan remains backlog, but execution should align with the active benchmark contract in [docs/plans/active/automated_benchmarking_evaluation_pipeline.md](../active/automated_benchmarking_evaluation_pipeline.md).

@@ -6,7 +6,7 @@ const WRITE_INTENT_PATTERN =
   /\b(insert|update|delete|drop|truncate|alter|create\s+table|grant|revoke)\b/i;
 
 const UNSUPPORTED_ANALYTICS_PATTERN =
-  /\b(train\s+model|fine[-\s]?tune|predict\s+the\s+future|forecast\s+for\s+next\s+year\s+without\s+data)\b/i;
+  /\b(train\s+(?:\w+\s+){0,3}model|fine[-\s]?tune|predict\s+the\s+future|forecast\s+for\s+next\s+year\s+without\s+data)\b/i;
 
 function buildUnsupportedResponse(reason: string): string {
   return [

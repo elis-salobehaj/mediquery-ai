@@ -2,25 +2,25 @@
 status: active
 priority: high
 date_created: 2026-02-27
-date_updated: 2026-02-27
+date_updated: 2026-03-02
 related_files:
   - backend/src/ai/benchmarks/dev-benchmark.ts
   - backend/test/ai/dev-benchmark.spec.ts
   - backend/src/ai/queries.controller.ts
   - backend/src/ai/graph.ts
-  - backend/src/ai/critic.ts
-  - backend/src/ai/reflector.ts
-  - backend/src/ai/schema-navigator.ts
-  - backend/src/ai/sql-writer.ts
-  - backend/src/ai/router.ts
-  - backend/src/ai/policy-gate.ts
+  - backend/src/ai/agents/critic-agent.ts
+  - backend/src/ai/agents/reflector-agent.ts
+  - backend/src/ai/agents/schema-navigator-agent.ts
+  - backend/src/ai/agents/sql-writer-agent.ts
+  - backend/src/ai/agents/router-agent.ts
+  - backend/src/ai/agents/policy-gate.ts
   - backend/src/ai/common.ts
   - backend/src/ai/state.ts
   - backend/src/database/database.service.ts
   - backend/src/ai/prompts/system_prompts.yaml
   - backend/src/ai/prompts/semantic_view.yaml
-  - docs/context/BENCHMARKING.md
-  - docs/designs/benchmarking_framework.md
+  - docs/humans/context/BENCHMARKING.md
+  - docs/humans/designs/benchmarking_framework.md
   - docs/reports/guardrail_benchmark_dev.json
 depends_on:
   - docs/plans/implemented/llm_routing_agentic_optimization.md
@@ -35,6 +35,12 @@ completion:
 ---
 
 # Automated Benchmarking & Evaluation Pipeline Plan
+
+> **⚠️ MIGRATION NOTE**: This plan was authored before the MySQL → PostgreSQL/OMOP CDM v5.4 migration.
+> All references to "MySQL" in this document should be read as **PostgreSQL (OMOP CDM v5.4)**.
+> The clinical data now lives in `omop_db` (schemas `tenant_nexus_health` + `omop_vocab`), not MySQL.
+> Agent files have been renamed and moved to `backend/src/ai/agents/*-agent.ts`.
+> See `docs/plans/implemented/migrate_tenant_db_to_postgres.md` for migration details.
 
 ## Objective
 

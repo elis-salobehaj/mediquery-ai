@@ -1,6 +1,6 @@
 # Mediquery AI - TypeScript Backend (NestJS)
 
-Integration of the foundational data layer and token tracking services using NestJS and PostgreSQL/MySQL.
+NestJS backend serving the AI query pipeline, authentication, token tracking, and OMOP CDM v5.4 clinical data access via PostgreSQL.
 
 > Drizzle schema + migration ownership now lives in `packages/db` and is executed in Docker by the `migrator` service.
 
@@ -9,8 +9,8 @@ Integration of the foundational data layer and token tracking services using Nes
 - **NestJS Framework**: Modular, scalable architecture.
 - **Drizzle ORM**: Type-safe app-data schema and migrations via `packages/db`.
 - **Multi-Database**:
-  - PostgreSQL for token tracking and user metadata.
-  - MySQL for KPI data and analytics.
+  - PostgreSQL for app data (users, tokens, threads) via Drizzle ORM.
+  - PostgreSQL for OMOP CDM v5.4 clinical data (`omop_db`) via raw `pg` driver.
 - **Pino Logging**: Environment-aware logging (JSON in prod/test, Pretty in dev).
 - **Dockerized**: Fully containerized environment for dev and E2E testing.
 

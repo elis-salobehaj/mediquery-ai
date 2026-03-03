@@ -130,10 +130,10 @@ Wrap the manual ETL scripts (Plan 2) in **Dagster** for orchestration, schedulin
 
 ### 3.4 Data Quality — Great Expectations
 
-- [ ] Create expectation suites per table:
-  - `lab_results`: oil_vol >= 0, gas_vol >= 0, date not in future, patient_id not null
-  - `patients`: lat/lon within valid ranges, mrn_number format, unique patient names per tenant
-  - `wait_times`: capacity > 0, valid tank types
+- [ ] Create expectation suites per OMOP table:
+  - `condition_occurrence`: valid concept_ids, dates not in future, person_id not null
+  - `measurement`: value_as_number within plausible ranges, measurement_date not null
+  - `visit_occurrence`: visit_end_date >= visit_start_date, valid visit_concept_id
 - [ ] Integrate GE into Silver assets (validate before Gold load):
   ```python
   @asset(deps=[silver_kpi_general])

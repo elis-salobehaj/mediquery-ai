@@ -1,10 +1,10 @@
 ---
 description: Harden the full Mediquery stack against the OMOP Golden Dataset — benchmarking, agent quality, memory, testing, documentation
-status: active
+status: implemented
 priority: high
 date_created: 2026-03-01
-date_updated: 2026-03-01
-date_completed:
+date_updated: 2026-03-02
+date_completed: 2026-03-02
 related_files:
   - README.md
   - AGENTS.md
@@ -29,8 +29,8 @@ completion:
   - [x] Phase 4 — Agent Layer Refactor (LangGraph)
   - [x] Phase 5 — Memory System Tailoring
   - [x] Phase 6 — Test Suite Overhaul
-  - [ ] Phase 7 — Live Stack Verification & Agent Iteration
-  - [ ] Phase 8 — Full Documentation Purge
+  - [x] Phase 7 — Live Stack Verification & Agent Iteration
+  - [x] Phase 8 — Full Documentation Purge
 ---
 
 # OMOP Golden Dataset Hardening

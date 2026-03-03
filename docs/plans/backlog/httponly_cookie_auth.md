@@ -13,6 +13,11 @@ related_files:
   - backend/api/v1/dependencies.py
   - backend/main.py
   - backend/domain/models.py
+---
+
+> **⚠️ LEGACY PLAN**: Backend file paths reference the old Python backend. When implementing,
+> migrate to the NestJS equivalents: `backend/src/config/env.config.ts`, `backend/src/auth/auth.service.ts`,
+> `backend/src/auth/auth.controller.ts`, `backend/src/auth/jwt-auth.guard.ts`.
   - frontend/src/App.tsx
   - frontend/src/utils/auth.ts
   - frontend/src/components/ProtectedRoute.tsx
@@ -156,8 +161,8 @@ Migrate JWT storage from localStorage to HttpOnly cookies to eliminate XSS token
   - Backward compat → verify old Authorization header still works during transition
 
 - [ ] **3.2 Update documentation**
-  - `docs/context/CONFIGURATION.md` — Add cookie settings documentation
-  - `docs/context/ARCHITECTURE.md` — Update auth flow diagram
+  - `docs/humans/context/CONFIGURATION.md` — Add cookie settings documentation
+  - `docs/humans/context/ARCHITECTURE.md` — Update auth flow diagram
   - `docs/README.md` — Update plan status
 
 ## Risk Assessment
@@ -187,8 +192,8 @@ Migrate JWT storage from localStorage to HttpOnly cookies to eliminate XSS token
 | `frontend/src/components/Usage/UsageNotifications.tsx` | 2 | Remove direct token checks |
 | `frontend/src/services/tokenUsageService.ts` | 2 | Add `withCredentials: true` |
 | `frontend/src/utils/csrf.ts` | 1 | NEW: CSRF token utility (if Option A) |
-| `docs/context/CONFIGURATION.md` | 3 | Document cookie settings |
-| `docs/context/ARCHITECTURE.md` | 3 | Update auth flow |
+| `docs/humans/context/CONFIGURATION.md` | 3 | Document cookie settings |
+| `docs/humans/context/ARCHITECTURE.md` | 3 | Update auth flow |
 
 ## Implementation Notes
 

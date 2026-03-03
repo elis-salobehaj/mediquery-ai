@@ -549,7 +549,7 @@ For production use:
 - Use environment-specific CORS settings
 - Add rate limiting
 - Sanitize all SQL inputs (currently using parameterized queries)
-- Use a production database (PostgreSQL, MySQL)
+- Use a production database (PostgreSQL)
 - Implement HTTPS
 - Secure Ollama endpoint
 - Use Docker secrets for sensitive data

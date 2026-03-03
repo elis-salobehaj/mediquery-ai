@@ -1,20 +1,20 @@
 {
-  "generated_at": "2026-03-02T00:57:04.316Z",
+  "generated_at": "2026-03-03T05:04:24.377Z",
   "mode": "development",
   "execution_mode": "mode-a",
   "totals": {
     "cases": 5,
-    "policy_gate_correct": 4,
+    "policy_gate_correct": 5,
     "sql_policy_correct": 3,
     "sql_policy_cases": 3,
-    "golden_queries": 27,
-    "table_selection_correct": 27,
-    "concept_join_correct": 27,
+    "golden_queries": 34,
+    "table_selection_correct": 34,
+    "concept_join_correct": 34,
     "sql_execution_correct": 0,
     "sql_execution_cases": 0
   },
   "accuracy": {
-    "policy_gate": 0.8,
+    "policy_gate": 1,
     "sql_policy": 1,
     "table_selection": 1,
     "concept_join": 1,
@@ -22,9 +22,9 @@
   },
   "by_category": {
     "demographics": {
-      "total": 4,
-      "tableSelectionCorrect": 4,
-      "conceptJoinCorrect": 4,
+      "total": 5,
+      "tableSelectionCorrect": 5,
+      "conceptJoinCorrect": 5,
       "sqlExecutionCorrect": 0,
       "tableSelectionAccuracy": 1,
       "conceptJoinAccuracy": 1,
@@ -58,9 +58,9 @@
       "sqlExecutionAccuracy": 0
     },
     "visits": {
-      "total": 3,
-      "tableSelectionCorrect": 3,
-      "conceptJoinCorrect": 3,
+      "total": 4,
+      "tableSelectionCorrect": 4,
+      "conceptJoinCorrect": 4,
       "sqlExecutionCorrect": 0,
       "tableSelectionAccuracy": 1,
       "conceptJoinAccuracy": 1,
@@ -76,9 +76,18 @@
       "sqlExecutionAccuracy": 0
     },
     "edge_cases": {
-      "total": 3,
-      "tableSelectionCorrect": 3,
-      "conceptJoinCorrect": 3,
+      "total": 4,
+      "tableSelectionCorrect": 4,
+      "conceptJoinCorrect": 4,
+      "sqlExecutionCorrect": 0,
+      "tableSelectionAccuracy": 1,
+      "conceptJoinAccuracy": 1,
+      "sqlExecutionAccuracy": 0
+    },
+    "trends": {
+      "total": 4,
+      "tableSelectionCorrect": 4,
+      "conceptJoinCorrect": 4,
       "sqlExecutionCorrect": 0,
       "tableSelectionAccuracy": 1,
       "conceptJoinAccuracy": 1,
@@ -112,7 +121,7 @@
     },
     {
       "id": "unsupported_ml_request",
-      "policyGatePassed": false,
+      "policyGatePassed": true,
       "expectedPolicyGate": "BLOCK",
       "issues": []
     },
@@ -531,6 +540,111 @@
         "procedure_occurrence",
         "visit_occurrence",
         "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_visit_monthly_trend",
+      "category": "trends",
+      "tier": "medium",
+      "question": "Show the monthly count of visits by visit type (inpatient, outpatient, emergency) over the last 24 months.",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "visit_occurrence",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_visit_concept_join_coverage",
+      "category": "trends",
+      "tier": "easy",
+      "question": "What percentage of visits have a recognised visit type concept name (i.e. successfully join to the vocabulary)?",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "visit_occurrence",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_inpatient_concept_name_check",
+      "category": "visits",
+      "tier": "easy",
+      "question": "Confirm that inpatient visits (visit_concept_id = 9201) resolve to the concept name 'Inpatient Visit'.",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "visit_occurrence",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_monthly_condition_incidence",
+      "category": "trends",
+      "tier": "medium",
+      "question": "Show the monthly count of new condition diagnoses by condition name over the last 12 months. Return top 5 conditions by total occurrence.",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "condition_occurrence",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_age_gender_cross_tab",
+      "category": "demographics",
+      "tier": "medium",
+      "question": "Show a cross-tabulation of patients by age group (decade) and gender.",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "person",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_drug_monthly_trend",
+      "category": "trends",
+      "tier": "hard",
+      "question": "Show how the top 5 most prescribed medications have trended monthly over the last 12 months.",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "drug_exposure",
+        "concept"
+      ],
+      "expectedTablesMissing": [],
+      "hasConceptJoin": true,
+      "needsConceptJoin": true
+    },
+    {
+      "id": "omop_all_three_visit_types_present",
+      "category": "edge_cases",
+      "tier": "easy",
+      "question": "Verify that all three standard visit types (inpatient, outpatient, emergency) are represented in the dataset.",
+      "tableSelectionAccurate": true,
+      "conceptJoinDetected": true,
+      "expectedTablesPresent": [
+        "concept",
+        "visit_occurrence"
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,

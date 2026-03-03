@@ -29,8 +29,8 @@ completion:
   - [x] Phase 1 — Vocabulary ingestion architecture (open-license first)
   - [x] Phase 2 — ETL mapping hardening and concept integrity
   - [x] Phase 3 — Gold dump production and idempotent orchestration
-  - [ ] Phase 4 — Automated QA gates (pipeline fail-fast)
-  - [ ] Phase 5 — Backend integration checks and benchmark readiness
+  - [x] Phase 4 — Automated QA gates (pipeline fail-fast)
+  - [x] Phase 5 — Backend integration checks and benchmark readiness
   - [ ] Phase 6 — CI automation, docs, and runbooks
 ---
 
@@ -126,16 +126,16 @@ Rationale:
 
 ## Minimal Schema Changes
 
-Keep OMOP table DDL intact. Add only pipeline metadata/control tables in `omop_vocab`:
+Keep OMOP table DDL intact. **No pipeline control tables are added to the DB.**
+Pipeline run metadata and QA gate results are persisted as JSON artifacts
+(`pipeline_run_metadata.json`, `pipeline_qa_results.json`) in the
+`data-pipeline/` directory instead.
 
-1. `pipeline_run_metadata`
-   - run_id, profile, synthea_population, synthea_seed, vocabulary_source, started_at, finished_at, status.
-2. `pipeline_quality_checks`
-   - run_id, check_name, passed, observed_value, threshold, details_json.
-3. `required_concepts_catalog`
-   - concept_id, concept_name, domain_id, source, required_reason, active.
-
-No changes to OMOP fact table structure.
+**Rationale:** Pipeline operations metadata belongs in the main app DB (managed
+by Drizzle/NestJS), not in `omop_vocab` which is OMOP vocabulary data. Adding
+it to `omop_vocab` would mix concerns. Using JSON files keeps the pipeline fully
+self-contained with no DB schema dependency for its own audit trail, while CI
+can archive the artifacts for history.
 
 ---
 

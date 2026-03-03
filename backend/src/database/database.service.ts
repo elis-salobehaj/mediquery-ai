@@ -184,11 +184,18 @@ export class DatabaseService {
   async getAllTableNames(): Promise<string[]> {
     try {
       const tenantPool = this.getTenantPool();
-      const result = await tenantPool.query(`
-        SELECT tablename 
-        FROM pg_catalog.pg_tables 
-        WHERE schemaname != 'pg_catalog' AND schemaname != 'information_schema'
-      `);
+      const tenantSchema = this.configService.get('NEXUS_TENANT_DB_NAME');
+      // Restrict to the two known schemas so internal pg_catalog / alembic
+      // version tables are never exposed to the LLM context.
+      const result = await tenantPool.query(
+        `
+        SELECT tablename
+        FROM pg_catalog.pg_tables
+        WHERE schemaname = $1 OR schemaname = 'omop_vocab'
+        ORDER BY schemaname, tablename
+        `,
+        [tenantSchema],
+      );
       return result.rows.map((row) => String(row.tablename));
     } catch (err) {
       this.logger.error(
@@ -218,6 +225,160 @@ export class DatabaseService {
         `Failed to get schema for table ${tableName}: ${this.extractDbErrorMessage(err)}`,
       );
       return [];
+    }
+  }
+
+  /**
+   * Verify that omop_vocab.concept is populated and the three baseline visit
+   * concept IDs required by every OMOP visit join are present.
+   *
+   * Gates the backend's ability to serve concept-name resolved queries.
+   * Returns a structured status report suitable for a health-check endpoint
+   * or startup log.
+   */
+  async verifyOmopConceptJoinability(): Promise<{
+    conceptTableNonEmpty: boolean;
+    conceptCount: number;
+    requiredVisitConceptsPresent: boolean;
+    missingVisitConceptIds: number[];
+    canJoin: boolean;
+    details: string;
+  }> {
+    const REQUIRED_VISIT_CONCEPT_IDS = [9201, 9202, 9203]; // Inpatient, Outpatient, ER
+    try {
+      const tenantPool = this.getTenantPool();
+
+      // 1. Count omop_vocab.concept rows
+      const countResult = await tenantPool.query(
+        `SELECT COUNT(*) AS cnt FROM omop_vocab.concept`,
+      );
+      const conceptCount = Number(countResult.rows[0]?.cnt ?? 0);
+
+      // 2. Check required visit concept IDs
+      const foundResult = await tenantPool.query(
+        `SELECT concept_id FROM omop_vocab.concept
+         WHERE concept_id = ANY($1::int[])`,
+        [REQUIRED_VISIT_CONCEPT_IDS],
+      );
+      const foundIds = new Set(
+        foundResult.rows.map((r) => Number(r.concept_id)),
+      );
+      const missingVisitConceptIds = REQUIRED_VISIT_CONCEPT_IDS.filter(
+        (id) => !foundIds.has(id),
+      );
+
+      const conceptTableNonEmpty = conceptCount > 0;
+      const requiredVisitConceptsPresent = missingVisitConceptIds.length === 0;
+      const canJoin = conceptTableNonEmpty && requiredVisitConceptsPresent;
+
+      const details = canJoin
+        ? `omop_vocab.concept has ${conceptCount} rows; all required visit concept IDs present.`
+        : [
+            conceptTableNonEmpty
+              ? `omop_vocab.concept has ${conceptCount} rows.`
+              : `omop_vocab.concept is EMPTY — concept-name joins will return 0 rows.`,
+            missingVisitConceptIds.length > 0
+              ? `Missing visit concept IDs: ${missingVisitConceptIds.join(', ')}. ` +
+                `Run the data pipeline to regenerate vocabulary.`
+              : '',
+          ]
+            .filter(Boolean)
+            .join(' ');
+
+      if (canJoin) {
+        this.logger.log(`OMOP vocab joinability OK: ${details}`);
+      } else {
+        this.logger.warn(`OMOP vocab joinability FAIL: ${details}`);
+      }
+
+      return {
+        conceptTableNonEmpty,
+        conceptCount,
+        requiredVisitConceptsPresent,
+        missingVisitConceptIds,
+        canJoin,
+        details,
+      };
+    } catch (err) {
+      const msg = `OMOP concept joinability check failed: ${this.extractDbErrorMessage(err)}`;
+      this.logger.error(msg);
+      return {
+        conceptTableNonEmpty: false,
+        conceptCount: 0,
+        requiredVisitConceptsPresent: false,
+        missingVisitConceptIds: REQUIRED_VISIT_CONCEPT_IDS,
+        canJoin: false,
+        details: msg,
+      };
+    }
+  }
+
+  /**
+   * Returns a lightweight status summary of the OMOP vocabulary loaded in the
+   * tenant database.  Intended for health-check endpoints and startup
+   * diagnostics.
+   */
+  async getOmopVocabStatus(): Promise<{
+    profile: string;
+    vocabConceptCount: number;
+    tenantConceptCount: number;
+    visitConceptCoverage: { total: number; joinable: number; coveragePct: number };
+  }> {
+    try {
+      const tenantPool = this.getTenantPool();
+      const tenantSchema = this.configService.get('NEXUS_TENANT_DB_NAME');
+
+      const [vocabCount, tenantCount, visitStats] = await Promise.all([
+        tenantPool
+          .query(`SELECT COUNT(*) AS cnt FROM omop_vocab.concept`)
+          .then((r) => Number(r.rows[0]?.cnt ?? 0)),
+
+        tenantPool
+          .query(`SELECT COUNT(*) AS cnt FROM ${tenantSchema}.concept`)
+          .then((r) => Number(r.rows[0]?.cnt ?? 0))
+          .catch(() => 0),
+
+        tenantPool
+          .query(
+            `SELECT
+               COUNT(*) AS total,
+               COUNT(c.concept_id) AS joinable
+             FROM ${tenantSchema}.visit_occurrence vo
+             LEFT JOIN omop_vocab.concept c ON vo.visit_concept_id = c.concept_id
+             WHERE vo.visit_concept_id > 0`,
+          )
+          .then((r) => ({
+            total: Number(r.rows[0]?.total ?? 0),
+            joinable: Number(r.rows[0]?.joinable ?? 0),
+          }))
+          .catch(() => ({ total: 0, joinable: 0 })),
+      ]);
+
+      const coveragePct =
+        visitStats.total > 0
+          ? Math.round((visitStats.joinable / visitStats.total) * 1000) / 10
+          : 0;
+
+      return {
+        profile: 'synthetic_open',
+        vocabConceptCount: vocabCount,
+        tenantConceptCount: tenantCount,
+        visitConceptCoverage: {
+          total: visitStats.total,
+          joinable: visitStats.joinable,
+          coveragePct,
+        },
+      };
+    } catch (err) {
+      this.logger.error(
+        `getOmopVocabStatus failed: ${this.extractDbErrorMessage(err)}`,
+      );
+      return {
+        profile: 'unknown',
+        vocabConceptCount: 0,
+        tenantConceptCount: 0,
+        visitConceptCoverage: { total: 0, joinable: 0, coveragePct: 0 },
+      };
     }
   }
 

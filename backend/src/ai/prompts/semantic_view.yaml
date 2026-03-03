@@ -6,7 +6,7 @@ database: mediquery
 dialect: postgresql
 hub_table: person
 hub_key: person_id
-supported_table_count: 10
+supported_table_count: 11
 
 join_graph:
   - from: person
@@ -215,6 +215,24 @@ tables:
       concept_code: 'Source code from the vocabulary'
       standard_concept: 'S=Standard, C=Classification, null=Non-standard'
 
+  source_to_concept_map:
+    description: 'ETL traceability table. Maps source codes (e.g. SNOMED codes from Synthea) to OMOP standard concept_ids. Populated by the data pipeline. Useful for auditing which source codes produced which concept_ids.'
+    aliases: ['code map', 'source mapping', 'etl mapping']
+    primary_key: [source_code, source_vocabulary_id, target_concept_id]
+    columns:
+      source_code: 'Original source code (e.g. SNOMED or RxNorm code string)'
+      source_concept_id: 'Source concept_id (usually 0 for synthetic data)'
+      source_vocabulary_id: 'Vocabulary identifier for the source code (e.g. SNOMED)'
+      source_code_description: 'Human-readable description from source'
+      target_concept_id: 'OMOP standard concept_id this source code maps to'
+      target_vocabulary_id: 'Vocabulary of the target concept'
+      valid_start_date: 'Validity start date for the mapping'
+      valid_end_date: 'Validity end date for the mapping'
+      invalid_reason: 'Reason for invalidation (null if still valid)'
+    important_notes:
+      - 'Only use this table for ETL auditing — not for clinical analysis queries'
+      - 'Populated automatically by the data pipeline; do NOT join this in analytical SQL'
+
 reasoning: |
   Mediquery uses OMOP CDM v5.4. The database is highly normalized.
   Always join fact tables (condition_occurrence, drug_exposure, measurement, procedure_occurrence, observation, condition_era, drug_era)
@@ -223,6 +241,10 @@ reasoning: |
   Clinical fact tables live in the tenant schema (default search_path is set at connection level — do NOT inject SET search_path in SQL).
   For temporal analysis, prefer era tables (condition_era, drug_era) over raw occurrence tables.
   Always specify explicit column lists; never use SELECT *.
+  Data profile: synthetic_open — vocabulary is generated from Synthea source codes plus required OMOP baseline concepts.
+  visit_concept_id values: 9201=Inpatient Visit, 9202=Outpatient Visit, 9203=Emergency Room Visit.
+  gender_concept_id values: 8507=Male, 8532=Female.
+  All required concept_ids are guaranteed present in omop_vocab.concept after a successful pipeline run.
 
 query_patterns:
   - name: 'Top Diagnoses'
@@ -322,6 +344,19 @@ query_patterns:
         JOIN omop_vocab.concept c2 ON ce2.condition_concept_id = c2.concept_id
         WHERE c2.concept_name ILIKE '%hypertension%'
       );
+
+  - name: 'Monthly Visit Volume Trend'
+    description: 'Count visits by type (inpatient/outpatient/ER) per month over a date range'
+    example: |
+      SELECT
+        DATE_TRUNC('month', vo.visit_start_date) AS month,
+        c.concept_name AS visit_type,
+        COUNT(*) AS visit_count
+      FROM visit_occurrence vo
+      JOIN omop_vocab.concept c ON vo.visit_concept_id = c.concept_id
+      WHERE vo.visit_start_date >= CURRENT_DATE - INTERVAL '24 months'
+      GROUP BY DATE_TRUNC('month', vo.visit_start_date), c.concept_name
+      ORDER BY month, visit_type;
 
   - name: 'Lab Values (Abnormal)'
     description: 'Patients with out-of-range lab results'

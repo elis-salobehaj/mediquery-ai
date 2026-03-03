@@ -10,7 +10,7 @@
 | --- | ------------------------------------------------------------ | ------------ | ---------- |
 | 1   | **OMOP & Synthea Migration** ([plan](omop_synthea_migration.md)) | 🔄 Phase 2/5 | 10-15h     |
 | 2   | **Automated Benchmarking & Evaluation Pipeline** ([plan](automated_benchmarking_evaluation_pipeline.md)) | 🔄 Phase 0/5 | 25-40h     |
-| 3   | **OMOP Vocabulary Automation (Open-License, No Manual Steps)** ([plan](omop_vocabulary_automation_open_data.md)) | 🔄 Phase 3/6 | 20-35h     |
+| 3   | **OMOP Vocabulary Automation (Open-License, No Manual Steps)** ([plan](omop_vocabulary_automation_open_data.md)) | 🔄 Phase 5/6 | 20-35h     |
 
 ## ✅ Recently Completed
 

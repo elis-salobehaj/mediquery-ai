@@ -433,6 +433,34 @@ cd backend && pnpm benchmark:dev
 
 Verify accuracy metrics improved.
 
+### 7.6 — Vocabulary Concept-Join Regression Tests (Phase 5 — OMOP Vocab Automation)
+
+The following benchmark corpus entries were added as **regression tests** proving
+that concept-name join queries work correctly after a full pipeline run. They must
+return non-empty, non-error results on a freshly loaded Gold dataset.
+
+| Benchmark ID | Category | What it validates |
+|---|---|---|
+| `omop_visit_monthly_trend` | trends | Monthly visit counts by type — requires `omop_vocab.concept` populated |
+| `omop_visit_concept_join_coverage` | trends | Coverage % of visits with resolved concept names (must be ≥95%) |
+| `omop_inpatient_concept_name_check` | visits | concept_id 9201 resolves to "Inpatient Visit" — vocabulary regression guard |
+| `omop_monthly_condition_incidence` | trends | Condition incidence trend with concept join over 12 months |
+| `omop_age_gender_cross_tab` | demographics | Cross-tabulation using concept join for gender resolution |
+| `omop_drug_monthly_trend` | trends | Top 5 drug prescriptions over 12 months with concept join |
+| `omop_all_three_visit_types_present` | edge_cases | All 3 visit concept IDs (9201, 9202, 9203) are in `omop_vocab.concept` |
+
+**Pre-condition**: Before running these benchmarks, verify vocabulary joinability:
+
+```typescript
+// In NestJS service / e2e test
+const status = await databaseService.verifyOmopConceptJoinability();
+assert(status.canJoin, `OMOP vocab joinability failed: ${status.details}`);
+```
+
+**Pipeline gate**: The data pipeline's Phase 4 QA gates (see `data-pipeline/vocabulary/qa_checks.py`)
+automatically verify these same constraints before exporting Gold. If `pipeline_qa_results.json`
+shows `all_passed: true`, the concept-join benchmarks should pass.
+
 ---
 
 ## Phase 8: Full Documentation Purge

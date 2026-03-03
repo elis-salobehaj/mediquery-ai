@@ -14,12 +14,14 @@ import psycopg
 
 from config import settings
 from load_omop import main as run_omop_etl
+from vocabulary.qa_checks import QaGateFailure, QaGateSummary, run_all_gates
 
 
 PIPELINE_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = PIPELINE_ROOT.parent
 GOLD_DUMP_PATH = PIPELINE_ROOT / "gold_omop_tenant.sql"
 RUN_METADATA_PATH = PIPELINE_ROOT / "pipeline_run_metadata.json"
+QA_RESULTS_PATH = PIPELINE_ROOT / "pipeline_qa_results.json"
 
 
 def run_command(command: list[str], cwd: Path | None = None) -> None:
@@ -221,7 +223,38 @@ def export_gold_dump() -> None:
     print(f"[pipeline] Gold dump export complete (docker exec: {container_name})")
 
 
-def write_run_metadata(elapsed_seconds: float, status: str = "success") -> None:
+def write_qa_results(summary: QaGateSummary) -> None:
+    """Write QA gate results to ``pipeline_qa_results.json``.
+
+    The file is overwritten on every run.  CI should archive the artifact if
+    a history of gate runs is required for audit purposes.
+    """
+    QA_RESULTS_PATH.write_text(
+        json.dumps(summary.to_dict(), indent=2, default=str),
+        encoding="utf-8",
+    )
+    print(f"[pipeline] QA results written -> {QA_RESULTS_PATH}")
+
+
+def run_qa_gates_postload(qa_summary_ref: list[QaGateSummary]) -> None:
+    """Open a DB connection and run all post-load QA gates.
+
+    The ``qa_summary_ref`` list is mutated in place so the caller can access
+    the summary regardless of whether a ``QaGateFailure`` is raised.
+    """
+    dsn = settings.database_url.replace("postgresql+psycopg", "postgresql")
+    with psycopg.connect(dsn) as conn:
+        summary = run_all_gates(
+            conn,
+            tenant_schema=settings.active_tenant_schema,
+            vocab_schema=settings.vocab_schema,
+            profile=settings.pipeline_profile,
+        )
+    qa_summary_ref.append(summary)
+    write_qa_results(summary)
+
+
+def write_run_metadata(elapsed_seconds: float, status: str = "success", qa_summary: QaGateSummary | None = None) -> None:
     """Write a JSON metadata artifact after each pipeline run.
 
     Produces ``data-pipeline/pipeline_run_metadata.json`` with:
@@ -254,6 +287,10 @@ def write_run_metadata(elapsed_seconds: float, status: str = "success") -> None:
         "elapsed_seconds": round(elapsed_seconds, 2),
         "gold_dump_path": str(GOLD_DUMP_PATH),
         "gold_dump_size_bytes": gold_size_bytes,
+        "qa_gates_total": qa_summary.total if qa_summary else None,
+        "qa_gates_passed": qa_summary.passed if qa_summary else None,
+        "qa_gates_failed": qa_summary.failed if qa_summary else None,
+        "qa_gates_all_passed": qa_summary.all_passed if qa_summary else None,
     }
 
     RUN_METADATA_PATH.write_text(
@@ -291,11 +328,23 @@ def main() -> None:
     run_synthea_generation()
     run_alembic_upgrade()
     run_omop_etl()
+
+    # Phase 4: run blocking QA gates before Gold export
+    qa_summary_holder: list[QaGateSummary] = []
+    try:
+        run_qa_gates_postload(qa_summary_holder)
+    except QaGateFailure as exc:
+        elapsed = time.time() - run_start
+        qa_summary = qa_summary_holder[0] if qa_summary_holder else None
+        write_run_metadata(elapsed_seconds=elapsed, status="qa_failed", qa_summary=qa_summary)
+        raise
+
+    qa_summary = qa_summary_holder[0] if qa_summary_holder else None
     export_gold_dump()
 
     elapsed = time.time() - run_start
     print("[pipeline] Complete: bronze + silver + gold generated successfully")
-    write_run_metadata(elapsed_seconds=elapsed, status="success")
+    write_run_metadata(elapsed_seconds=elapsed, status="success", qa_summary=qa_summary)
 
 
 if __name__ == "__main__":

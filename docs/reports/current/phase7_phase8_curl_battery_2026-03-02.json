@@ -1,0 +1,88 @@
+{
+  "thread_id": "569a9b40-4f37-440e-8e86-a6f46d69dd28",
+  "total": 10,
+  "passed": 0,
+  "failed": 10,
+  "results": [
+    {
+      "index": 1,
+      "question": "What are the top 5 most common diagnoses?",
+      "http_status": "200",
+      "passed": false,
+      "reason": "error_payload",
+      "bytes": 14097
+    },
+    {
+      "index": 2,
+      "question": "Show patient distribution by gender",
+      "http_status": "200",
+      "passed": false,
+      "reason": "error_payload",
+      "bytes": 5962
+    },
+    {
+      "index": 3,
+      "question": "What medications is the most prescribed?",
+      "http_status": "200",
+      "passed": false,
+      "reason": "error_payload",
+      "bytes": 14941
+    },
+    {
+      "index": 4,
+      "question": "Average duration of inpatient visits",
+      "http_status": "200",
+      "passed": false,
+      "reason": "error_payload",
+      "bytes": 7211
+    },
+    {
+      "index": 5,
+      "question": "Show latest blood pressure for each patient",
+      "http_status": "200",
+      "passed": false,
+      "reason": "error_payload",
+      "bytes": 15265
+    },
+    {
+      "index": 6,
+      "question": "How many patients have both diabetes and hypertension?",
+      "http_status": "000",
+      "passed": false,
+      "reason": "http_000",
+      "bytes": 7577
+    },
+    {
+      "index": 7,
+      "question": "List all procedures performed during emergency visits",
+      "http_status": "000",
+      "passed": false,
+      "reason": "http_000",
+      "bytes": 7498
+    },
+    {
+      "index": 8,
+      "question": "What is the average number of conditions per patient?",
+      "http_status": "200",
+      "passed": false,
+      "reason": "error_payload",
+      "bytes": 6831
+    },
+    {
+      "index": 9,
+      "question": "Show drug exposure duration by medication class",
+      "http_status": "200",
+      "passed": false,
+      "reason": "error_payload",
+      "bytes": 8674
+    },
+    {
+      "index": 10,
+      "question": "Distribution of visit types (inpatient vs outpatient vs ER)",
+      "http_status": "200",
+      "passed": false,
+      "reason": "error_payload",
+      "bytes": 15041
+    }
+  ]
+}

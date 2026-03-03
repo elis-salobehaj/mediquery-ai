@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-03-03T05:04:24.377Z",
+  "generated_at": "2026-03-03T05:16:18.817Z",
   "mode": "development",
-  "execution_mode": "mode-a",
+  "execution_mode": "mode-b",
   "totals": {
     "cases": 5,
     "policy_gate_correct": 5,
@@ -10,88 +10,88 @@
     "golden_queries": 34,
     "table_selection_correct": 34,
     "concept_join_correct": 34,
-    "sql_execution_correct": 0,
-    "sql_execution_cases": 0
+    "sql_execution_correct": 34,
+    "sql_execution_cases": 34
   },
   "accuracy": {
     "policy_gate": 1,
     "sql_policy": 1,
     "table_selection": 1,
     "concept_join": 1,
-    "sql_execution": 0
+    "sql_execution": 1
   },
   "by_category": {
     "demographics": {
       "total": 5,
       "tableSelectionCorrect": 5,
       "conceptJoinCorrect": 5,
-      "sqlExecutionCorrect": 0,
+      "sqlExecutionCorrect": 5,
       "tableSelectionAccuracy": 1,
       "conceptJoinAccuracy": 1,
-      "sqlExecutionAccuracy": 0
+      "sqlExecutionAccuracy": 1
     },
     "conditions": {
       "total": 5,
       "tableSelectionCorrect": 5,
       "conceptJoinCorrect": 5,
-      "sqlExecutionCorrect": 0,
+      "sqlExecutionCorrect": 5,
       "tableSelectionAccuracy": 1,
       "conceptJoinAccuracy": 1,
-      "sqlExecutionAccuracy": 0
+      "sqlExecutionAccuracy": 1
     },
     "medications": {
       "total": 5,
       "tableSelectionCorrect": 5,
       "conceptJoinCorrect": 5,
-      "sqlExecutionCorrect": 0,
+      "sqlExecutionCorrect": 5,
       "tableSelectionAccuracy": 1,
       "conceptJoinAccuracy": 1,
-      "sqlExecutionAccuracy": 0
+      "sqlExecutionAccuracy": 1
     },
     "measurements": {
       "total": 4,
       "tableSelectionCorrect": 4,
       "conceptJoinCorrect": 4,
-      "sqlExecutionCorrect": 0,
+      "sqlExecutionCorrect": 4,
       "tableSelectionAccuracy": 1,
       "conceptJoinAccuracy": 1,
-      "sqlExecutionAccuracy": 0
+      "sqlExecutionAccuracy": 1
     },
     "visits": {
       "total": 4,
       "tableSelectionCorrect": 4,
       "conceptJoinCorrect": 4,
-      "sqlExecutionCorrect": 0,
+      "sqlExecutionCorrect": 4,
       "tableSelectionAccuracy": 1,
       "conceptJoinAccuracy": 1,
-      "sqlExecutionAccuracy": 0
+      "sqlExecutionAccuracy": 1
     },
     "cross_domain": {
       "total": 3,
       "tableSelectionCorrect": 3,
       "conceptJoinCorrect": 3,
-      "sqlExecutionCorrect": 0,
+      "sqlExecutionCorrect": 3,
       "tableSelectionAccuracy": 1,
       "conceptJoinAccuracy": 1,
-      "sqlExecutionAccuracy": 0
+      "sqlExecutionAccuracy": 1
     },
     "edge_cases": {
       "total": 4,
       "tableSelectionCorrect": 4,
       "conceptJoinCorrect": 4,
-      "sqlExecutionCorrect": 0,
+      "sqlExecutionCorrect": 4,
       "tableSelectionAccuracy": 1,
       "conceptJoinAccuracy": 1,
-      "sqlExecutionAccuracy": 0
+      "sqlExecutionAccuracy": 1
     },
     "trends": {
       "total": 4,
       "tableSelectionCorrect": 4,
       "conceptJoinCorrect": 4,
-      "sqlExecutionCorrect": 0,
+      "sqlExecutionCorrect": 4,
       "tableSelectionAccuracy": 1,
       "conceptJoinAccuracy": 1,
-      "sqlExecutionAccuracy": 0
+      "sqlExecutionAccuracy": 1
     }
   },
   "cases": [
@@ -150,7 +150,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_age_distribution",
@@ -164,7 +165,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": false,
-      "needsConceptJoin": false
+      "needsConceptJoin": false,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_ethnicity_breakdown",
@@ -179,7 +181,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_race_distribution",
@@ -194,7 +197,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_common_conditions",
@@ -209,7 +213,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_condition_prevalence_by_age",
@@ -225,7 +230,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_avg_conditions_per_patient",
@@ -239,7 +245,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": false,
-      "needsConceptJoin": false
+      "needsConceptJoin": false,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_condition_era_duration",
@@ -254,7 +261,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_comorbidity_burden",
@@ -268,7 +276,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": false,
-      "needsConceptJoin": false
+      "needsConceptJoin": false,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_top_medications",
@@ -283,7 +292,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_polypharmacy_patients",
@@ -297,7 +307,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": false,
-      "needsConceptJoin": false
+      "needsConceptJoin": false,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_avg_drug_exposure_duration",
@@ -312,7 +323,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_medications_by_visit_type",
@@ -328,7 +340,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_drug_era_duration",
@@ -343,7 +356,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_recent_measurements",
@@ -359,7 +373,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_abnormal_lab_values",
@@ -375,7 +390,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_bmi_distribution",
@@ -390,7 +406,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_measurement_trends",
@@ -405,7 +422,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_visit_stats",
@@ -419,7 +437,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": false,
-      "needsConceptJoin": false
+      "needsConceptJoin": false,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_visit_type_distribution",
@@ -434,7 +453,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_er_visit_frequency",
@@ -448,7 +468,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": false,
-      "needsConceptJoin": false
+      "needsConceptJoin": false,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_diabetes_and_hypertension",
@@ -463,7 +484,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_conditions_by_visit_type",
@@ -479,7 +501,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_drug_condition_co_occurrence",
@@ -496,7 +519,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_medication_list_specific_patient",
@@ -512,7 +536,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_male_patient_count",
@@ -527,7 +552,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_procedures_during_er",
@@ -543,7 +569,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_visit_monthly_trend",
@@ -558,7 +585,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_visit_concept_join_coverage",
@@ -573,7 +601,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_inpatient_concept_name_check",
@@ -588,7 +617,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_monthly_condition_incidence",
@@ -603,7 +633,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_age_gender_cross_tab",
@@ -618,7 +649,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_drug_monthly_trend",
@@ -633,7 +665,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     },
     {
       "id": "omop_all_three_visit_types_present",
@@ -648,7 +681,8 @@
       ],
       "expectedTablesMissing": [],
       "hasConceptJoin": true,
-      "needsConceptJoin": true
+      "needsConceptJoin": true,
+      "sqlExecutionPassed": true
     }
   ]
 }

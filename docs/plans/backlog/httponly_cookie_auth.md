@@ -173,7 +173,7 @@ Migrate JWT storage from localStorage to HttpOnly cookies to eliminate XSS token
 | CSRF attacks after removing header auth | State-changing requests vulnerable | SameSite=Strict + CSRF token pattern |
 | Local dev without HTTPS | `Secure` flag blocks cookies over HTTP | `cookie_secure: bool = False` default for dev |
 | Components relying on `localStorage.getItem('mediquery_token')` | Auth checks break | Audit all 24 references; migrate to user/role check |
-| Streaming SSE endpoints with cookies | Cookie may not be sent on EventSource | Verify `withCredentials` on SSE wait_times |
+| Streaming SSE endpoints with cookies | Cookie may not be sent on EventSource | Verify `withCredentials` on SSE token-usage events |
 
 ## Files to Modify
 

@@ -233,7 +233,7 @@ The implementation is structured as four independent, deliverable-focused plans:
 | Plan                          | Scope                                                                                   | Key Deliverable                                              |
 | ----------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | **1. Schema Foundation**      | Tenant registry, schema template, agent tenant context switching                        | Agent queries tenant-isolated data in PostgreSQL             |
-| **2. Manual ETL Scripts**     | Standalone Polars pipeline reading from S3, loading into tenant schemas (CLI-triggered) | `etl load --tenant abc --table lab_results` works end-to-end |
+| **2. Manual ETL Scripts**     | Standalone Polars pipeline reading from S3, loading into tenant schemas (CLI-triggered) | `uv run pipeline-full` exports OMOP Gold artifacts end-to-end |
 | **3. Pipeline Orchestration** | Dagster wrapping ETL scripts, scheduling, Great Expectations, monitoring                | Automated daily runs with data quality checks                |
 | **4. MLOps Foundation**       | Qdrant vector store, training data export, golden query evaluation, model registry      | Self-improving agent accuracy via automated evaluation       |
 

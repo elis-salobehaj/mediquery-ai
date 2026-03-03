@@ -9,6 +9,7 @@ import {
   addThought,
   cleanSql,
   autoCorrectTableNames,
+  normalizeOmopDomainIdLiterals,
   extractTablesFromSql,
 } from '@/ai/common';
 import { QuotaExceededException } from '@/ai/exceptions';
@@ -356,6 +357,15 @@ Rules:
         `🔧 SQL Writer: Auto-corrected table names: ${correctionsMade.join(', ')}`,
       );
       sql = correctedSql;
+    }
+
+    const normalizedSql = normalizeOmopDomainIdLiterals(sql);
+    if (normalizedSql !== sql) {
+      addThought(
+        state,
+        '🔧 SQL Writer: Normalized OMOP concept.domain_id literals to canonical values',
+      );
+      sql = normalizedSql;
     }
 
     // 6. Update State

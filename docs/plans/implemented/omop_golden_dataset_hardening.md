@@ -523,18 +523,38 @@ grep -rn "FastAPI\|SQLite\|MySQL\|Percona" --include="*.md" docs/ | grep -v "Leg
 
 ## Success Criteria
 
-- [ ] `README.md` accurately describes the current stack (no legacy references)
-- [ ] `AGENTS.md` rules align with OMOP CDM v5.4 and current tooling
-- [ ] Golden query corpus contains 25+ OMOP queries across all categories
-- [ ] `pnpm benchmark:dev` reports ≥80% accuracy on golden queries
-- [ ] All agent files live under `backend/src/ai/agents/` with `-agent.ts` suffix
+- [x] `README.md` accurately describes the current stack (no legacy references)
+- [x] `AGENTS.md` rules align with OMOP CDM v5.4 and current tooling
+- [x] Golden query corpus contains 25+ OMOP queries across all categories
+- [x] `pnpm benchmark:dev` reports ≥80% accuracy on golden queries
+- [x] All agent files live under `backend/src/ai/agents/` with `-agent.ts` suffix
 - [ ] `pnpm test` passes with zero failures in backend
 - [ ] Frontend Playwright tests pass
 - [ ] 10 meaningful clinical queries succeed end-to-end via curl
-- [ ] Memory system uses OMOP clinical terminology (not industrial KPIs)
+- [x] Memory system uses OMOP clinical terminology (not industrial KPIs)
 - [ ] `grep -rn "backend-py-legacy" --include="*.md" .` returns zero results
 - [ ] `grep -rn "oil_vol\|gas_vol\|well_name\|rop" --include="*.md" .` returns zero results
 - [ ] Every `.md` file in `docs/` has been reviewed and updated
+
+### Validation Evidence (2026-03-02)
+
+- `cd backend && pnpm benchmark:dev` → `policy_gate=100%`, `sql_policy=100%`, `table_selection=100%`, `concept_join=100%` (34 golden queries)
+- `cd backend && pnpm exec tsx src/ai/benchmarks/dev-benchmark.ts --mode=live` → `sql_execution=100%` (Mode B)
+- `wc -l backend/src/ai/benchmarks/corpus/omop_golden_queries.jsonl` → `34`
+- `ls backend/src/ai/agents` confirms all agent files in `agents/` with `-agent.ts` suffix (plus `policy-gate.ts`, `meta-agent.ts`)
+- `cd backend && pnpm test` → failed (`10` test files failed, `89` tests failed)
+- `cd frontend && pnpm exec playwright install chromium && pnpm test-e2e` → failed (`5` failed, `4` passed, `1` skipped; smoke assertion expects `healthy` but API returns `UP`)
+- `docs/reports/current/phase7_phase8_curl_battery_2026-03-02.json` scripted 10-query battery → `0/10` passed (responses contained error payloads and/or timeout status)
+- `grep -rn "backend-py-legacy" --include="*.md" . | wc -l` → `9`
+- `grep -rn "oil_vol\|gas_vol\|well_name\|rop" --include="*.md" . | wc -l` → non-zero in current tree
+
+### Validation Evidence Update (2026-03-03, Partial)
+
+- `cd backend && pnpm test` → pass in latest run
+- `cd frontend && pnpm test-e2e --reporter=line` → `9 passed`, `1 skipped`
+- `tmp/run_curl_battery.sh` → `6/10` passed, `4/10` failed (`missing_result_event`)
+- Detailed continuation notes and exact pickup steps captured in:
+  - `docs/reports/current/phase7_phase8_handoff_2026-03-03.md`
 
 ---
 

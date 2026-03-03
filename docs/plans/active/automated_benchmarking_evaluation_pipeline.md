@@ -702,7 +702,7 @@ The hybrid approach handles all three without fully depending on LLM reliability
    - Nightly results archived in `docs/reports/history/YYYY-MM-DD.json`.
    - PR comments with metric delta summary (if CI integration supports it).
 5. Implement baseline update command: `pnpm benchmark:update-baseline` — runs full benchmark and commits results as new baseline.
-6. Document regression workflow in `docs/context/BENCHMARKING.md`.
+6. Document regression workflow in `docs/humans/context/BENCHMARKING.md`.
 
 #### Exit Criteria
 
@@ -1347,8 +1347,8 @@ Ragas is Python-ecosystem-first and its RAG-focused metrics (context relevancy, 
 
 This plan supersedes the aspirational sections of:
 
-- [docs/designs/benchmarking_framework.md](docs/designs/benchmarking_framework.md) — the "Next Design Extensions" section is now formalized here. The framework doc remains accurate for the current deterministic harness scope.
-- [docs/context/BENCHMARKING.md](docs/context/BENCHMARKING.md) — the "Benchmark Metrics" section will be expanded as each phase ships. The baseline workflow section remains the correct dev-time process.
+- [docs/humans/designs/benchmarking_framework.md](docs/humans/designs/benchmarking_framework.md) — the "Next Design Extensions" section is now formalized here. The framework doc remains accurate for the current deterministic harness scope.
+- [docs/humans/context/BENCHMARKING.md](docs/humans/context/BENCHMARKING.md) — the "Benchmark Metrics" section will be expanded as each phase ships. The baseline workflow section remains the correct dev-time process.
 - `llm_routing_agentic_optimization.md` Phase 7 — this plan is the detailed execution spec for what Phase 7 outlined as "Development Benchmark Baseline". Phase 7 can be marked complete once Phase 1A ships.
 
 ---

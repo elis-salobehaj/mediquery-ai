@@ -18,6 +18,10 @@ tags:
   - standalone
 ---
 
+> **⚠️ LEGACY PLAN**: This plan was authored before the MySQL → PostgreSQL/OMOP CDM v5.4 migration and still references
+> pre-OMOP table naming (`lab_results`, `wait_times`) in illustrative examples. Keep for historical context only.
+> For the active pipeline architecture, follow `data-pipeline/README.md` and OMOP-aligned plans.
+
 ## Alignment Update (2026-02-27)
 
 Plan 3 should operationalize benchmark automation from [docs/plans/active/automated_benchmarking_evaluation_pipeline.md](../active/automated_benchmarking_evaluation_pipeline.md), not create a parallel evaluator.

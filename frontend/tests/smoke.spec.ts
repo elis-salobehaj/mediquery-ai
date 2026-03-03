@@ -15,9 +15,8 @@ test.describe('Post-Deployment Smoke Tests', () => {
     const body = await response.json();
     
     // DB & LLM basic checks
-    expect(body.status).toBe('healthy');
-    expect(body).toHaveProperty('postgres');
-    expect(body).toHaveProperty('mysql');
+    expect(['healthy', 'UP']).toContain(body.status);
+    expect(body).toHaveProperty('database.postgres');
   });
 
   test('Frontend should load successfully', async ({ page }) => {

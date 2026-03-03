@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   autoCorrectTableNames,
+  normalizeOmopDomainIdLiterals,
   classifySqlOperation,
   enforceReadOnlySql,
   enforceSqlComplexity,
@@ -32,9 +33,34 @@ describe('autoCorrectTableNames', () => {
     expect(result.correctedSql).toContain('visit_occurrence');
     expect(result.correctedSql).not.toContain('labss');
   });
+
+  it('does not rewrite values inside quoted strings', () => {
+    const input =
+      "SELECT c.concept_name FROM conditions co JOIN concept c ON co.condition_concept_id = c.concept_id WHERE c.domain_id = 'Condition'";
+    const result = autoCorrectTableNames(input, validTables);
+
+    expect(result.correctedSql).toContain("c.domain_id = 'Condition'");
+    expect(result.correctedSql).toContain('FROM condition_occurrence co');
+  });
 });
 
 describe('phase6 sql policy utilities', () => {
+  it('normalizes common OMOP domain_id literal mistakes', () => {
+    const sql =
+      "SELECT c.concept_name FROM omop_vocab.concept c WHERE c.domain_id = 'condition_occurrence'";
+    const normalized = normalizeOmopDomainIdLiterals(sql);
+
+    expect(normalized).toContain("c.domain_id = 'Condition'");
+  });
+
+  it('does not change unknown domain_id literals', () => {
+    const sql =
+      "SELECT c.concept_name FROM omop_vocab.concept c WHERE c.domain_id = 'CustomDomain'";
+    const normalized = normalizeOmopDomainIdLiterals(sql);
+
+    expect(normalized).toBe(sql);
+  });
+
   it('classifies read-only and write sql operations', () => {
     expect(classifySqlOperation('SELECT * FROM person')).toBe('READ_ONLY');
     expect(classifySqlOperation('UPDATE person SET a = 1')).toBe('WRITE');

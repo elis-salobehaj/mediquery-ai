@@ -94,17 +94,61 @@ export function autoCorrectTableNames(
 
   for (const [pattern, replacement] of Object.entries(tableCorrections)) {
     const regex = new RegExp(pattern, 'gi');
-    const match = sqlCorrected.match(regex);
-    if (match && validTables.has(replacement)) {
-      const originalSql = sqlCorrected;
-      sqlCorrected = sqlCorrected.replace(regex, replacement);
-      if (sqlCorrected !== originalSql) {
-        correctionsMade.push(`${match[0]} -> ${replacement}`);
+    if (!validTables.has(replacement)) {
+      continue;
+    }
+
+    const originalSql = sqlCorrected;
+    const segments = sqlCorrected.split(/('(?:''|[^'])*')/g);
+    let madeChangeForPattern = false;
+
+    for (let index = 0; index < segments.length; index += 1) {
+      if (index % 2 === 0) {
+        const updatedSegment = segments[index].replace(regex, replacement);
+        if (updatedSegment !== segments[index]) {
+          segments[index] = updatedSegment;
+          madeChangeForPattern = true;
+        }
       }
+    }
+
+    sqlCorrected = segments.join('');
+    if (madeChangeForPattern && sqlCorrected !== originalSql) {
+      const match = originalSql.match(regex);
+      correctionsMade.push(`${match?.[0] ?? pattern} -> ${replacement}`);
     }
   }
 
   return { correctedSql: sqlCorrected, correctionsMade };
+}
+
+/**
+ * Normalize known OMOP concept.domain_id literal mistakes emitted by LLMs.
+ */
+export function normalizeOmopDomainIdLiterals(sql: string): string {
+  const domainMap: Record<string, string> = {
+    condition_occurrence: 'Condition',
+    condition_era: 'Condition',
+    drug_exposure: 'Drug',
+    drug_era: 'Drug',
+    visit_occurrence: 'Visit',
+    measurement: 'Measurement',
+    observation: 'Observation',
+    procedure_occurrence: 'Procedure',
+    person: 'Person',
+  };
+
+  return sql.replace(
+    /\b([a-zA-Z_][\w]*)\.domain_id\s*=\s*'([^']+)'/gi,
+    (full, qualifier: string, literal: string) => {
+      const normalized = literal.trim().toLowerCase();
+      const replacement = domainMap[normalized];
+      if (!replacement) {
+        return full;
+      }
+      return `${qualifier}.domain_id = '${replacement}'`;
+    },
+  );
 }
 
 /**

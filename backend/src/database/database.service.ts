@@ -1,6 +1,5 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { sql } from 'drizzle-orm';
 import * as schema from '@/database/schema';
 import { ConfigService } from '@/config/config.service';
 import * as fs from 'fs';
@@ -34,15 +33,16 @@ export class DatabaseService {
       return this.tenantPool;
     }
 
-    const tenantSchema = this.configService.get('NEXUS_TENANT_DB_NAME');
+    const tenantSchema = this.configService.get('OMOP_TENANT_SCHEMA');
+    const vocabSchema = this.configService.get('OMOP_VOCAB_SCHEMA');
 
     this.tenantPool = new Pool({
       host: this.configService.get('POSTGRES_HOST'),
       port: this.configService.get('POSTGRES_PORT'),
       user: this.configService.get('POSTGRES_USER'),
       password: this.configService.get('POSTGRES_PASSWORD'),
-      database: this.configService.get('TENANTS_DB_NAME'),
-      options: `-c search_path=${tenantSchema},omop_vocab,public`,
+      database: this.configService.get('OMOP_DB_NAME'),
+      options: `-c search_path=${tenantSchema},${vocabSchema},public`,
     });
 
     return this.tenantPool;
@@ -184,17 +184,18 @@ export class DatabaseService {
   async getAllTableNames(): Promise<string[]> {
     try {
       const tenantPool = this.getTenantPool();
-      const tenantSchema = this.configService.get('NEXUS_TENANT_DB_NAME');
+      const tenantSchema = this.configService.get('OMOP_TENANT_SCHEMA');
+      const vocabSchema = this.configService.get('OMOP_VOCAB_SCHEMA');
       // Restrict to the two known schemas so internal pg_catalog / alembic
       // version tables are never exposed to the LLM context.
       const result = await tenantPool.query(
         `
         SELECT tablename
         FROM pg_catalog.pg_tables
-        WHERE schemaname = $1 OR schemaname = 'omop_vocab'
+        WHERE schemaname = $1 OR schemaname = $2
         ORDER BY schemaname, tablename
         `,
-        [tenantSchema],
+        [tenantSchema, vocabSchema],
       );
       return result.rows.map((row) => String(row.tablename));
     } catch (err) {
@@ -208,13 +209,17 @@ export class DatabaseService {
   async getTableSchema(tableName: string): Promise<[string, string][]> {
     try {
       const tenantPool = this.getTenantPool();
+      const tenantSchema = this.configService.get('OMOP_TENANT_SCHEMA');
+      const vocabSchema = this.configService.get('OMOP_VOCAB_SCHEMA');
       const result = await tenantPool.query(
         `
         SELECT column_name, data_type 
         FROM information_schema.columns 
         WHERE table_name = $1
+          AND table_schema IN ($2, $3)
+        ORDER BY table_schema, ordinal_position
       `,
-        [tableName],
+        [tableName, tenantSchema, vocabSchema],
       );
       return result.rows.map((row) => [
         String(row.column_name),
@@ -322,11 +327,15 @@ export class DatabaseService {
     profile: string;
     vocabConceptCount: number;
     tenantConceptCount: number;
-    visitConceptCoverage: { total: number; joinable: number; coveragePct: number };
+    visitConceptCoverage: {
+      total: number;
+      joinable: number;
+      coveragePct: number;
+    };
   }> {
     try {
       const tenantPool = this.getTenantPool();
-      const tenantSchema = this.configService.get('NEXUS_TENANT_DB_NAME');
+      const tenantSchema = this.configService.get('OMOP_TENANT_SCHEMA');
 
       const [vocabCount, tenantCount, visitStats] = await Promise.all([
         tenantPool
@@ -427,9 +436,7 @@ export class DatabaseService {
       };
     } catch (err) {
       const errorMessage = this.extractDbErrorMessage(err);
-      this.logger.warn(
-        `SQL validation failed: ${errorMessage}`,
-      );
+      this.logger.warn(`SQL validation failed: ${errorMessage}`);
       return {
         valid: false,
         error: errorMessage,
@@ -465,9 +472,7 @@ export class DatabaseService {
       };
     } catch (err) {
       const errorMessage = this.extractDbErrorMessage(err);
-      this.logger.error(
-        `Query execution failed: ${errorMessage}`,
-      );
+      this.logger.error(`Query execution failed: ${errorMessage}`);
       throw new Error(errorMessage);
     }
   }

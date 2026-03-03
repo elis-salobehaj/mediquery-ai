@@ -22,7 +22,8 @@ export const PG_POOL = 'PG_POOL';
           port: configService.get('POSTGRES_PORT'),
           user: configService.get('POSTGRES_USER'),
           password: configService.get('POSTGRES_PASSWORD'),
-          database: configService.get('POSTGRES_DB_NAME'),
+          database: configService.get('APP_DB_NAME'),
+          options: `-c search_path=${configService.get('APP_DB_SCHEMA')},public`,
         });
       },
     },

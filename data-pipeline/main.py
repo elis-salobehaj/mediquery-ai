@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import json
 import shutil
 import subprocess
@@ -19,7 +20,8 @@ from vocabulary.qa_checks import QaGateFailure, QaGateSummary, run_all_gates
 
 PIPELINE_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = PIPELINE_ROOT.parent
-GOLD_DUMP_PATH = PIPELINE_ROOT / "gold_omop_tenant.sql"
+GOLD_DUMP_SQL_PATH = PIPELINE_ROOT / "gold_omop_tenant.sql"
+GOLD_DUMP_PATH = PIPELINE_ROOT / "gold_omop_tenant.sql.gz"
 RUN_METADATA_PATH = PIPELINE_ROOT / "pipeline_run_metadata.json"
 QA_RESULTS_PATH = PIPELINE_ROOT / "pipeline_qa_results.json"
 
@@ -36,21 +38,33 @@ def ensure_postgres_container() -> None:
         )
         return
 
-    compose_file = REPO_ROOT / "docker-compose.yml"
-    if not compose_file.exists():
-        print("[pipeline] Root docker-compose.yml not found; skipping postgres bootstrap")
+    dsn = settings.database_url.replace("postgresql+psycopg", "postgresql")
+    try:
+        with psycopg.connect(dsn, connect_timeout=3) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+        print("[pipeline] Existing local DB is reachable; skipping container bootstrap")
         return
+    except Exception:
+        pass
+
+    compose_file = PIPELINE_ROOT / "docker-compose.yml"
+    if not compose_file.exists():
+        raise RuntimeError(
+            f"Pipeline compose file not found: {compose_file}"
+        )
 
     run_command(
-        ["docker", "compose", "-f", str(compose_file), "up", "-d", "postgres"],
-        cwd=REPO_ROOT,
+        ["docker", "compose", "-f", str(compose_file), "up", "-d", "transient-db"],
+        cwd=PIPELINE_ROOT,
     )
+    print("[pipeline] Transient pipeline DB container started.")
 
 
 def wait_for_database(timeout_seconds: int = 120) -> None:
     print(
         "[pipeline] Waiting for DB "
-        f"{settings.pipeline_db_host}:{settings.pipeline_db_port}/{settings.pipeline_db_name}..."
+        f"{settings.pipeline_db_host}:{settings.pipeline_db_port}/{settings.omop_db_name}..."
     )
 
     dsn = settings.database_url.replace("postgresql+psycopg", "postgresql")
@@ -101,12 +115,18 @@ def run_alembic_upgrade() -> None:
         return
 
     error_text = f"{result.stdout}\n{result.stderr}".lower()
-    if "permission denied for schema public" not in error_text:
+    migration_db_permission_denied = "permission denied for database" in error_text
+    migration_permission_denied = (
+        "permission denied for schema" in error_text
+        or migration_db_permission_denied
+        or "permission denied for table alembic_version" in error_text
+    )
+    if not migration_permission_denied:
         raise subprocess.CalledProcessError(result.returncode, command)
 
     print(
-        "[pipeline] Alembic could not write version table in public schema; "
-        "checking whether target schemas already exist"
+        "[pipeline] Alembic failed due to migration metadata/schema permissions; "
+        "checking whether target OMOP schemas already exist"
     )
 
     dsn = settings.database_url.replace("postgresql+psycopg", "postgresql")
@@ -159,9 +179,18 @@ def export_gold_dump() -> None:
     tenant_schema = settings.active_tenant_schema
     vocab_schema = settings.vocab_schema
 
+    def _write_compressed_dump(sql_dump_text: str) -> None:
+        tmp_gz_path = GOLD_DUMP_PATH.with_suffix(".sql.gz.tmp")
+        with gzip.open(tmp_gz_path, "wt", encoding="utf-8") as gz_file:
+            gz_file.write(sql_dump_text)
+        tmp_gz_path.replace(GOLD_DUMP_PATH)
+        # Keep the artifact compact for GitHub limits and CI transfer costs.
+        if GOLD_DUMP_SQL_PATH.exists():
+            GOLD_DUMP_SQL_PATH.unlink()
+
     pg_dump_path = shutil.which("pg_dump")
     if pg_dump_path:
-        env = dict(**os.environ, PGPASSWORD=settings.pipeline_db_password)
+        env = dict(**os.environ, PGPASSWORD=settings.omop_etl_password)
         result = subprocess.run(
             [
                 pg_dump_path,
@@ -170,9 +199,9 @@ def export_gold_dump() -> None:
                 "-p",
                 str(settings.pipeline_db_port),
                 "-U",
-                settings.pipeline_db_user,
+                settings.omop_etl_user,
                 "-d",
-                settings.pipeline_db_name,
+                settings.omop_db_name,
                 "--no-owner",
                 "--no-privileges",
                 "--schema",
@@ -185,8 +214,8 @@ def export_gold_dump() -> None:
             env=env,
             check=True,
         )
-        GOLD_DUMP_PATH.write_text(result.stdout, encoding="utf-8")
-        print("[pipeline] Gold dump export complete (host pg_dump)")
+        _write_compressed_dump(result.stdout)
+        print("[pipeline] Gold dump export complete (host pg_dump, gzip)")
         return
 
     container_name = find_postgres_container_by_port(settings.pipeline_db_port)
@@ -201,13 +230,13 @@ def export_gold_dump() -> None:
             "docker",
             "exec",
             "-e",
-            f"PGPASSWORD={settings.pipeline_db_password}",
+            f"PGPASSWORD={settings.omop_etl_password}",
             container_name,
             "pg_dump",
             "-U",
-            settings.pipeline_db_user,
+            settings.omop_etl_user,
             "-d",
-            settings.pipeline_db_name,
+            settings.omop_db_name,
             "--no-owner",
             "--no-privileges",
             "--schema",
@@ -219,8 +248,8 @@ def export_gold_dump() -> None:
         text=True,
         check=True,
     )
-    GOLD_DUMP_PATH.write_text(result.stdout, encoding="utf-8")
-    print(f"[pipeline] Gold dump export complete (docker exec: {container_name})")
+    _write_compressed_dump(result.stdout)
+    print(f"[pipeline] Gold dump export complete (docker exec: {container_name}, gzip)")
 
 
 def write_qa_results(summary: QaGateSummary) -> None:
@@ -244,14 +273,19 @@ def run_qa_gates_postload(qa_summary_ref: list[QaGateSummary]) -> None:
     """
     dsn = settings.database_url.replace("postgresql+psycopg", "postgresql")
     with psycopg.connect(dsn) as conn:
-        summary = run_all_gates(
-            conn,
-            tenant_schema=settings.active_tenant_schema,
-            vocab_schema=settings.vocab_schema,
-            profile=settings.pipeline_profile,
-        )
-    qa_summary_ref.append(summary)
-    write_qa_results(summary)
+        try:
+            summary = run_all_gates(
+                conn,
+                tenant_schema=settings.active_tenant_schema,
+                vocab_schema=settings.vocab_schema,
+                profile=settings.pipeline_profile,
+            )
+            qa_summary_ref.append(summary)
+            write_qa_results(summary)
+        except QaGateFailure as exc:
+            qa_summary_ref.append(exc.summary)
+            write_qa_results(exc.summary)
+            raise
 
 
 def write_run_metadata(elapsed_seconds: float, status: str = "success", qa_summary: QaGateSummary | None = None) -> None:
@@ -333,7 +367,7 @@ def main() -> None:
     qa_summary_holder: list[QaGateSummary] = []
     try:
         run_qa_gates_postload(qa_summary_holder)
-    except QaGateFailure as exc:
+    except QaGateFailure:
         elapsed = time.time() - run_start
         qa_summary = qa_summary_holder[0] if qa_summary_holder else None
         write_run_metadata(elapsed_seconds=elapsed, status="qa_failed", qa_summary=qa_summary)

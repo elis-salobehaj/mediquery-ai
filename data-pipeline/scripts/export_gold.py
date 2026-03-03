@@ -6,7 +6,7 @@ Invoke via:
   uv run pipeline-export-gold          (registered entrypoint)
   uv run python scripts/export_gold.py  (direct)
 
-Re-exports the current DB state as ``gold_omop_tenant.sql`` without re-running
+Re-exports the current DB state as ``gold_omop_tenant.sql.gz`` without re-running
 Synthea generation, migrations, or ETL. Useful when:
 
 - You only need to refresh the dump artifact after a hotfix.

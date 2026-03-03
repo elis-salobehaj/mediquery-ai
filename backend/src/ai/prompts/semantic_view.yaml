@@ -6,7 +6,7 @@ database: mediquery
 dialect: postgresql
 hub_table: person
 hub_key: person_id
-supported_table_count: 11
+supported_table_count: 10
 
 join_graph:
   - from: person
@@ -214,24 +214,6 @@ tables:
       vocabulary_id: 'Source vocabulary (SNOMED, RxNorm, LOINC, None)'
       concept_code: 'Source code from the vocabulary'
       standard_concept: 'S=Standard, C=Classification, null=Non-standard'
-
-  source_to_concept_map:
-    description: 'ETL traceability table. Maps source codes (e.g. SNOMED codes from Synthea) to OMOP standard concept_ids. Populated by the data pipeline. Useful for auditing which source codes produced which concept_ids.'
-    aliases: ['code map', 'source mapping', 'etl mapping']
-    primary_key: [source_code, source_vocabulary_id, target_concept_id]
-    columns:
-      source_code: 'Original source code (e.g. SNOMED or RxNorm code string)'
-      source_concept_id: 'Source concept_id (usually 0 for synthetic data)'
-      source_vocabulary_id: 'Vocabulary identifier for the source code (e.g. SNOMED)'
-      source_code_description: 'Human-readable description from source'
-      target_concept_id: 'OMOP standard concept_id this source code maps to'
-      target_vocabulary_id: 'Vocabulary of the target concept'
-      valid_start_date: 'Validity start date for the mapping'
-      valid_end_date: 'Validity end date for the mapping'
-      invalid_reason: 'Reason for invalidation (null if still valid)'
-    important_notes:
-      - 'Only use this table for ETL auditing — not for clinical analysis queries'
-      - 'Populated automatically by the data pipeline; do NOT join this in analytical SQL'
 
 reasoning: |
   Mediquery uses OMOP CDM v5.4. The database is highly normalized.

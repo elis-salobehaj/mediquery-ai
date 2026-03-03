@@ -9,17 +9,19 @@ services:
       - PGDATA=/var/lib/postgresql/data
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB_NAME}
-      - TENANTS_DB_NAME=${TENANTS_DB_NAME}
-      - NEXUS_TENANT_DB_NAME=${NEXUS_TENANT_DB_NAME}
-      - PIPELINE_DB_USER=${PIPELINE_DB_USER}
-      - PIPELINE_DB_PASSWORD=${PIPELINE_DB_PASSWORD}
+      - POSTGRES_DB=${APP_DB_NAME}
+      - OMOP_DB_NAME=${OMOP_DB_NAME}
+      - OMOP_TENANT_SCHEMA=${OMOP_TENANT_SCHEMA}
+      - OMOP_VOCAB_SCHEMA=${OMOP_VOCAB_SCHEMA}
+      - APP_DB_SCHEMA=${APP_DB_SCHEMA}
+      - OMOP_ETL_USER=${OMOP_ETL_USER}
+      - OMOP_ETL_PASSWORD=${OMOP_ETL_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/postgres/init-multi-db.sh:/docker-entrypoint-initdb.d/01_init_multi_db.sh:ro
-      - ./data-pipeline/gold_omop_tenant.sql:/seed/gold_omop_tenant.sql:ro
+      - ./data-pipeline/gold_omop_tenant.sql.gz:/seed/gold_omop_tenant.sql.gz:ro
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
       interval: 10s

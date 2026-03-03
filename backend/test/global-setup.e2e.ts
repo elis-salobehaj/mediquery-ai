@@ -15,7 +15,7 @@ const E2EEnvSchema = z.object({
   POSTGRES_PORT: z.string().optional(),
   POSTGRES_USER: z.string().optional(),
   POSTGRES_PASSWORD: z.string().optional(),
-  POSTGRES_DB_NAME: z.string().optional(),
+  APP_DB_NAME: z.string().optional(),
 });
 
 export async function setup() {
@@ -42,7 +42,7 @@ export async function setup() {
       POSTGRES_PORT: pgContainer.getMappedPort(5432).toString(),
       POSTGRES_USER: 'postgres',
       POSTGRES_PASSWORD: 'postgres',
-      POSTGRES_DB_NAME: pgContainer.getDatabase(),
+      APP_DB_NAME: pgContainer.getDatabase(),
     };
 
     console.log(`Testcontainers started in ${Date.now() - startTime}ms`);
@@ -55,7 +55,7 @@ POSTGRES_HOST=${e2eEnv.POSTGRES_HOST}
 POSTGRES_PORT=${e2eEnv.POSTGRES_PORT}
 POSTGRES_USER=${e2eEnv.POSTGRES_USER}
 POSTGRES_PASSWORD=${e2eEnv.POSTGRES_PASSWORD}
-POSTGRES_DB_NAME=${e2eEnv.POSTGRES_DB_NAME}
+APP_DB_NAME=${e2eEnv.APP_DB_NAME}
 `;
   await fs.promises.writeFile(
     path.join(projectRoot, '.env.e2e.test'),
@@ -80,7 +80,7 @@ POSTGRES_DB_NAME=${e2eEnv.POSTGRES_DB_NAME}
     port: parseInt(e2eEnv.POSTGRES_PORT || '5432', 10),
     user: e2eEnv.POSTGRES_USER,
     password: e2eEnv.POSTGRES_PASSWORD,
-    database: e2eEnv.POSTGRES_DB_NAME,
+    database: e2eEnv.APP_DB_NAME,
   });
 
   await pgClient.connect();

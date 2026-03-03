@@ -307,7 +307,7 @@ function createBenchmarkPool(): Pool {
     port: config.BENCHMARK_POSTGRES_PORT,
     user: config.BENCHMARK_POSTGRES_USER,
     password: config.BENCHMARK_POSTGRES_PASSWORD,
-    database: config.BENCHMARK_POSTGRES_DB_NAME,
+    database: config.BENCHMARK_DB_NAME,
     connectionTimeoutMillis: config.BENCHMARK_DB_CONNECT_TIMEOUT_MS,
     idleTimeoutMillis: config.BENCHMARK_DB_IDLE_TIMEOUT_MS,
     query_timeout: config.BENCHMARK_DB_QUERY_TIMEOUT_MS,

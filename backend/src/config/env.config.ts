@@ -25,14 +25,18 @@ const ConfigSchema = z.object({
   DB_PASSWORD: z.string().default(''),
   DB_NAME: z.string().default('mediquery'),
 
-  // PostgreSQL 18.1 (Token Tracking, Users, Chat)
+  // PostgreSQL App DB (Token Tracking, Users, Chat)
   POSTGRES_HOST: z.string().default('mediquery-postgres'),
   POSTGRES_PORT: z.coerce.number().default(5432),
   POSTGRES_USER: z.string().default('mediquery'),
   POSTGRES_PASSWORD: z.string().default(''),
-  POSTGRES_DB_NAME: z.string().default('mediquery_db'),
-  TENANTS_DB_NAME: z.string().default('omop_db'),
-  NEXUS_TENANT_DB_NAME: z.string().default('tenant_nexus_health'),
+  APP_DB_NAME: z.string().default('mediquery_db'),
+  APP_DB_SCHEMA: z.string().default('mediquery_app'),
+
+  // OMOP DB (tenant analytics + vocabulary)
+  OMOP_DB_NAME: z.string().default('omop_db'),
+  OMOP_TENANT_SCHEMA: z.string().default('tenant_nexus_health'),
+  OMOP_VOCAB_SCHEMA: z.string().default('omop_vocab'),
 
   // App Config
   LOG_LEVEL: z.string().default('DEBUG'),
@@ -109,7 +113,7 @@ const ConfigSchema = z.object({
   BENCHMARK_POSTGRES_PORT: z.coerce.number().default(5432),
   BENCHMARK_POSTGRES_USER: z.string().default('omop_user'),
   BENCHMARK_POSTGRES_PASSWORD: z.string().default('omop_password'),
-  BENCHMARK_POSTGRES_DB_NAME: z.string().default('omop_db'),
+  BENCHMARK_DB_NAME: z.string().default('omop_db'),
   BENCHMARK_DB_CONNECT_TIMEOUT_MS: z.coerce.number().default(3000),
   BENCHMARK_DB_IDLE_TIMEOUT_MS: z.coerce.number().default(10000),
   BENCHMARK_DB_QUERY_TIMEOUT_MS: z.coerce.number().default(5000),

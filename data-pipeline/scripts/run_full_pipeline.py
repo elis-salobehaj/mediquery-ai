@@ -89,7 +89,7 @@ def main() -> None:
         run_qa_gates_postload(qa_summary_holder)
     except QaGateFailure as exc:
         elapsed = time.time() - run_start
-        qa_summary = qa_summary_holder[0] if qa_summary_holder else None
+        qa_summary = qa_summary_holder[0] if qa_summary_holder else exc.summary
         write_run_metadata(elapsed_seconds=elapsed, status="qa_failed", qa_summary=qa_summary)
         print(f"\n[pipeline] ❌ QA gates failed — Gold export aborted. See pipeline_qa_results.json for details.")
         raise SystemExit(1) from exc

@@ -92,7 +92,7 @@ Current ETL builds synthetic `concept` rows from Synthea source codes only, then
 - Single command creates `gold_omop_tenant.sql` containing:
   - tenant fact tables populated,
   - vocabulary tables populated according to profile,
-  - metadata table recording profile, source version, generation timestamp, row counts.
+   - JSON run artifacts (`pipeline_run_metadata.json`, `pipeline_qa_results.json`) recording profile, timing, and QA outcomes.
 
 ---
 

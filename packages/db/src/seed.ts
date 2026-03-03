@@ -18,7 +18,7 @@ async function seed() {
     port: dbEnv.POSTGRES_PORT,
     user: dbEnv.POSTGRES_USER,
     password: dbEnv.POSTGRES_PASSWORD,
-    database: dbEnv.POSTGRES_DB_NAME,
+    database: dbEnv.APP_DB_NAME,
     ssl: false,
   });
 

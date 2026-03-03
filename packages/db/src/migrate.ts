@@ -14,7 +14,7 @@ async function runMigration() {
     port: dbEnv.POSTGRES_PORT,
     user: dbEnv.POSTGRES_USER,
     password: dbEnv.POSTGRES_PASSWORD,
-    database: dbEnv.POSTGRES_DB_NAME,
+    database: dbEnv.APP_DB_NAME,
     ssl: false,
   });
 
@@ -22,7 +22,8 @@ async function runMigration() {
 
   try {
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS __drizzle_sql_migrations (
+      CREATE SCHEMA IF NOT EXISTS "${dbEnv.APP_DB_SCHEMA}";
+      CREATE TABLE IF NOT EXISTS "${dbEnv.APP_DB_SCHEMA}".__drizzle_sql_migrations (
         name text PRIMARY KEY,
         applied_at timestamptz NOT NULL DEFAULT now()
       )
@@ -49,12 +50,14 @@ async function runMigration() {
       .sort();
 
     const appliedResult = await pool.query<{ name: string }>(
-      'SELECT name FROM __drizzle_sql_migrations',
+      `SELECT name FROM "${dbEnv.APP_DB_SCHEMA}".__drizzle_sql_migrations`,
     );
-    const applied = new Set(appliedResult.rows.map((row: { name: string }) => row.name));
+    const applied = new Set(
+      appliedResult.rows.map((row: { name: string }) => row.name),
+    );
 
     const usersTableCheck = await pool.query<{ regclass: string | null }>(
-      "SELECT to_regclass('public.users') AS regclass",
+      `SELECT to_regclass('${dbEnv.APP_DB_SCHEMA}.users') AS regclass`,
     );
     const hasExistingSchema = Boolean(usersTableCheck.rows[0]?.regclass);
 
@@ -68,7 +71,7 @@ async function runMigration() {
           `Skipping baseline ${fileName} because schema already exists; marking as applied.`,
         );
         await pool.query(
-          'INSERT INTO __drizzle_sql_migrations (name) VALUES ($1) ON CONFLICT (name) DO NOTHING',
+          `INSERT INTO "${dbEnv.APP_DB_SCHEMA}".__drizzle_sql_migrations (name) VALUES ($1) ON CONFLICT (name) DO NOTHING`,
           [fileName],
         );
         continue;
@@ -83,7 +86,7 @@ async function runMigration() {
         await client.query('BEGIN');
         await client.query(migrationSql);
         await client.query(
-          'INSERT INTO __drizzle_sql_migrations (name) VALUES ($1)',
+          `INSERT INTO "${dbEnv.APP_DB_SCHEMA}".__drizzle_sql_migrations (name) VALUES ($1)`,
           [fileName],
         );
         await client.query('COMMIT');

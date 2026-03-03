@@ -1,5 +1,5 @@
 import {
-  pgTable,
+  pgSchema,
   varchar,
   index,
   unique,
@@ -11,16 +11,13 @@ import {
   foreignKey,
   text,
   numeric,
-  pgMaterializedView,
   bigint,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
-export const alembicVersion = pgTable('alembic_version', {
-  versionNum: varchar('version_num', { length: 32 }).primaryKey().notNull(),
-});
+export const appSchema = pgSchema('mediquery_app');
 
-export const users = pgTable(
+export const users = appSchema.table(
   'users',
   {
     id: uuid().defaultRandom().primaryKey().notNull(),
@@ -55,7 +52,7 @@ export const users = pgTable(
   ],
 );
 
-export const chatThreads = pgTable(
+export const chatThreads = appSchema.table(
   'chat_threads',
   {
     id: uuid().defaultRandom().primaryKey().notNull(),
@@ -80,7 +77,7 @@ export const chatThreads = pgTable(
   ],
 );
 
-export const chatMessages = pgTable(
+export const chatMessages = appSchema.table(
   'chat_messages',
   {
     id: uuid().defaultRandom().primaryKey().notNull(),
@@ -124,7 +121,7 @@ export const chatMessages = pgTable(
   ],
 );
 
-export const tokenBlacklist = pgTable('token_blacklist', {
+export const tokenBlacklist = appSchema.table('token_blacklist', {
   token: varchar().primaryKey().notNull(),
   expiresAt: timestamp('expires_at', {
     withTimezone: true,
@@ -136,7 +133,7 @@ export const tokenBlacklist = pgTable('token_blacklist', {
   }).default(sql`CURRENT_TIMESTAMP`),
 });
 
-export const tokenUsage = pgTable(
+export const tokenUsage = appSchema.table(
   'token_usage',
   {
     id: uuid().defaultRandom().primaryKey().notNull(),
@@ -175,7 +172,7 @@ export const tokenUsage = pgTable(
   ],
 );
 
-export const userMemoryPreferences = pgTable(
+export const userMemoryPreferences = appSchema.table(
   'user_memory_preferences',
   {
     userId: uuid('user_id').notNull(),
@@ -196,7 +193,7 @@ export const userMemoryPreferences = pgTable(
   ],
 );
 
-export const userMonthlyUsage = pgMaterializedView('user_monthly_usage', {
+export const userMonthlyUsage = appSchema.materializedView('user_monthly_usage', {
   userId: uuid('user_id'),
   calendarMonth: text('calendar_month'),
   provider: varchar({ length: 50 }),

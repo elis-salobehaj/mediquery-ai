@@ -267,16 +267,29 @@ def _check_schema_integrity(
 # Category 2: Vocabulary Integrity
 # ---------------------------------------------------------------------------
 
-# Minimum row thresholds per-table in synthetic_open profile
-_VOCAB_MIN_ROWS: dict[str, int] = {
-    "concept": 15,       # required_concepts + synthetic codes
-    "vocabulary": 4,     # at minimum: Visit, Gender, Race, Ethnicity
-    "domain": 6,         # Visit, Gender, Race, Ethnicity, Condition, Drug, ...
-    "relationship": 2,   # Maps to + Mapped from
-    "concept_relationship": 10,
-    "concept_synonym": 10,
+# Minimum row thresholds by profile
+_VOCAB_MIN_ROWS_BY_PROFILE: dict[str, dict[str, int]] = {
+    "synthetic_open": {
+        "concept": 15,       # required_concepts + synthetic codes
+        "vocabulary": 4,     # at minimum: Visit, Gender, Race, Ethnicity
+        "domain": 6,         # Visit, Gender, Race, Ethnicity, Condition, Drug, ...
+        "relationship": 2,   # Maps to + Mapped from
+        "concept_relationship": 10,
+        "concept_synonym": 10,
+    },
+    "athena_permitted": {
+        "concept": 200,
+        "vocabulary": 10,
+        "domain": 10,
+        "relationship": 5,
+        "concept_relationship": 200,
+        "concept_synonym": 100,
+    },
 }
-_TENANT_CONCEPT_MIN_ROWS = 10
+_TENANT_CONCEPT_MIN_ROWS_BY_PROFILE: dict[str, int] = {
+    "synthetic_open": 10,
+    "athena_permitted": 100,
+}
 
 
 def _check_vocabulary_integrity(
@@ -287,10 +300,15 @@ def _check_vocabulary_integrity(
 ) -> list[QaCheckResult]:
     results: list[QaCheckResult] = []
     cat = "vocabulary_integrity"
+    min_rows_profile = _VOCAB_MIN_ROWS_BY_PROFILE.get(
+        profile,
+        _VOCAB_MIN_ROWS_BY_PROFILE["synthetic_open"],
+    )
+    tenant_concept_min_rows = _TENANT_CONCEPT_MIN_ROWS_BY_PROFILE.get(profile, 10)
 
     # --- omop_vocab.concept row count -----------------------------------
     concept_count = int(_scalar(conn, f"SELECT COUNT(*) FROM {vocab}.concept") or 0)
-    min_rows = _VOCAB_MIN_ROWS["concept"]
+    min_rows = min_rows_profile["concept"]
     if concept_count >= min_rows:
         results.append(
             _ok(
@@ -347,7 +365,7 @@ def _check_vocabulary_integrity(
     support_tables = ["vocabulary", "domain", "relationship", "concept_relationship", "concept_synonym"]
     for tbl in support_tables:
         count = int(_scalar(conn, f"SELECT COUNT(*) FROM {vocab}.{tbl}") or 0)
-        min_tbl = _VOCAB_MIN_ROWS.get(tbl, 1)
+        min_tbl = min_rows_profile.get(tbl, 1)
         check_name = f"vocab_{tbl}_nonempty"
         if count >= min_tbl:
             results.append(_ok(check_name, cat, str(count), f">={min_tbl}"))
@@ -366,13 +384,13 @@ def _check_vocabulary_integrity(
     tenant_concept_count = int(
         _scalar(conn, f"SELECT COUNT(*) FROM {tenant}.concept") or 0
     )
-    if tenant_concept_count >= _TENANT_CONCEPT_MIN_ROWS:
+    if tenant_concept_count >= tenant_concept_min_rows:
         results.append(
             _ok(
                 "tenant_concept_nonempty",
                 cat,
                 str(tenant_concept_count),
-                f">={_TENANT_CONCEPT_MIN_ROWS}",
+                f">={tenant_concept_min_rows}",
             )
         )
     else:
@@ -381,7 +399,7 @@ def _check_vocabulary_integrity(
                 "tenant_concept_nonempty",
                 cat,
                 str(tenant_concept_count),
-                f">={_TENANT_CONCEPT_MIN_ROWS}",
+                f">={tenant_concept_min_rows}",
                 f"{tenant}.concept has {tenant_concept_count} rows; should be synchronised from {vocab}.concept",
             )
         )

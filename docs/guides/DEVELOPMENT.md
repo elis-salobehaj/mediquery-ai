@@ -30,9 +30,12 @@ pnpm db:migrate
 
 - On a fresh Docker volume, PostgreSQL runs `infra/postgres/init-multi-db.sh` automatically.
 - That script creates/ensures:
-  - app database: `${POSTGRES_DB_NAME}`
-  - tenant database: `${TENANTS_DB_NAME}`
-  - OMOP tenant schema: `${NEXUS_TENANT_DB_NAME}` (loaded from `data-pipeline/gold_omop_tenant.sql`)
+  - app database: `${APP_DB_NAME}`
+  - app schema: `${APP_DB_SCHEMA}`
+  - OMOP database: `${OMOP_DB_NAME}`
+  - OMOP ETL role: `${OMOP_ETL_USER}`
+  - OMOP tenant schema: `${OMOP_TENANT_SCHEMA}` (loaded from `data-pipeline/gold_omop_tenant.sql`)
+  - OMOP vocab schema: `${OMOP_VOCAB_SCHEMA}`
 - If you need to re-run bootstrap from scratch, clear the Postgres volume and restart:
 
 ```bash
@@ -47,11 +50,11 @@ Optional verification (recommended for first setup):
 docker exec -i mediquery-postgres psql -U "$POSTGRES_USER" -d postgres -c "\l"
 
 # list tables in app DB
-docker exec -i mediquery-postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB_NAME" -c "\dt"
+docker exec -i mediquery-postgres psql -U "$POSTGRES_USER" -d "$APP_DB_NAME" -c "\dt ${APP_DB_SCHEMA}.*"
 
 # list tables in tenant DB + schema-qualified OMOP tables
-docker exec -i mediquery-postgres psql -U "$POSTGRES_USER" -d "$TENANTS_DB_NAME" -c "\dt"
-docker exec -i mediquery-postgres psql -U "$POSTGRES_USER" -d "$TENANTS_DB_NAME" -c "\dt ${NEXUS_TENANT_DB_NAME}.*"
+docker exec -i mediquery-postgres psql -U "$POSTGRES_USER" -d "$OMOP_DB_NAME" -c "\dt"
+docker exec -i mediquery-postgres psql -U "$POSTGRES_USER" -d "$OMOP_DB_NAME" -c "\dt ${OMOP_TENANT_SCHEMA}.*"
 ```
 
 **Terminal 2: Backend (TypeScript — port 8001)**

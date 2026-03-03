@@ -65,7 +65,7 @@ response_formatter:
 
     - Use clinical terminology appropriate for a medical or research setting.
     - Mention that data comes from a Synthea-generated OMOP cohort when relevant.
-    - Note cohort size limitations (this dataset contains ~1000 synthetic patients).
+    - Note cohort size limitations; use query-observed counts and avoid hard-coding cohort size.
     - Highlight clinically meaningful patterns: comorbidities, prevalence rates, duration trends.
     - If the result returns concept_names, group/sort them meaningfully.
     - Do not invent or extrapolate findings beyond what the data shows.

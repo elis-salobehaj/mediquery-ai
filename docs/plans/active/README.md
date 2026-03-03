@@ -1,19 +1,20 @@
 # Active Plans
 
-**Current Active Plans**: 3
+**Current Active Plans**: 2
 
-**Last Updated**: 2026-03-02
+**Last Updated**: 2026-03-03
 
 ## 🚀 In Progress
 
 | #   | Plan                                                         | Status       | Est. Hours |
 | --- | ------------------------------------------------------------ | ------------ | ---------- |
-| 1   | **OMOP & Synthea Migration** ([plan](omop_synthea_migration.md)) | 🔄 Phase 2/5 | 10-15h     |
-| 2   | **Automated Benchmarking & Evaluation Pipeline** ([plan](automated_benchmarking_evaluation_pipeline.md)) | 🔄 Phase 0/5 | 25-40h     |
-| 3   | **OMOP Vocabulary Automation (Open-License, No Manual Steps)** ([plan](omop_vocabulary_automation_open_data.md)) | 🔄 Phase 5/6 | 20-35h     |
+| 1   | **Automated Benchmarking & Evaluation Pipeline** ([plan](automated_benchmarking_evaluation_pipeline.md)) | 🔄 Phase 1A/5 (corpus + dev baseline done) | 20-35h     |
+| 2   | **OMOP Vocabulary Automation (Open-License, No Manual Steps)** ([plan](omop_vocabulary_automation_open_data.md)) | 🔄 Phase 5/6 (CI runbook pending) | 5-8h     |
 
 ## ✅ Recently Completed
 
+- ✅ **[OMOP Golden Dataset Hardening](../implemented/omop_golden_dataset_hardening.md)** — all 8 phases complete, 162 tests passing, 10/10 curl battery (2026-03-03)
+- ✅ **[OMOP & Synthea Migration](../implemented/omop_synthea_migration.md)** — completed and moved to implemented
 - ✅ **[Shadcn v4 UI Overhaul](../implemented/shadcn_v4_ui_overhaul.md)** — completed and moved to implemented (2026-02-27)
 - ✅ **[LLM Routing & Agentic Optimization](../implemented/llm_routing_agentic_optimization.md)** — completed and moved to implemented (2026-02-27)
 - ✅ **[LangGraph Workflow Refactor](../implemented/langgraph_workflow_refactor.md)** — implemented partially as architecture evolved (moved from backlog)

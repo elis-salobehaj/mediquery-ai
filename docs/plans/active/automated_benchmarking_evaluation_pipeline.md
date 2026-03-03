@@ -27,7 +27,7 @@ depends_on:
 blocks: []
 assignee: null
 completion:
-  - [ ] Phase 1A - Extend deterministic harness with real corpus
+  - [x] Phase 1A - Extend deterministic harness with real corpus (34 OMOP JSONL cases, 100% guardrail pass — delivered via omop_golden_dataset_hardening Phases 2+7)
   - [ ] Phase 1B - Node-isolation evaluation framework
   - [ ] Phase 2A - E2E graph test harness with execution validation
   - [ ] Phase 2B - LLM-as-a-Judge semantic scoring

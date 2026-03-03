@@ -51,5 +51,6 @@ data-pipeline/bronze/
 data-pipeline/silver/
 data-pipeline/gold/
 data-pipeline/.venv/
+data-pipeline/pipeline_run_metadata.json
 
 

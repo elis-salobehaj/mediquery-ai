@@ -54,6 +54,37 @@ For ETL-only reruns (skip Synthea/migrations/export), use:
 uv run pipeline-etl
 ```
 
+For re-exporting the Gold dump from an already-loaded DB (no ETL rerun):
+
+```bash
+uv run pipeline-export-gold
+```
+
+### Run metadata artifact
+
+After every successful `pipeline-full` or `pipeline-export-gold` run, a
+`pipeline_run_metadata.json` file is written to `data-pipeline/`. It records:
+
+```json
+{
+  "run_id": "<uuid>",
+  "profile": "synthetic_open",
+  "synthea_population_size": 500,
+  "synthea_seed": 42,
+  "tenant_schema": "tenant_nexus_health",
+  "vocab_schema": "omop_vocab",
+  "status": "success",
+  "started_at": "2026-03-02T12:00:00+00:00",
+  "finished_at": "2026-03-02T12:05:00+00:00",
+  "elapsed_seconds": 300.0,
+  "gold_dump_path": "/…/gold_omop_tenant.sql",
+  "gold_dump_size_bytes": 67108864
+}
+```
+
+This file is gitignored and intended for CI artifact capture and local
+troubleshooting. It is overwritten on every run.
+
 ## Pipeline Profiles (Phase 0/1)
 
 The pipeline is profile-aware and defaults to open/synthetic-only mode:
@@ -94,7 +125,56 @@ On each ETL run, vocabulary loading is automated and deterministic:
 
 No manual SQL patching should be required between runs.
 
-## Design Documents
+## ETL Mapping Hardening (Phase 2)
+
+All source-code → concept_id mappings are centralized in
+`vocabulary/mapping.py`. This eliminates inline magic numbers from `load_omop.py`
+and makes concept resolution auditable and testable:
+
+| Helper | Maps |
+|---|---|
+| `visit_concept_expr()` | `ENCOUNTERCLASS` → `visit_concept_id` |
+| `gender_concept_expr()` | `GENDER` → `gender_concept_id` |
+| `race_concept_expr()` | `RACE` → `race_concept_id` |
+| `ethnicity_concept_expr()` | `ETHNICITY` → `ethnicity_concept_id` |
+
+### Mapping integrity checks
+
+After ETL, `log_all_concept_zero_rates()` prints per-table `concept_id=0` rates.
+Rates above 5% are flagged with `⚠️`:
+
+```
+[mapping integrity] Concept coverage rates:
+  ✓ visit_occurrence [visit_concept_id]: concept_id=0 rate = 0.0% (0/1200)
+  ✓ condition_occurrence [condition_concept_id]: concept_id=0 rate = 0.0% (0/8000)
+  ⚠️  drug_exposure [drug_concept_id]: concept_id=0 rate = 6.2% (310/5000)
+```
+
+### source_to_concept_map
+
+Every mapped source code is recorded in
+`{tenant_schema}.source_to_concept_map` for deterministic ETL auditability.
+Rows with `concept_id=0` (unmapped events) are excluded from this table.
+
+---
+
+## Gold Dump Orchestration (Phase 3)
+
+### Scripts directory
+
+`data-pipeline/scripts/` provides thin CLI wrappers around `main.py` for
+explicit invocation in CI and developer workflows:
+
+| Script | Command | What it does |
+|---|---|---|
+| `scripts/run_full_pipeline.py` | `uv run pipeline-full` | Full Bronze→Silver→Gold run with phase logging |
+| `scripts/export_gold.py` | `uv run pipeline-export-gold` | Re-export dump from loaded DB, no ETL rerun |
+
+Both scripts write `pipeline_run_metadata.json` on completion.
+
+---
+
+
 
 Detailed architecture rationale and design decisions live in [`docs/humans/designs/`](../docs/humans/designs/). The docs are grouped below by concern area.
 

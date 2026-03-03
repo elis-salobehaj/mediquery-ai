@@ -5,6 +5,14 @@ import time
 from io import BytesIO
 from vocabulary.load_profile import build_vocabulary_package
 from vocabulary.validators import validate_vocabulary_package
+from vocabulary.mapping import (
+    gender_concept_expr,
+    race_concept_expr,
+    ethnicity_concept_expr,
+    visit_concept_expr,
+    log_all_concept_zero_rates,
+    build_source_to_concept_map_df,
+)
 
 
 def dict_to_pg_copy(conn, df: pl.DataFrame, table_name: str, schema: str):
@@ -43,36 +51,10 @@ def map_patients(patients: pl.DataFrame):
         ]
     )
 
-    # Map Gender
-    person = person.with_columns(
-        pl.when(pl.col("GENDER") == "M")
-        .then(8507)
-        .when(pl.col("GENDER") == "F")
-        .then(8532)
-        .otherwise(0)
-        .alias("gender_concept_id")
-    )
-
-    # Map Race
-    person = person.with_columns(
-        pl.when(pl.col("RACE") == "white")
-        .then(8527)
-        .when(pl.col("RACE") == "black")
-        .then(8516)
-        .when(pl.col("RACE") == "asian")
-        .then(8515)
-        .when(pl.col("RACE") == "native")
-        .then(8657)
-        .otherwise(0)
-        .alias("race_concept_id")
-    )
-
-    person = person.with_columns(
-        pl.when(pl.col("ETHNICITY") == "hispanic")
-        .then(38003563)
-        .otherwise(38003564)
-        .alias("ethnicity_concept_id")
-    )
+    # Map Gender, Race, Ethnicity via centralized mapping helpers
+    person = person.with_columns([gender_concept_expr()])
+    person = person.with_columns([race_concept_expr()])
+    person = person.with_columns([ethnicity_concept_expr()])
 
     person_omop = person.select(
         [
@@ -151,23 +133,8 @@ def map_encounters(encounters: pl.DataFrame, id_map: pl.DataFrame):
     # Join with patients to get person_id
     enc = enc.join(id_map, left_on="PATIENT", right_on="Id", how="inner")
 
-    # Visit concepts
-    enc = enc.with_columns(
-        pl.when(pl.col("ENCOUNTERCLASS") == "ambulatory")
-        .then(9202)
-        .when(pl.col("ENCOUNTERCLASS") == "emergency")
-        .then(9203)
-        .when(pl.col("ENCOUNTERCLASS") == "inpatient")
-        .then(9201)
-        .when(pl.col("ENCOUNTERCLASS") == "wellness")
-        .then(9202)
-        .when(pl.col("ENCOUNTERCLASS") == "urgentcare")
-        .then(9203)
-        .when(pl.col("ENCOUNTERCLASS") == "outpatient")
-        .then(9202)
-        .otherwise(0)
-        .alias("visit_concept_id")
-    )
+    # Visit concepts via centralized mapping helper
+    enc = enc.with_columns([visit_concept_expr()])
 
     # Omop format
     visit_omop = enc.select(
@@ -206,6 +173,40 @@ def map_encounters(encounters: pl.DataFrame, id_map: pl.DataFrame):
 
     visit_map = enc.select(["Id", "visit_occurrence_id"])
     return visit_omop, visit_map
+
+
+def assert_fact_concepts_joinable(
+    table_label: str,
+    df: pl.DataFrame,
+    concept_column: str,
+    vocab_concept_ids: set[int],
+) -> None:
+    """Fail fast when fact concept IDs cannot join to omop_vocab.concept.
+
+    Enforces Phase 2 mapping integrity by checking that every referenced
+    ``concept_column`` value greater than 0 exists in the loaded vocabulary set.
+    """
+    if concept_column not in df.columns:
+        raise RuntimeError(
+            f"Joinability check misconfigured: column '{concept_column}' not found in {table_label}"
+        )
+
+    referenced_ids = set(
+        df.get_column(concept_column).drop_nulls().cast(pl.Int64).unique().to_list()
+    )
+    unresolved = sorted(
+        concept_id
+        for concept_id in referenced_ids
+        if concept_id > 0 and concept_id not in vocab_concept_ids
+    )
+
+    if unresolved:
+        sample = unresolved[:10]
+        raise RuntimeError(
+            "Concept joinability gate failed for "
+            f"{table_label}.{concept_column}: {len(unresolved)} concept_id values "
+            f"do not exist in {settings.vocab_schema}.concept. Sample={sample}"
+        )
 
 
 def main():
@@ -490,6 +491,56 @@ def main():
         ]
     )
 
+    # ---------------------------------------------------------------------------
+    # Explicit concept joinability gate (Phase 2)
+    # ---------------------------------------------------------------------------
+    print("\nRunning explicit concept joinability gate...")
+    vocab_concept_ids = set(
+        concept_omop.get_column("concept_id").cast(pl.Int64).to_list()
+    )
+    assert_fact_concepts_joinable(
+        "visit_occurrence", visit_omop, "visit_concept_id", vocab_concept_ids
+    )
+    assert_fact_concepts_joinable(
+        "condition_occurrence",
+        cond_omop,
+        "condition_concept_id",
+        vocab_concept_ids,
+    )
+    assert_fact_concepts_joinable(
+        "drug_exposure", drug_omop, "drug_concept_id", vocab_concept_ids
+    )
+    assert_fact_concepts_joinable(
+        "procedure_occurrence",
+        proc_omop,
+        "procedure_concept_id",
+        vocab_concept_ids,
+    )
+    assert_fact_concepts_joinable(
+        "measurement", meas_omop, "measurement_concept_id", vocab_concept_ids
+    )
+    assert_fact_concepts_joinable(
+        "observation", obs_omop, "observation_concept_id", vocab_concept_ids
+    )
+    print("Concept joinability gate passed for all fact tables.")
+
+    # ---------------------------------------------------------------------------
+    # Mapping integrity checks — log concept_id=0 rates before DB load
+    # ---------------------------------------------------------------------------
+    print("\nRunning mapping integrity checks...")
+    log_all_concept_zero_rates({
+        "visit_occurrence": (visit_omop, "visit_concept_id"),
+        "condition_occurrence": (cond_omop, "condition_concept_id"),
+        "drug_exposure": (drug_omop, "drug_concept_id"),
+        "procedure_occurrence": (proc_omop, "procedure_concept_id"),
+        "measurement": (meas_omop, "measurement_concept_id"),
+        "observation": (obs_omop, "observation_concept_id"),
+    })
+
+    # Build source_to_concept_map for traceability
+    source_to_concept_map_df = build_source_to_concept_map_df(code_map)
+    print(f"Built source_to_concept_map with {len(source_to_concept_map_df)} entries")
+
     print("Connecting to DB...")
     with psycopg.connect(
         settings.database_url.replace("postgresql+psycopg", "postgresql")
@@ -501,6 +552,7 @@ def main():
             print(f"Setting search_path to {schema}, {vocab_schema}")
 
             # Delete exiting data to support rerun
+            cur.execute(f"TRUNCATE TABLE {schema}.source_to_concept_map CASCADE;")
             cur.execute(f"TRUNCATE TABLE {schema}.concept CASCADE;")
             cur.execute(f"TRUNCATE TABLE {schema}.condition_era CASCADE;")
             cur.execute(f"TRUNCATE TABLE {schema}.drug_era CASCADE;")
@@ -561,6 +613,9 @@ def main():
         dict_to_pg_copy(conn, meas_omop, "measurement", schema)
         # Load Observation
         dict_to_pg_copy(conn, obs_omop, "observation", schema)
+
+        # Load source_to_concept_map for ETL traceability
+        dict_to_pg_copy(conn, source_to_concept_map_df, "source_to_concept_map", schema)
 
         print("Generating Eras natively in PG...")
         with conn.cursor() as cur:

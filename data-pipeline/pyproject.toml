@@ -15,8 +15,9 @@ dependencies = [
 
 # Console entry points so uv can run the pipeline as named commands.
 [project.scripts]
-pipeline-full = "main:main"
+pipeline-full = "scripts.run_full_pipeline:main"
 pipeline-etl = "main:run_etl_only"
+pipeline-export-gold = "scripts.export_gold:main"
 
 # PEP 517 build backend required so uv can package/install this project.
 [build-system]
@@ -31,6 +32,6 @@ package = true
 [tool.setuptools]
 py-modules = ["main", "config", "load_omop"]
 
-# Include the vocabulary package directory and any subpackages.
+# Include the vocabulary and scripts package directories.
 [tool.setuptools.packages.find]
-include = ["vocabulary*"]
+include = ["vocabulary*", "scripts*"]

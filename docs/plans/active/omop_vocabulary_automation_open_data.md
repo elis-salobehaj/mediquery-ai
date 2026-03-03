@@ -25,10 +25,10 @@ depends_on:
 blocks: []
 assignee: null
 completion:
-   - [x] Phase 0 — Policy, scope, and dataset profiles
-   - [x] Phase 1 — Vocabulary ingestion architecture (open-license first)
-  - [ ] Phase 2 — ETL mapping hardening and concept integrity
-  - [ ] Phase 3 — Gold dump production and idempotent orchestration
+  - [x] Phase 0 — Policy, scope, and dataset profiles
+  - [x] Phase 1 — Vocabulary ingestion architecture (open-license first)
+  - [x] Phase 2 — ETL mapping hardening and concept integrity
+  - [x] Phase 3 — Gold dump production and idempotent orchestration
   - [ ] Phase 4 — Automated QA gates (pipeline fail-fast)
   - [ ] Phase 5 — Backend integration checks and benchmark readiness
   - [ ] Phase 6 — CI automation, docs, and runbooks

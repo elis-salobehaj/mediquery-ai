@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 import sys
 import time
 import os
+from datetime import datetime, timezone
 from pathlib import Path
+from uuid import uuid4
 
 import psycopg
 
@@ -16,6 +19,7 @@ from load_omop import main as run_omop_etl
 PIPELINE_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = PIPELINE_ROOT.parent
 GOLD_DUMP_PATH = PIPELINE_ROOT / "gold_omop_tenant.sql"
+RUN_METADATA_PATH = PIPELINE_ROOT / "pipeline_run_metadata.json"
 
 
 def run_command(command: list[str], cwd: Path | None = None) -> None:
@@ -217,6 +221,47 @@ def export_gold_dump() -> None:
     print(f"[pipeline] Gold dump export complete (docker exec: {container_name})")
 
 
+def write_run_metadata(elapsed_seconds: float, status: str = "success") -> None:
+    """Write a JSON metadata artifact after each pipeline run.
+
+    Produces ``data-pipeline/pipeline_run_metadata.json`` with:
+    - run_id, profile, population, seed, status
+    - started_at (approximated from elapsed), finished_at
+    - gold_dump_path and its byte size (if present)
+
+    The file is overwritten on every run to always reflect the latest state.
+    Historical runs are not retained here — CI should archive the artifact if
+    auditability over time is required.
+    """
+    finished_at = datetime.now(timezone.utc)
+    started_at_ts = finished_at.timestamp() - elapsed_seconds
+    started_at = datetime.fromtimestamp(started_at_ts, tz=timezone.utc)
+
+    gold_size_bytes: int | None = None
+    if GOLD_DUMP_PATH.exists():
+        gold_size_bytes = GOLD_DUMP_PATH.stat().st_size
+
+    metadata = {
+        "run_id": str(uuid4()),
+        "profile": settings.pipeline_profile,
+        "synthea_population_size": settings.synthea_population_size,
+        "synthea_seed": settings.synthea_seed,
+        "tenant_schema": settings.active_tenant_schema,
+        "vocab_schema": settings.vocab_schema,
+        "status": status,
+        "started_at": started_at.isoformat(),
+        "finished_at": finished_at.isoformat(),
+        "elapsed_seconds": round(elapsed_seconds, 2),
+        "gold_dump_path": str(GOLD_DUMP_PATH),
+        "gold_dump_size_bytes": gold_size_bytes,
+    }
+
+    RUN_METADATA_PATH.write_text(
+        json.dumps(metadata, indent=2), encoding="utf-8"
+    )
+    print(f"[pipeline] Run metadata written -> {RUN_METADATA_PATH}")
+
+
 def run_etl_only() -> None:
     validate_profile_settings()
     run_omop_etl()
@@ -231,6 +276,7 @@ def validate_profile_settings() -> None:
 
 
 def main() -> None:
+    run_start = time.time()
     print(
         "Running data pipeline with "
         f"profile={settings.pipeline_profile}, "
@@ -247,7 +293,9 @@ def main() -> None:
     run_omop_etl()
     export_gold_dump()
 
+    elapsed = time.time() - run_start
     print("[pipeline] Complete: bronze + silver + gold generated successfully")
+    write_run_metadata(elapsed_seconds=elapsed, status="success")
 
 
 if __name__ == "__main__":

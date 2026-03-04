@@ -41,7 +41,7 @@ flowchart TD
 
 The command is fully `.env`-driven and runs all phases in order:
 
-1. Starts PostgreSQL container (`docker compose up -d postgres`) when `PIPELINE_DB_HOST=localhost`
+1. Starts PostgreSQL container (`docker compose up -d transient-db`) when `PIPELINE_DB_HOST=localhost`
 2. Waits for DB readiness using `PIPELINE_DB_HOST`, `PIPELINE_DB_PORT`, `OMOP_DB_NAME`, `OMOP_ETL_USER`, and `OMOP_ETL_PASSWORD`
 3. Generates Bronze Synthea CSVs using `SYNTHEA_POPULATION_SIZE` and `SYNTHEA_SEED`
 4. Applies Silver schema migrations (`alembic upgrade head`)
@@ -227,7 +227,82 @@ Both scripts write `pipeline_run_metadata.json` on completion.
 
 ---
 
+## Unit Tests (Phase 6)
 
+The data pipeline ships a fast, pure-Python unit test suite covering all vocabulary
+and mapping logic.  **No database connection is required** — all tests run against
+in-memory Polars DataFrames.
+
+### Running locally
+
+```bash
+# Install with dev extras (first time or after `uv lock --upgrade`)
+uv sync --extra dev
+
+# Run all unit tests
+uv run pytest tests/ -v
+
+# With vocabulary coverage report
+uv run pytest tests/ -v --cov=vocabulary --cov-report=term-missing
+```
+
+Expected output: `118 passed in < 1s`
+
+### Test coverage map
+
+| Test file | Module tested | What is verified |
+|---|---|---|
+| `tests/test_validators.py` | `vocabulary/validators.py` | Duplicate concept detection, required ID presence checks, non-empty table validation |
+| `tests/test_mapping.py` | `vocabulary/mapping.py` | Visit / gender / race / ethnicity concept expressions, zero-rate logging, `source_to_concept_map` builder |
+| `tests/test_required_concepts.py` | `vocabulary/required_concepts.py` | Required concept ID set, concept/vocabulary/domain/relationship DataFrame builders, merge deduplication |
+| `tests/test_load_profile.py` | `vocabulary/load_profile.py` | `synthetic_open` package completeness, Athena placeholder raises, profile gate enforcement |
+| `tests/test_qa_data_structures.py` | `vocabulary/qa_checks.py` | `QaCheckResult`, `QaGateSummary`, `QaGateFailure` data structures, JSON serialization integrity |
+
+---
+
+## CI Automation (Phase 6)
+
+CI configuration lives in `.github/workflows/data-pipeline-gold.yml`.
+
+### Two-tier CI model
+
+| Tier | Trigger | What runs | Artifacts |
+|---|---|---|---|
+| **Unit tests** | Every push / PR touching `data-pipeline/**` | `uv run pytest tests/` (no DB) | Coverage report |
+| **Full Gold pipeline** | Nightly 02:30 UTC + manual dispatch | Full Bronze→Silver→QA gates→Gold | `pipeline_run_metadata.json`, `pipeline_qa_results.json`, `gold_omop_tenant.sql.gz` |
+
+### Manual pipeline dispatch
+
+From **GitHub → Actions → Data Pipeline — Unit Tests & Gold Production → Run workflow**:
+
+| Input | Default | Description |
+|---|---|---|
+| `synthea_population_size` | `50` | Patient count (50 for CI speed; 500 for production fidelity) |
+| `synthea_seed` | `42` | Random seed for reproducible Synthea generation |
+| `fail_on_vocab_gap` | `true` | Abort Gold export if any QA vocabulary gate fails |
+
+### Gate enforcement
+
+The full-pipeline job fails automatically if any QA gate fails (vocabulary coverage, concept
+join-ability, schema integrity, SQL smoke tests).  The QA summary is printed to CI logs
+and uploaded as a downloadable artifact even on failure.
+
+### Synthea build caching
+
+The Synthea Docker image (built from `synthea/Dockerfile`) is cached between nightly runs
+using `actions/cache` with a Dockerfile content hash key.  A cache hit reduces Synthea
+setup from ~8 minutes to under 30 seconds.
+
+### Artifact retention
+
+| Artifact | Retained for |
+|---|---|
+| `pipeline-run-metadata` | 30 days |
+| `pipeline-qa-results` | 30 days |
+| `gold-omop-tenant-sql` | 7 days |
+| `pipeline-unit-test-coverage` | 7 days |
+
+---
 
 Detailed architecture rationale and design decisions live in [`docs/humans/designs/`](../docs/humans/designs/). The docs are grouped below by concern area.
 

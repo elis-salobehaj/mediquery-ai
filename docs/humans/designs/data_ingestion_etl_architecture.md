@@ -46,7 +46,7 @@ This document covers the **clinical data ingestion and ETL pipeline** — the sy
 │                                                ▼                            │
 │                         ┌──────────────────────────────────────────┐        │
 │                         │          GOLD LAYER                      │        │
-│                         │   PostgreSQL 18.1 (schema-per-tenant)    │        │
+│                         │   PostgreSQL 18.3 (schema-per-tenant)    │        │
 │                         │                                          │        │
 │                         │  ┌────────────────┐  ┌────────────────┐  │        │
 │                         │  │  tenant_abc    │  │  tenant_xyz    │  │        │
@@ -84,7 +84,7 @@ This document covers the **clinical data ingestion and ETL pipeline** — the sy
 | **4. Transform** | Column mapping, type casting, OMOP vocabulary alignment              | In-memory               | Polars DataFrames + `load_omop.py`     |
 | **5. Validate**  | OMOP FK integrity, concept ID references, date sanity checks         | In-memory               | SQLAlchemy + custom validation         |
 | **6. Load**      | Validated data written to transient OMOP PostgreSQL tenant schema    | Memory → Gold           | SQLAlchemy + Alembic                   |
-| **7. Export**    | Dump tenant schema to portable SQL file                              | PostgreSQL → SQL file   | `pg_dump` → `gold_omop_tenant.sql`     |
+| **7. Export**    | Dump tenant schema to portable SQL file                              | PostgreSQL → SQL file   | `pg_dump` → `gold_omop_tenant.sql.gz`  |
 | **8. Query**     | AI agent generates SQL against tenant OMOP schema                   | PostgreSQL              | LangGraph + LLM                        |
 
 ---
@@ -142,7 +142,7 @@ Each Synthea source file has a dedicated **OMOP mapper** that enforces the OMOP 
 
 ### Gold Layer — Queryable Tenant Data
 
-**Storage**: PostgreSQL 18.1 (schema-per-tenant)  
+**Storage**: PostgreSQL 18.3 (schema-per-tenant)  
 **Format**: OMOP CDM v5.4 relational tables with indexes  
 **Isolation**: Schema-per-tenant (`SET search_path TO tenant_abc`)
 
@@ -193,7 +193,7 @@ The complete OMOP v5.4 DDL (all 37 tables) is applied via `data-pipeline/omop_dd
 - **`load_omop.py`**: Reads Synthea CSVs with Polars, maps to OMOP tables via concept lookups, bulk-inserts
 - **Idempotency**: Truncate + reload per tenant (safe to re-run; no duplicate rows)
 - **Migrations**: Alembic in `data-pipeline/alembic/` manages schema evolution
-- **Portable dump**: Final tenant data is exported as `data-pipeline/gold_omop_tenant.sql` for deployment
+- **Portable dump**: Final tenant data is exported as `data-pipeline/gold_omop_tenant.sql.gz` for deployment
 
 ---
 
@@ -209,7 +209,7 @@ The complete OMOP v5.4 DDL (all 37 tables) is applied via `data-pipeline/omop_dd
                       in JWT token
                            │
                     ┌──────────────────────┐
-                    │  PostgreSQL 18.1     │  ← OMOP clinical data (schema-per-tenant)
+                    │  PostgreSQL 18.3     │  ← OMOP clinical data (schema-per-tenant)
                     │  (Clinical Data)     │
                     │                      │
                     │  SET search_path TO  │
@@ -238,7 +238,7 @@ The AI agent **generates SQL dynamically**. Row-Level Security (RLS) relies on `
 │                                                         -tenant  │
 │                                                                  │
 │  Trigger: uv run python load_omop.py                             │
-│  Output:  gold_omop_tenant.sql  (portable dump for deployment)   │
+│  Output:  gold_omop_tenant.sql.gz (portable dump for deployment) │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -249,7 +249,7 @@ The AI agent **generates SQL dynamically**. Row-Level Security (RLS) relies on `
 - Read Synthea Bronze CSVs with Polars
 - Map source fields to OMOP CDM v5.4 columns (concept lookups)
 - Truncate + reload target OMOP tables in the tenant schema
-- Export portable `gold_omop_tenant.sql` dump for downstream deployment
+- Export portable `gold_omop_tenant.sql.gz` dump for downstream deployment
 
 ---
 
@@ -261,8 +261,8 @@ The AI agent **generates SQL dynamically**. Row-Level Security (RLS) relies on `
 | **Orchestration**   | Planned — Dagster (Phase 2)      | Pipeline scheduling, monitoring, lineage, retry              |
 | **Data Quality**    | Planned — Great Expectations (Phase 2) | Schema validation, anomaly detection, quality gates    |
 | **Raw Storage**     | Local filesystem (`data-pipeline/bronze/synthea/`) | Bronze layer — Synthea-generated CSVs       |
-| **Clinical Storage**| PostgreSQL 18.1 (schema-per-tenant) | Gold layer — OMOP CDM v5.4, one schema per tenant        |
-| **App Data**        | PostgreSQL 18.1                  | Users, chat history, tenant registry, thread metadata        |
+| **Clinical Storage**| PostgreSQL 18.3 (schema-per-tenant) | Gold layer — OMOP CDM v5.4, one schema per tenant        |
+| **App Data**        | PostgreSQL 18.3                  | Users, chat history, tenant registry, thread metadata        |
 | **CLI**             | Python (`uv run python load_omop.py`) | Manual ETL trigger and gold SQL dump generation         |
 | **Package Manager** | uv                               | Fast Python dependency management for `data-pipeline/`       |
 
@@ -278,9 +278,9 @@ data-pipeline/                    ← Standalone OMOP ETL project (sibling to ba
 ├── config.py                     ← Settings (POSTGRES_*, OMOP_SCHEMA, etc.)
 ├── load_omop.py                  ← Main ETL script (Polars Synthea → OMOP transform)
 ├── main.py                       ← CLI entrypoint
-├── docker-compose.yml            ← Transient PostgreSQL 18.1 ETL database
+├── docker-compose.yml            ← Transient PostgreSQL 18.3 ETL database
 ├── generate_synthea.sh           ← Synthea data generation script
-├── gold_omop_tenant.sql          ← Deployable OMOP tenant SQL dump
+├── gold_omop_tenant.sql.gz       ← Deployable OMOP tenant SQL dump
 ├── alembic/                      ← Alembic migrations for OMOP tenant schemas
 │   └── versions/
 ├── bronze/synthea/               ← Raw Synthea CSV files (gitignored)
@@ -349,7 +349,7 @@ All settings are imported from `data-pipeline/config.py`. Never use `os.environ`
 
 | Phase                            | Scope                                                            | Deliverable                                         | Status         |
 | -------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------- | -------------- |
-| **Phase 1** — OMOP ETL Scripts   | Synthea CSV reader, Polars OMOP mappers, PostgreSQL loader, dump | `uv run python load_omop.py` + `gold_omop_tenant.sql` | ✅ Complete   |
+| **Phase 1** — OMOP ETL Scripts   | Synthea CSV reader, Polars OMOP mappers, PostgreSQL loader, dump | `uv run python load_omop.py` + `gold_omop_tenant.sql.gz` | ✅ Complete   |
 | **Phase 2** — Orchestration      | Dagster wrapping, scheduling, Great Expectations, monitoring     | Automated daily runs with quality gates             | 📋 Backlog     |
 | **Phase 3** — MLOps Integration  | Training data export, evaluation suites, schema statistics       | Self-improving agent accuracy                       | 📋 Backlog     |
 
@@ -363,7 +363,7 @@ All settings are imported from `data-pipeline/config.py`. Never use `os.environ`
 | Orchestration         | Dagster planned (Phase 2)                    | Better asset model, built-in data lineage, modern API                         |
 | Data quality          | Great Expectations planned (Phase 2)         | Industry standard, integrates with Dagster, declarative rules                 |
 | Standalone project    | `data-pipeline/` separated from `backend/`  | Enables independent deployment, future MLOps pipeline                         |
-| Clinical data engine  | PostgreSQL 18.1 (schema-per-tenant)          | Unified database, OMOP-native, safe tenant isolation via `search_path`        |
+| Clinical data engine  | PostgreSQL 18.3 (schema-per-tenant)          | Unified database, OMOP-native, safe tenant isolation via `search_path`        |
 | Loading strategy      | Truncate + reload (idempotent)               | Safe to re-run; no partial/duplicate state; OMOP concept IDs are stable       |
 | Medical data standard | OMOP CDM v5.4                                | Vendor-neutral, globally adopted, enables cross-institution query portability |
 

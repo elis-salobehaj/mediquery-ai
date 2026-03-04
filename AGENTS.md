@@ -8,7 +8,7 @@ Text-to-SQL platform for medical KPI analysis using natural language.
 
 - **Node Engine**: 24.13.1 (managed via `nvm` / `.nvmrc`)
 - **Package Managers**: `pnpm` (Frontend + TS Backend), `uv` (Data Pipeline)
-- **Database**: PostgreSQL 18.1 (App Data via Drizzle + OMOP v5.4 Tenant Clinical Data) (Docker)
+- **Database**: PostgreSQL 18.3 (App Data via Drizzle + OMOP v5.4 Tenant Clinical Data) (Docker)
 - **Data Standard**: OMOP CDM v5.4 (Standardized Medical Domain Model)
 
 ## 🚨 Critical Rules

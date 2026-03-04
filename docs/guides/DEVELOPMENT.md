@@ -34,7 +34,7 @@ pnpm db:migrate
   - app schema: `${APP_DB_SCHEMA}`
   - OMOP database: `${OMOP_DB_NAME}`
   - OMOP ETL role: `${OMOP_ETL_USER}`
-  - OMOP tenant schema: `${OMOP_TENANT_SCHEMA}` (loaded from `data-pipeline/gold_omop_tenant.sql`)
+  - OMOP tenant schema: `${OMOP_TENANT_SCHEMA}` (loaded from `data-pipeline/gold_omop_tenant.sql.gz`)
   - OMOP vocab schema: `${OMOP_VOCAB_SCHEMA}`
 - If you need to re-run bootstrap from scratch, clear the Postgres volume and restart:
 
@@ -204,14 +204,84 @@ uv run pipeline-full
 - Synthea Bronze generation
 - Alembic migrations
 - Profile-aware ETL + vocabulary load
-- Gold export to `data-pipeline/gold_omop_tenant.sql`
+- Post-load QA gates (blocking — stops export on failure)
+- Gold export to `data-pipeline/gold_omop_tenant.sql.gz`
+- JSON run artifacts: `pipeline_run_metadata.json`, `pipeline_qa_results.json`
 
-If you only want to rerun ETL logic after data is already generated:
+#### Partial pipeline re-run commands
+
+| Command | What it does |
+|---|---|
+| `uv run pipeline-full` | Full Bronze → Silver → Gold run |
+| `uv run pipeline-etl` | Re-runs ETL + QA only (skips Synthea/migrations/export) |
+| `uv run pipeline-export-gold` | Re-exports dump from loaded DB, no ETL rerun |
+
+#### Pipeline run artifacts
+
+Every run writes two JSON artifacts to `data-pipeline/`:
+
+- `pipeline_run_metadata.json` — timing, profile, population, status, dump size, QA summary counters
+- `pipeline_qa_results.json` — per-check pass/fail details with observed values and thresholds
+
+Inspect results quickly:
+
+```bash
+cat data-pipeline/pipeline_run_metadata.json | python3 -m json.tool
+cat data-pipeline/pipeline_qa_results.json | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+print(f\"Total: {d['total']}, Passed: {d['passed']}, Failed: {d['failed']}, All passed: {d['all_passed']}\")
+for r in d['results']:
+    if not r['passed']:
+        print(f\"  FAIL: {r['check_name']}  observed={r.get('observed_value')}  threshold={r.get('threshold')}\")
+"
+```
+
+### Data Pipeline Unit Tests
+
+The data pipeline has a full unit test suite covering pure vocabulary and mapping logic (no database required):
 
 ```bash
 cd data-pipeline
-uv run pipeline-etl
+uv sync --extra dev
+uv run pytest tests/ -v
 ```
+
+To include coverage:
+
+```bash
+uv run pytest tests/ -v --cov=vocabulary --cov-report=term-missing
+```
+
+Tests live under `data-pipeline/tests/` and cover:
+
+| File | What is tested |
+|---|---|
+| `test_validators.py` | Vocabulary package validator functions |
+| `test_mapping.py` | OMOP concept mapping expressions and utilities |
+| `test_required_concepts.py` | Required baseline concept builders and merge logic |
+| `test_load_profile.py` | `synthetic_open` package builder and profile gate |
+| `test_qa_data_structures.py` | QA check result / summary / failure data structures |
+
+### Data Pipeline CI
+
+The `.github/workflows/data-pipeline-gold.yml` workflow provides two levels of pipeline CI:
+
+**Unit tests (runs on every push / PR to `data-pipeline/**`):**
+
+- No Docker, no database required
+- `uv run pytest tests/` with vocabulary coverage
+- Triggered automatically when data-pipeline code changes
+
+**Full Gold pipeline (nightly 02:30 UTC + manual dispatch):**
+
+- Builds Synthea Docker image (cached between runs)
+- Spins up transient PostgreSQL container
+- Runs `uv run pipeline-full` (Bronze → Silver → QA gates → Gold)
+- Uploads artifacts: `pipeline-run-metadata`, `pipeline-qa-results`, `gold-omop-tenant-sql`
+- Pipeline fails automatically if any QA gate fails
+
+Trigger a manual full-pipeline run from the **Actions → Data Pipeline — Unit Tests & Gold Production → Run workflow** panel. You can control population size, seed, and `FAIL_ON_VOCAB_GAP` from the dispatch inputs.
 
 ### Data Pipeline Profile Defaults
 
@@ -317,3 +387,80 @@ POSTGRES_PORT=5432
 
 - **Check host**: In Hybrid Mode, use `POSTGRES_HOST=localhost` in `.env`
 - **Check port**: Ensure `5432` is not in use: `lsof -i :5432`
+
+---
+
+## Data Pipeline Troubleshooting
+
+### Quick Diagnostic
+
+```bash
+# 1. Check last pipeline run status
+cat data-pipeline/pipeline_run_metadata.json | python3 -c \
+  "import json,sys; d=json.load(sys.stdin); print(d['status'], d['elapsed_seconds'], 's')"
+
+# 2. Check which QA gates failed
+cat data-pipeline/pipeline_qa_results.json | python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+[print('FAIL:', r['check_name'], '|', r.get('observed_value'), 'vs', r.get('threshold'))
+ for r in d['results'] if not r['passed']]
+" 2>/dev/null || echo "(no QA results found)"
+```
+
+### Data Pipeline Troubleshooting Matrix
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `QA gate(s) failed — pipeline halted before Gold export` | Vocabulary coverage below threshold | Check `pipeline_qa_results.json`; re-run with `FAIL_ON_VOCAB_GAP=false` to inspect partial output, then investigate coverage gaps |
+| `Database did not become ready in time` | Transient DB container never started or wrong port | `docker compose -f data-pipeline/docker-compose.yml up -d transient-db` and verify `PIPELINE_DB_PORT` in `.env` |
+| `Missing required concept IDs: [9201, 9202, 9203]` | Vocabulary build broken or `required_concepts.py` out of sync | Run `uv run pytest tests/test_required_concepts.py -v`; verify `REQUIRED_CONCEPTS` tuple contains the visit IDs |
+| `Alembic failed due to migration metadata/schema permissions` | DB user lacks `CREATE SCHEMA` or `alembic_version` write rights | Pipeline auto-recovers if OMOP schemas already exist; otherwise grant privileges or reset with `docker compose -f data-pipeline/docker-compose.yml down -v` |
+| `pg_dump is not available on host and no postgres container is mapped to port …` | `pg_dump` not installed locally | Install `postgresql-client` (`sudo apt install postgresql-client`) or ensure the transient DB container is running |
+| `Unable to build Synthea image / docker build failed` | Docker not running or Dockerfile fetch issue | `docker info` to verify Docker daemon; check network access to `github.com/synthetichealth/synthea` |
+| `gold_omop_tenant.sql.gz` is 0 bytes or missing | Pipeline crashed before export or QA gates failed | Check `pipeline_run_metadata.json` `status` field; re-run after fixing the reported issue |
+| `join_coverage:visit_occurrence.visit_concept_id` QA gate fails | Visit concept IDs (9201/9202/9203) absent from `omop_vocab.concept` | Required concepts must be in `REQUIRED_CONCEPTS`; run `uv run pytest tests/test_load_profile.py` to confirm they're merged |
+| `concept_id=0 rate` warning printed during ETL | Source code not mapped to a known concept | Review `vocabulary/mapping.py` for the failing encounter class / gender / race; 0-rate > 5% triggers `⚠️` in logs |
+| `smoke:visit_type_distribution` QA gate fails | Concept join returns 0 rows despite visit data | Gold dataset loaded without required concepts; re-run full pipeline after verifying `required_concept_ids()` contains 9201, 9202, 9203 |
+| `uv run pipeline-full` immediately exits with import error | Python path issue or missing env var | `cd data-pipeline && uv sync && uv run python -c "from config import settings; print(settings)"` to test settings loading |
+| `Permission denied for schema alembic_version` | DB user is read-only | Pipeline auto-detects existing schemas and continues; ensure OMOP tables exist or use a privileged DB user for initial setup |
+
+### Resetting the Transient Database
+
+To start fresh (wipe the transient pipeline DB):
+
+```bash
+cd data-pipeline
+docker compose down -v   # removes container + pgdata_transient volume
+docker compose up -d transient-db
+# Re-run pipeline
+uv run pipeline-full
+```
+
+### Checking QA Gate Details
+
+```bash
+# Full QA results with all check details
+python3 -c "
+import json
+results = json.load(open('data-pipeline/pipeline_qa_results.json'))
+for r in results['results']:
+    status = '✓' if r['passed'] else '✗'
+    print(f\"{status} [{r['category']}] {r['check_name']}\")
+    if not r['passed']:
+        print(f\"    observed={r.get('observed_value')}  threshold={r.get('threshold')}\")
+        if r.get('details'):
+            print(f\"    {r['details']}\")
+"
+```
+
+### Skipping QA Gates (Debug Only)
+
+To run the pipeline and export Gold even when QA gates fail (useful for debugging):
+
+```bash
+cd data-pipeline
+FAIL_ON_VOCAB_GAP=false uv run pipeline-full
+```
+
+> **Warning**: `FAIL_ON_VOCAB_GAP=false` should never be used for production Gold dumps. It exists only for debugging partial loads.

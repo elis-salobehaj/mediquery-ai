@@ -15,7 +15,7 @@ Benchmarking references:
 - **AI Orchestration**: `@langchain/langgraph` — multi-agent graph (Router → Schema Navigator → SQL Writer → Critic ↔ Reflector, Meta-Agent)
 - **Retrieval**: Prompt-guided schema navigation with heuristic candidate pre-ranking and LLM reranking in `agents/schema-navigator-agent.ts`
 - **Memory Policy**: Scoped per-thread memory (`memory-context.ts` + `thread-memory.service.ts`) with confidence decay, TTL invalidation, request-time enable/disable (`enable_memory`), and clear-memory endpoint
-- **Database**: PostgreSQL 18.1 (App Data & KPIs)
+- **Database**: PostgreSQL 18.3 (App Data & KPIs)
 - **ORM Strategy**:
   - **Drizzle ORM**: Used for PostgreSQL (App Data). Schema and migration ownership lives in `packages/db`.
   - **pg (Raw)**: Used for execution of AI-generated queries on PostgreSQL schema-bound tenant data for maximum flexibility.
@@ -128,151 +128,6 @@ export class AppService {
 - **CSS Bundle**: < 10KB
 - **Theme Switch**: < 50ms INP
 - **First Contentful Paint**: < 1.5s
-
----
-
-## Project Structure
-
-### Backend (TypeScript - Active)
-
-```
-backend/
-├── src/
-│   ├── app.module.ts          # Root NestJS module
-│   ├── main.ts                # Entrypoint (port 8001)
-│   ├── app.controller.ts      # GET /api/v1/health
-│   ├── ai/
-│   │   ├── ai.module.ts
-│   │   ├── graph.ts           # LangGraph StateGraph wiring
-│   │   ├── state.ts           # GraphState interface
-│   │   ├── agents/            # LangGraph Agent Nodes
-│   │   │   ├── router-agent.ts        # Intent routing
-│   │   │   ├── policy-gate.ts         # Policy enforcement (write-op + unsupported-intent blocking)
-│   │   │   ├── schema-navigator-agent.ts  # OMOP table selection
-│   │   │   ├── sql-writer-agent.ts    # SQL generation
-│   │   │   ├── critic-agent.ts        # SQL validation
-│   │   │   ├── reflector-agent.ts     # Reflexion
-│   │   │   └── meta-agent.ts          # Domain Q&A
-│   │   ├── llm.service.ts     # LLM factory (multi-provider)
-│   │   ├── insight.service.ts # Post-query insight generation
-│   │   ├── visualization.service.ts
-│   │   ├── memory-context.ts  # Scoped memory derivation + summary formatting
-│   │   ├── prompt.service.ts
-│   │   ├── prompts/           # Agent system prompts
-│   │   ├── queries.controller.ts  # POST /queries/query + /queries/stream
-│   │   └── config.controller.ts   # GET /config/models
-│   ├── auth/
-│   │   ├── auth.module.ts
-│   │   ├── auth.controller.ts # POST /auth/token|register|guest|logout, GET /auth/me
-│   │   ├── auth.service.ts
-│   │   └── jwt-auth.guard.ts  # Accepts Bearer header OR ?token= query param
-│   ├── config/
-│   │   └── config.service.ts  # Zod-validated env config
-│   ├── database/
-│   │   ├── database.module.ts # PostgreSQL App & Medical Data
-│   │   ├── database.service.ts
-│   │   └── schema.ts          # App-facing schema exports (source of truth: packages/db)
-│   ├── threads/
-│   │   ├── threads.controller.ts  # CRUD /threads
-│   │   └── threads.service.ts
-│   │   └── thread-memory.service.ts # Thread-scoped memory policy store
-│   └── token-usage/
-│       ├── token-usage.controller.ts  # /token-usage/* + SSE /events
-│       ├── token-usage.service.ts
-│       ├── token-usage-events.service.ts  # SSE pub/sub per user
-│       └── token-usage.module.ts
-├── tsconfig.json
-├── vitest.config.ts
-└── package.json
-
-packages/
-└── db/
-  ├── src/
-  │   ├── schema.ts         # Canonical Drizzle schema for app data
-  │   └── migrate.ts        # Compiled migration runtime entrypoint
-  ├── drizzle/              # Canonical SQL migration history
-  ├── drizzle.config.ts
-  └── package.json
-
-data-pipeline/               # OMOP v5.4 Synthea pipeline
-├── alembic/                 # Python SQL migrations for OMOP tenant schemas
-├── bronze/                  # Raw Synthea data output (Local CSVs)
-├── docker-compose.yml       # Transient PostgreSQL 18.3 ETL DB
-├── config.py                # Pydantic Settings
-├── load_omop.py             # Polars-driven ETL script
-├── gold_omop_tenant.sql     # Processed, deployable SQL dump
-└── pyproject.toml           # uv Python dependencies (Polars, SQLAlchemy)
-```
-
-### Data Pipeline & OMOP Migration
-
-The project utilizes a **Medallion Architecture** to handle high-fidelity clinical data benchmarking:
-
-1.  **Bronze (Raw)**: Synthea generated CSV files (Patients, Encounters, etc.) stored in `data-pipeline/bronze/`. These are ignored by Git.
-2.  **Silver (Structured)**: A transient PostgreSQL database where raw data is mapped to the **OMOP CDM v5.4** standard using `load_omop.py` and `Polars`. This layer enforces strict relational data models and standard vocabularies.
-3.  **Gold (Curated)**: A portable SQL dump (`gold_omop_tenant.sql`) extracted from the Silver layer. This dump is mounted directly to the production database to allow instantaneous provisioning of tenant clinical data.
-
-
-### Frontend
-
-```
-frontend/
-├── src/
-│   ├── components/       # React components
-│   │   ├── Chat/         # Chat interface components
-│   │   ├── Layout/       # Layout components (Sidebar, Header)
-│   │   └── Usage/        # Token usage components
-│   ├── pages/            # Page-level components
-│   │   ├── ChatInterface.tsx
-│   │   ├── UsageDashboard.tsx
-│   │   └── AdminQuotaManagement.tsx
-│   ├── services/         # API client services
-│   │   ├── tokenUsageService.ts
-│   │   └── api.ts
-│   ├── utils/            # Utility functions
-│   │   └── auth.ts       # JWT helpers
-│   ├── hooks/            # Custom React hooks
-│   ├── config/           # Configuration
-│   └── App.tsx           # Root component
-├── public/               # Static assets
-├── package.json          # pnpm dependencies
-└── vite.config.ts        # Vite configuration
-```
-
-### Documentation
-
-```
-docs/
-├── README.md             # Main documentation index
-├── guides/               # How-to guides
-│   ├── GETTING_STARTED.md
-│   ├── DEVELOPMENT.md
-│   ├── TESTING_GUIDE.md
-│   └── ...
-├── agents/               # Agent-track docs (concise, policy-focused)
-│   ├── context/
-│   │   ├── ARCHITECTURE.md   # Hard rules + retrieval + benchmark policy
-│   │   ├── CONFIGURATION.md  # Zod/ConfigService rules
-│   │   └── WORKFLOWS.md      # Change loop policy
-│   └── designs/
-│       ├── SYSTEM_DESIGN.md  # Runtime + AI + data design constraints
-│       └── EVOLUTION_ROADMAP.md
-├── humans/               # Human-track docs (rich, explanatory)
-│   ├── context/
-│   │   ├── ARCHITECTURE.md   # This file — full stack reference
-│   │   ├── CONFIGURATION.md  # Zod patterns + lifecycle
-│   │   ├── BENCHMARKING.md   # Benchmark harness detail
-│   │   ├── SEMANTIC_RETRIEVAL.md # Retrieval architecture
-│   │   └── WORKFLOWS.md      # Engineering change workflow
-│   └── designs/          # Deep-dive architecture docs
-├── plans/                # Project planning
-│   ├── active/           # Current work
-│   ├── implemented/      # Completed plans
-│   └── backlog/          # Future ideas
-└── reports/              # Implementation reports
-    ├── current/          # Active reports
-    └── archive/          # Historical reports
-```
 
 ---
 
@@ -415,12 +270,160 @@ See **[CONFIGURATION.md](CONFIGURATION.md)** for provider env vars.
 
 ---
 
+## Project Structure
+
+### Backend (TypeScript - Active)
+
+```
+backend/
+├── src/
+│   ├── app.module.ts          # Root NestJS module
+│   ├── main.ts                # Entrypoint (port 8001)
+│   ├── app.controller.ts      # GET /api/v1/health
+│   ├── ai/
+│   │   ├── ai.module.ts
+│   │   ├── graph.ts           # LangGraph StateGraph wiring
+│   │   ├── state.ts           # GraphState interface
+│   │   ├── agents/            # LangGraph Agent Nodes
+│   │   │   ├── router-agent.ts        # Intent routing
+│   │   │   ├── policy-gate.ts         # Policy enforcement (write-op + unsupported-intent blocking)
+│   │   │   ├── schema-navigator-agent.ts  # OMOP table selection
+│   │   │   ├── sql-writer-agent.ts    # SQL generation
+│   │   │   ├── critic-agent.ts        # SQL validation
+│   │   │   ├── reflector-agent.ts     # Reflexion
+│   │   │   └── meta-agent.ts          # Domain Q&A
+│   │   ├── llm.service.ts     # LLM factory (multi-provider)
+│   │   ├── insight.service.ts # Post-query insight generation
+│   │   ├── visualization.service.ts
+│   │   ├── memory-context.ts  # Scoped memory derivation + summary formatting
+│   │   ├── prompt.service.ts
+│   │   ├── prompts/           # Agent system prompts
+│   │   ├── queries.controller.ts  # POST /queries/query + /queries/stream
+│   │   └── config.controller.ts   # GET /config/models
+│   ├── auth/
+│   │   ├── auth.module.ts
+│   │   ├── auth.controller.ts # POST /auth/token|register|guest|logout, GET /auth/me
+│   │   ├── auth.service.ts
+│   │   └── jwt-auth.guard.ts  # Accepts Bearer header OR ?token= query param
+│   ├── config/
+│   │   └── config.service.ts  # Zod-validated env config
+│   ├── database/
+│   │   ├── database.module.ts # PostgreSQL App & Medical Data
+│   │   ├── database.service.ts
+│   │   └── schema.ts          # App-facing schema exports (source of truth: packages/db)
+│   ├── threads/
+│   │   ├── threads.controller.ts  # CRUD /threads
+│   │   └── threads.service.ts
+│   │   └── thread-memory.service.ts # Thread-scoped memory policy store
+│   └── token-usage/
+│       ├── token-usage.controller.ts  # /token-usage/* + SSE /events
+│       ├── token-usage.service.ts
+│       ├── token-usage-events.service.ts  # SSE pub/sub per user
+│       └── token-usage.module.ts
+├── tsconfig.json
+├── vitest.config.ts
+└── package.json
+
+packages/
+└── db/
+  ├── src/
+  │   ├── schema.ts         # Canonical Drizzle schema for app data
+  │   └── migrate.ts        # Compiled migration runtime entrypoint
+  ├── drizzle/              # Canonical SQL migration history
+  ├── drizzle.config.ts
+  └── package.json
+
+data-pipeline/               # OMOP v5.4 Synthea pipeline
+├── alembic/                 # Python SQL migrations for OMOP tenant schemas
+├── bronze/                  # Raw Synthea data output (Local CSVs)
+├── docker-compose.yml       # Transient PostgreSQL 18.3 ETL DB
+├── config.py                # Pydantic Settings
+├── load_omop.py             # Polars-driven ETL script
+├── gold_omop_tenant.sql.gz  # Processed, deployable SQL dump
+└── pyproject.toml           # uv Python dependencies (Polars, SQLAlchemy)
+```
+
+### Data Pipeline & OMOP Migration
+
+The project utilizes a **Medallion Architecture** to handle high-fidelity clinical data benchmarking:
+
+1.  **Bronze (Raw)**: Synthea generated CSV files (Patients, Encounters, etc.) stored in `data-pipeline/bronze/`. These are ignored by Git.
+2.  **Silver (Structured)**: A transient PostgreSQL database where raw data is mapped to the **OMOP CDM v5.4** standard using `load_omop.py` and `Polars`. This layer enforces strict relational data models and standard vocabularies.
+3.  **Gold (Curated)**: A portable SQL dump (`gold_omop_tenant.sql.gz`) extracted from the Silver layer. This dump is mounted directly to the production database to allow instantaneous provisioning of tenant clinical data.
+
+
+### Frontend
+
+```
+frontend/
+├── src/
+│   ├── components/       # React components
+│   │   ├── Chat/         # Chat interface components
+│   │   ├── Layout/       # Layout components (Sidebar, Header)
+│   │   └── Usage/        # Token usage components
+│   ├── pages/            # Page-level components
+│   │   ├── UsageDashboard.tsx
+│   │   ├── AdminQuotaManagement.tsx
+│   │   └── UserPreferences.tsx
+│   ├── contexts/         # Shared React context state
+│   │   └── TokenUsageContext.tsx
+│   ├── services/         # API client services
+│   │   ├── tokenUsageService.ts
+│   │   └── api.ts
+│   ├── utils/            # Utility functions
+│   │   └── auth.ts       # JWT helpers
+│   ├── hooks/            # Custom React hooks
+│   ├── config/           # Configuration
+│   └── App.tsx           # Root component
+├── public/               # Static assets
+├── package.json          # pnpm dependencies
+└── vite.config.ts        # Vite configuration
+```
+
+### Documentation
+
+```
+docs/
+├── README.md             # Main documentation index
+├── guides/               # How-to guides
+│   ├── GETTING_STARTED.md
+│   ├── DEVELOPMENT.md
+│   ├── TESTING_GUIDE.md
+│   └── ...
+├── agents/               # Agent-track docs (concise, policy-focused)
+│   ├── context/
+│   │   ├── ARCHITECTURE.md   # Hard rules + retrieval + benchmark policy
+│   │   ├── CONFIGURATION.md  # Zod/ConfigService rules
+│   │   └── WORKFLOWS.md      # Change loop policy
+│   └── designs/
+│       ├── SYSTEM_DESIGN.md  # Runtime + AI + data design constraints
+│       └── EVOLUTION_ROADMAP.md
+├── humans/               # Human-track docs (rich, explanatory)
+│   ├── context/
+│   │   ├── ARCHITECTURE.md   # This file — full stack reference
+│   │   ├── CONFIGURATION.md  # Zod patterns + lifecycle
+│   │   ├── BENCHMARKING.md   # Benchmark harness detail
+│   │   ├── SEMANTIC_RETRIEVAL.md # Retrieval architecture
+│   │   └── WORKFLOWS.md      # Engineering change workflow
+│   └── designs/          # Deep-dive architecture docs
+├── plans/                # Project planning
+│   ├── active/           # Current work
+│   ├── implemented/      # Completed plans
+│   └── backlog/          # Future ideas
+└── reports/              # Implementation reports
+    ├── current/          # Active reports
+    └── archive/          # Historical reports
+```
+
+---
+
 ## API Endpoint Reference
 
-All 20 endpoints are implemented in NestJS (`backend`). The Vite dev proxy routes all `/api/*` to port 8001.
+All 26 endpoints are implemented in NestJS (`backend`). The Vite dev proxy routes all `/api/*` to port 8001.
 
 | Method | Path                                        | Controller             | Auth            |
 | ------ | ------------------------------------------- | ---------------------- | --------------- |
+| GET    | `/api/v1`                                   | `AppController`        | Public          |
 | GET    | `/api/v1/health`                            | `AppController`        | Public          |
 | POST   | `/api/v1/auth/token`                        | `AuthController`       | Public          |
 | POST   | `/api/v1/auth/register`                     | `AuthController`       | Public          |
@@ -438,10 +441,14 @@ All 20 endpoints are implemented in NestJS (`backend`). The Vite dev proxy route
 | GET    | `/api/v1/token-usage`                       | `TokenUsageController` | JWT             |
 | GET    | `/api/v1/token-usage/monthly`               | `TokenUsageController` | JWT             |
 | GET    | `/api/v1/token-usage/monthly/breakdown`     | `TokenUsageController` | JWT             |
+| GET    | `/api/v1/token-usage/metrics/nodes`         | `TokenUsageController` | JWT             |
 | GET    | `/api/v1/token-usage/status`                | `TokenUsageController` | JWT             |
 | GET    | `/api/v1/token-usage/events`                | `TokenUsageController` | JWT (`?token=`) |
 | GET    | `/api/v1/token-usage/admin/users`           | `TokenUsageController` | JWT + Admin     |
 | PUT    | `/api/v1/token-usage/admin/users/:id/quota` | `TokenUsageController` | JWT + Admin     |
+| DELETE | `/api/v1/memory`                            | `MemoryController`     | JWT             |
+| GET    | `/api/v1/memory/preferences`                | `MemoryController`     | JWT             |
+| PATCH  | `/api/v1/memory/preferences`                | `MemoryController`     | JWT             |
 
 > **SSE note**: `GET /token-usage/events` accepts `?token=<jwt>` as a query parameter because browser `EventSource` cannot set request headers.
 
@@ -474,7 +481,7 @@ The token tracking system monitors LLM API usage and enforces monthly quotas in 
 - Powers real-time usage indicators
 
 5. **Frontend Integration** (`frontend/src/components/Usage/`)
-   - Usage indicator in header (auto-refresh)
+  - Usage indicator in header (live SSE-driven status updates)
    - Usage dashboard with historical charts
    - Admin quota management interface
 

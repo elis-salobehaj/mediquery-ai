@@ -1,5 +1,32 @@
 # Changelog
 
+## [3.0.0](https://github.com/elis-salobehaj/mediquery-ai/compare/mediquery-ai-v2.0.0...mediquery-ai-v3.0.0) (2026-03-03)
+
+### ⚠ BREAKING CHANGES
+
+* **Clinical analytics baseline migrated to OMOP CDM v5.4**: benchmark corpus, QA gates, and SQL validation now target OMOP schemas/tables (`tenant_nexus_health`, `omop_vocab`) as the default standard.
+* **Pipeline validation and release gates are Docker-parity first**: local quality gates now mirror CI/e2e workflow behavior and enforce deterministic ETL verification paths.
+
+### Features
+
+* add end-to-end OMOP vocabulary automation with open-license default profile and deterministic QA gate enforcement
+* introduce full Docker parity gate script (`run-docker-parity-gate.sh`) covering pipeline, frontend component tests, e2e workflow parity, and backend unit parity
+* add dedicated data-pipeline CI workflow for full Bronze→Silver→Gold execution and artifact production
+* add comprehensive data-pipeline unit coverage for vocabulary loading, mapping, validators, and QA data structures
+
+### Bug Fixes
+
+* fix e2e/backend health probe alignment to `/api/v1/health` across compose + workflow parity paths
+* update Playwright selectors for current chat input behavior to remove stale locator assumptions
+* harden parity cleanup to stop and remove test stacks/containers reliably after gate completion
+* untrack generated gold SQL artifact from git index and tighten ignore rules for local pipeline/test caches
+
+### Documentation
+
+* mark OMOP vocabulary automation plan fully completed and move it to implemented plans
+* refresh architecture/benchmarking/development docs to match OMOP + Docker parity testing reality
+* document local Docker parity gate usage in top-level project README
+
 ## [2.0.0](https://github.com/elis-salobehaj/mediqueryAI/compare/mediquery-ai-v1.4.0...mediquery-ai-v2.0.0) (2026-01-25)
 
 ### ⚠ BREAKING CHANGES

@@ -15,8 +15,7 @@ The futuristic interface for the Mediquery AI data agent. Built with React 19, V
   - Interactive zooming, panning, and exporting.
   - Real-time chart type switching.
 - **Dual-Mode Toggles**:
-  - **Fast/Thinking**: Choose between quick responses (⚡) or detailed reasoning (🧠)
-  - **Single/Multi-Agent**: Toggle between simple queries (🤖) or complex multi-agent workflow (🤖)
+  - **Fast/Multi-Agent**: Choose between quick single-agent responses (⚡) or thorough multi-agent workflow (🤖)
 - **CSV Export**: Download query results with a single click.
 - **Responsive Layout**: Works on desktop and large tablets.
 
@@ -76,7 +75,7 @@ We use **Playwright** for both Component and End-to-End testing.
 
 ```bash
 # Run locally
-npx playwright test
+pnpm exec playwright test
 
 # Run in Docker (recommended for CI)
 cd ..
@@ -94,7 +93,7 @@ cd ..
 
 ```bash
 # Run locally (requires backend running)
-npx playwright test -c playwright-e2e.config.ts
+pnpm exec playwright test -c playwright-e2e.config.ts
 
 # Run in Docker (recommended - full stack)
 cd ..
@@ -132,10 +131,10 @@ The frontend now includes comprehensive token usage monitoring and management fe
     - 🟠 Orange (90-94%): High usage
     - 🔴 Red (95-100%): Critical usage
   - Hover tooltip with detailed breakdown
-  - Auto-refreshes every 30 seconds
+  - Updates in real-time via token usage event stream
   - Click to navigate to full dashboard
 
-#### 2. Usage Dashboard (`/usage`)
+#### 2. Usage Dashboard (`/dashboard`)
 
 - **Access**: Click usage indicator or sidebar navigation
 - **Features**:
@@ -162,7 +161,7 @@ The frontend now includes comprehensive token usage monitoring and management fe
 
 ### Admin Features
 
-#### Quota Management (`/admin/quotas`)
+#### Quota Management (`/admin`)
 
 - **Access**: Sidebar navigation (admin users only)
 - **Features**:
@@ -176,10 +175,12 @@ The frontend now includes comprehensive token usage monitoring and management fe
 
 ### API Integration
 
-The frontend integrates with 5 backend endpoints:
+The frontend integrates with token-usage endpoints including:
 
 - `GET /api/v1/token-usage` - Current month usage
 - `GET /api/v1/token-usage/monthly` - Historical breakdown
+- `GET /api/v1/token-usage/monthly/breakdown` - Per-provider usage breakdown
+- `GET /api/v1/token-usage/metrics/nodes` - Node telemetry metrics
 - `GET /api/v1/token-usage/status` - Warning levels
 - `GET /api/v1/token-usage/admin/users` - All users (admin)
 - `PUT /api/v1/token-usage/admin/users/{user_id}/quota` - Update quota (admin)

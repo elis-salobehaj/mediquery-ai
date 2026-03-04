@@ -1,6 +1,6 @@
 # Active Plans
 
-**Current Active Plans**: 2
+**Current Active Plans**: 1
 
 **Last Updated**: 2026-03-03
 
@@ -9,10 +9,10 @@
 | #   | Plan                                                         | Status       | Est. Hours |
 | --- | ------------------------------------------------------------ | ------------ | ---------- |
 | 1   | **Automated Benchmarking & Evaluation Pipeline** ([plan](automated_benchmarking_evaluation_pipeline.md)) | 🔄 Phase 1A/5 (corpus + dev baseline done) | 20-35h     |
-| 2   | **OMOP Vocabulary Automation (Open-License, No Manual Steps)** ([plan](omop_vocabulary_automation_open_data.md)) | 🔄 Phase 5/6 (CI runbook pending) | 5-8h     |
 
 ## ✅ Recently Completed
 
+- ✅ **[OMOP Vocabulary Automation (Open-License, No Manual Steps)](../implemented/omop_vocabulary_automation_open_data.md)** — all 6 phases complete, 118 unit tests passing, full CI workflow (2026-03-03)
 - ✅ **[OMOP Golden Dataset Hardening](../implemented/omop_golden_dataset_hardening.md)** — all 8 phases complete, 162 tests passing, 10/10 curl battery (2026-03-03)
 - ✅ **[OMOP & Synthea Migration](../implemented/omop_synthea_migration.md)** — completed and moved to implemented
 - ✅ **[Shadcn v4 UI Overhaul](../implemented/shadcn_v4_ui_overhaul.md)** — completed and moved to implemented (2026-02-27)

@@ -9,9 +9,9 @@ test('homepage has title and main elements', async ({ page }) => {
 async function loginAsGuest(page: any) {
   await page.goto('/');
   await page.getByRole('button', { name: /INITIATE GUEST PROTOCOL/i }).click();
-  await expect(
-    page.getByRole('textbox', { name: /Ask Mediquery/i }),
-  ).toBeVisible({ timeout: 15000 });
+  await expect(page.getByPlaceholder(/Ask Mediquery/i)).toBeVisible({
+    timeout: 15000,
+  });
 }
 
 async function waitForAgentResponse(page: any) {
@@ -52,7 +52,7 @@ test('E2E Test 1: Single-agent + Fast mode - list people in Texas', async ({
   await page.getByRole('radio', { name: /Fast/i }).click();
 
   // Send query
-  const input = page.getByRole('textbox', { name: /Ask Mediquery/i });
+  const input = page.getByPlaceholder(/Ask Mediquery/i);
   await input.fill('list people in Texas');
   await input.press('Enter');
 
@@ -75,7 +75,7 @@ test('E2E Test 2: Multi-agent mode - list people in Texas', async ({
   await page.getByRole('radio', { name: /Multi-Agent/i }).click();
 
   // Send query
-  const input = page.getByRole('textbox', { name: /Ask Mediquery/i });
+  const input = page.getByPlaceholder(/Ask Mediquery/i);
   await input.fill('list people in Texas');
   await input.press('Enter');
 
@@ -101,7 +101,7 @@ test('E2E Test 3: Multi-agent + Fast mode - list people in Texas', async ({
   await page.getByRole('radio', { name: /Multi-Agent/i }).click();
 
   // Send query
-  const input = page.getByRole('textbox', { name: /Ask Mediquery/i });
+  const input = page.getByPlaceholder(/Ask Mediquery/i);
   await input.fill('list people in Texas');
   await input.press('Enter');
 
@@ -127,7 +127,7 @@ test('E2E Test 4: Complex Multi-agent Query - compare person count by state', as
   await page.getByRole('radio', { name: /Multi-Agent/i }).click();
 
   // Send query
-  const input = page.getByRole('textbox', { name: /Ask Mediquery/i });
+  const input = page.getByPlaceholder(/Ask Mediquery/i);
   await input.fill('compare person count by state');
   await input.press('Enter');
 

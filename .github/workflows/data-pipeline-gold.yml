@@ -1,0 +1,238 @@
+name: Data Pipeline — Unit Tests & Gold Production
+
+on:
+  pull_request:
+    branches: ["**"]
+    paths:
+      - "data-pipeline/**"
+      - ".github/workflows/data-pipeline-gold.yml"
+  # Commenting out push trigger & schedule for now to avoid unintended long-running pipeline runs during active development.
+  # push:
+  #   branches: ["**"]
+  #   paths:
+  #     - "data-pipeline/**"
+  #     - ".github/workflows/data-pipeline-gold.yml"
+  # schedule:
+    # Nightly run at 02:30 UTC — keeps Gold artifact current and catches regressions
+    # - cron: "30 2 * * *"
+  workflow_dispatch:
+    inputs:
+      synthea_population_size:
+        description: "Synthea patient population (default: 50 for CI speed)"
+        required: false
+        default: "50"
+        type: string
+      synthea_seed:
+        description: "Synthea random seed (for reproducibility)"
+        required: false
+        default: "42"
+        type: string
+      fail_on_vocab_gap:
+        description: "Fail pipeline if vocabulary coverage drops below threshold"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+# ---------------------------------------------------------------------------
+# Jobs
+# ---------------------------------------------------------------------------
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Job 1 — Pure unit tests (no Docker, no DB required)
+  #   Runs on every push / PR touching data-pipeline code.
+  #   Also runs as a prerequisite gate for the full-pipeline job.
+  # -------------------------------------------------------------------------
+  unit-tests:
+    name: Unit Tests (no DB)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "data-pipeline/uv.lock"
+
+      - name: Install Python dependencies (with dev extras)
+        working-directory: data-pipeline
+        run: uv sync --extra dev
+
+      - name: Run unit tests
+        working-directory: data-pipeline
+        env:
+          # Minimum env vars so pydantic-settings can instantiate Settings.
+          # No real DB is accessed — all tests are pure-logic.
+          PIPELINE_DB_HOST: localhost
+          PIPELINE_DB_PORT: "5432"
+          OMOP_DB_NAME: test_db
+          OMOP_ETL_USER: test_user
+          OMOP_ETL_PASSWORD: test_password
+        run: uv run pytest tests/ -v --tb=short --cov=vocabulary --cov-report=term-missing
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-unit-test-coverage
+          path: data-pipeline/.coverage
+          retention-days: 7
+
+  # -------------------------------------------------------------------------
+  # Job 2 — Full Bronze → Silver → Gold pipeline run
+  #   Only triggered by:
+  #     • nightly schedule  (cron)
+  #     • manual workflow_dispatch
+  #
+  #   Requires unit-tests to pass first.
+  # -------------------------------------------------------------------------
+  full-pipeline:
+    name: Full Pipeline (Gold Production)
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    if: |
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Cache the Synthea Docker image layer between nightly runs to reduce
+      # the ~8-minute initial Gradle build to a cache hit.
+      - name: Cache Synthea Docker image layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache-synthea
+          key: ${{ runner.os }}-synthea-${{ hashFiles('data-pipeline/synthea/Dockerfile') }}
+          restore-keys: |
+            ${{ runner.os }}-synthea-
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "data-pipeline/uv.lock"
+
+      - name: Install Python dependencies (with dev extras)
+        working-directory: data-pipeline
+        run: uv sync --extra dev
+
+      # Build the Synthea image up front so the pipeline doesn't timeout
+      # waiting for Gradle during generate_synthea.sh.  Buildx cache keeps
+      # subsequent nightly runs fast.
+      - name: Pre-build Synthea Docker image (cached)
+        run: |
+          docker buildx build \
+            --cache-from type=local,src=/tmp/.buildx-cache-synthea \
+            --cache-to   type=local,dest=/tmp/.buildx-cache-synthea-new,mode=max \
+            --load \
+            --tag mediquery-synthea \
+            data-pipeline/synthea/
+
+      - name: Rotate Buildx cache
+        run: |
+          rm -rf /tmp/.buildx-cache-synthea
+          mv /tmp/.buildx-cache-synthea-new /tmp/.buildx-cache-synthea
+
+      # Write a minimal root-level .env so pydantic-settings and the transient
+      # docker-compose pick up CI-safe credentials.
+      - name: Create CI environment file
+        run: |
+          cat > .env << 'EOF'
+          PIPELINE_DB_HOST=localhost
+          PIPELINE_DB_PORT=5433
+          OMOP_DB_NAME=omop_db
+          OMOP_ETL_USER=omop_user
+          OMOP_ETL_PASSWORD=omop_ci_secret
+          OMOP_TENANT_SCHEMA=tenant_nexus_health
+          OMOP_VOCAB_SCHEMA=omop_vocab
+          PIPELINE_PROFILE=synthetic_open
+          ATHENA_PROFILE_ENABLED=false
+          FAIL_ON_VOCAB_GAP=${{ inputs.fail_on_vocab_gap || 'true' }}
+          SYNTHEA_POPULATION_SIZE=${{ inputs.synthea_population_size || '50' }}
+          SYNTHEA_SEED=${{ inputs.synthea_seed || '42' }}
+          EOF
+
+      - name: Start transient PostgreSQL container
+        working-directory: data-pipeline
+        run: |
+          docker compose -f docker-compose.yml up -d transient-db
+          echo "Waiting for PostgreSQL readiness..."
+          timeout 90 bash -c \
+            'until docker compose -f docker-compose.yml exec transient-db \
+               pg_isready -U omop_user -d omop_db > /dev/null 2>&1; \
+             do sleep 2; done'
+          echo "PostgreSQL is ready."
+
+      - name: Run full Bronze → Silver → Gold pipeline
+        working-directory: data-pipeline
+        run: uv run pipeline-full
+        timeout-minutes: 40
+
+      - name: Show QA gate summary
+        if: always()
+        working-directory: data-pipeline
+        run: |
+          echo "=== pipeline_run_metadata.json ==="
+          cat pipeline_run_metadata.json 2>/dev/null || echo "(not found)"
+          echo
+          echo "=== pipeline_qa_results.json (summary) ==="
+          python3 - << 'PYEOF'
+          import json, sys
+          try:
+              d = json.load(open("pipeline_qa_results.json"))
+              print(f"Total checks : {d['total']}")
+              print(f"Passed       : {d['passed']}")
+              print(f"Failed       : {d['failed']}")
+              print(f"All passed   : {d['all_passed']}")
+              if d['failed']:
+                  print("\nFailed checks:")
+                  for r in d['results']:
+                      if not r['passed']:
+                          obs = r.get('observed_value', '')
+                          thr = r.get('threshold', '')
+                          print(f"  ✗ {r['check_name']}  observed={obs}  threshold={thr}")
+          except FileNotFoundError:
+              print("(pipeline_qa_results.json not found)")
+          PYEOF
+
+      - name: Upload pipeline run metadata artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-run-metadata
+          path: data-pipeline/pipeline_run_metadata.json
+          retention-days: 30
+
+      - name: Upload QA gate results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipeline-qa-results
+          path: data-pipeline/pipeline_qa_results.json
+          retention-days: 30
+
+      - name: Upload Gold SQL dump artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gold-omop-tenant-sql
+          path: data-pipeline/gold_omop_tenant.sql.gz
+          # Gold dumps are large; keep for 7 days and rotate
+          retention-days: 7
+          compression-level: 0  # already gzip-compressed
+
+      - name: Stop and clean up transient DB container
+        if: always()
+        working-directory: data-pipeline
+        run: docker compose -f docker-compose.yml down -v --remove-orphans

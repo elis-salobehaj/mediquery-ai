@@ -47,12 +47,10 @@ jobs:
         run: |
           docker system prune -af --volumes
 
-      # Frontend component tests disabled - require playwright/index.html setup
-      # Re-enable after setting up proper Playwright component test infrastructure
-      # - name: Build and Run Frontend Component Tests
-      #   run: |
-      #     # Build frontend-component service with ci profile
-      #     docker compose -f docker-compose.test.yml --profile ci build frontend-component
-      #
-      #     # Run tests with ci profile
-      #     docker compose -f docker-compose.test.yml --profile ci run --rm frontend-component
+      - name: Build and Run Frontend Component Tests
+        run: |
+          # Build frontend-component service with ci profile
+          docker compose -f docker-compose.test.yml --profile ci build frontend-component
+      
+          # Run tests with ci profile
+          docker compose -f docker-compose.test.yml --profile ci run --rm frontend-component

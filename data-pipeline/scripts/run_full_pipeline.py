@@ -22,6 +22,7 @@ SYNTHEA_POPULATION_SIZE and SYNTHEA_SEED values.
 """
 from __future__ import annotations
 
+import argparse
 import sys
 import time
 from pathlib import Path
@@ -39,6 +40,7 @@ from main import (  # noqa: E402
     run_omop_etl,
     run_qa_gates_postload,
     run_synthea_generation,
+    teardown_postgres_container,
     validate_profile_settings,
     wait_for_database,
     write_run_metadata,
@@ -46,7 +48,33 @@ from main import (  # noqa: E402
 from vocabulary.qa_checks import QaGateFailure, QaGateSummary
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run full Bronze→Silver→Gold pipeline orchestration."
+    )
+    parser.add_argument(
+        "--population",
+        type=int,
+        default=None,
+        help="Override Synthea population size for this run.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Override Synthea random seed for this run.",
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
+    args = parse_args()
+
+    effective_population = (
+        args.population if args.population is not None else settings.synthea_population_size
+    )
+    effective_seed = args.seed if args.seed is not None else settings.synthea_seed
+
     run_start = time.time()
 
     print("=" * 70)
@@ -54,8 +82,8 @@ def main() -> None:
     print(f"  profile            : {settings.pipeline_profile}")
     print(f"  tenant_schema      : {settings.active_tenant_schema}")
     print(f"  vocab_schema       : {settings.vocab_schema}")
-    print(f"  synthea_population : {settings.synthea_population_size}")
-    print(f"  synthea_seed       : {settings.synthea_seed}")
+    print(f"  synthea_population : {effective_population}")
+    print(f"  synthea_seed       : {effective_seed}")
     print(f"  fail_on_vocab_gap  : {settings.fail_on_vocab_gap}")
     print("=" * 70)
 
@@ -65,48 +93,52 @@ def main() -> None:
 
     # Phase 2 — DB bootstrap
     print("\n[2/8] Ensuring PostgreSQL container is up...")
-    ensure_postgres_container()
+    started_container = ensure_postgres_container()
 
-    print("\n[3/8] Waiting for database readiness...")
-    wait_for_database()
-
-    # Phase 3 — Synthea Bronze
-    print("\n[4/8] Generating Synthea Bronze CSVs...")
-    run_synthea_generation()
-
-    # Phase 4 — Silver migrations
-    print("\n[5/8] Applying Silver schema migrations...")
-    run_alembic_upgrade()
-
-    # Phase 5 — ETL
-    print("\n[6/8] Running ETL (vocabulary + fact tables)...")
-    run_omop_etl()
-
-    # Phase 6 — QA Gates (blocking)
-    print("\n[7/8] Running post-load QA gates...")
-    qa_summary_holder: list[QaGateSummary] = []
     try:
-        run_qa_gates_postload(qa_summary_holder)
-    except QaGateFailure as exc:
+        print("\n[3/8] Waiting for database readiness...")
+        wait_for_database()
+
+        # Phase 3 — Synthea Bronze
+        print("\n[4/8] Generating Synthea Bronze CSVs...")
+        run_synthea_generation(population_size=effective_population, seed=effective_seed)
+
+        # Phase 4 — Silver migrations
+        print("\n[5/8] Applying Silver schema migrations...")
+        run_alembic_upgrade()
+
+        # Phase 5 — ETL
+        print("\n[6/8] Running ETL (vocabulary + fact tables)...")
+        run_omop_etl()
+
+        # Phase 6 — QA Gates (blocking)
+        print("\n[7/8] Running post-load QA gates...")
+        qa_summary_holder: list[QaGateSummary] = []
+        try:
+            run_qa_gates_postload(qa_summary_holder)
+        except QaGateFailure as exc:
+            elapsed = time.time() - run_start
+            qa_summary = qa_summary_holder[0] if qa_summary_holder else exc.summary
+            write_run_metadata(elapsed_seconds=elapsed, status="qa_failed", qa_summary=qa_summary)
+            print(f"\n[pipeline] ❌ QA gates failed — Gold export aborted. See pipeline_qa_results.json for details.")
+            raise SystemExit(1) from exc
+
+        qa_summary = qa_summary_holder[0] if qa_summary_holder else None
+
+        # Phase 7 — Gold export
+        print("\n[8/8] Exporting Gold SQL dump...")
+        export_gold_dump()
+
         elapsed = time.time() - run_start
-        qa_summary = qa_summary_holder[0] if qa_summary_holder else exc.summary
-        write_run_metadata(elapsed_seconds=elapsed, status="qa_failed", qa_summary=qa_summary)
-        print(f"\n[pipeline] ❌ QA gates failed — Gold export aborted. See pipeline_qa_results.json for details.")
-        raise SystemExit(1) from exc
+        print(f"\n{'=' * 70}")
+        print(f"Pipeline complete in {elapsed:.1f}s")
+        print(f"{'=' * 70}")
 
-    qa_summary = qa_summary_holder[0] if qa_summary_holder else None
-
-    # Phase 7 — Gold export
-    print("\n[8/8] Exporting Gold SQL dump...")
-    export_gold_dump()
-
-    elapsed = time.time() - run_start
-    print(f"\n{'=' * 70}")
-    print(f"Pipeline complete in {elapsed:.1f}s")
-    print(f"{'=' * 70}")
-
-    # Write metadata artifacts
-    write_run_metadata(elapsed_seconds=elapsed, status="success", qa_summary=qa_summary)
+        # Write metadata artifacts
+        write_run_metadata(elapsed_seconds=elapsed, status="success", qa_summary=qa_summary)
+    finally:
+        if started_container:
+            teardown_postgres_container()
 
 
 if __name__ == "__main__":

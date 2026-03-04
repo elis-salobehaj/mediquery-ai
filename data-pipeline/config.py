@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     vocab_bundle_path: str | None = None
     fail_on_vocab_gap: bool = True
 
-    synthea_population_size: int = 500
+    synthea_population_size: int = 50
     synthea_seed: int = 42
 
     omop_tenant_schema: str = "tenant_nexus_health"

@@ -46,7 +46,7 @@ The pipeline identifies data owners **early** (at ingestion) and routes them to 
 
 ```
 ┌─────────────────┐     ┌──────────────────────┐     ┌─────────────────────────┐
-│  Data Sources   │     │  Data Pipeline       │     │  PostgreSQL 18.1        │
+│  Data Sources   │     │  Data Pipeline       │     │  PostgreSQL 18.3        │
 │                 │     │  (Dagster + Polars)  │     │                         │
 │  CSV uploads    │────▶│                      │────▶│  tenant_abc.person      │
 │  API feeds      │     │  Bronze → Silver →   │     │  tenant_abc.measurement │
@@ -81,10 +81,10 @@ Mediquery uses **two database engines**, each optimized for its role:
 
 ### 3.3 Unified Postgres Layout
 
-Instead of multiple disparate database engines, Mediquery consolidates everything into a single powerful **PostgreSQL 18.1** cluster. We separate core application data (which uses the `public` schema) from tenant records (which each get their own schema):
+Instead of multiple disparate database engines, Mediquery consolidates everything into a single powerful **PostgreSQL 18.3** cluster. We separate core application data (which uses the `public` schema) from tenant records (which each get their own schema):
 
 ```
-PostgreSQL 18.1
+PostgreSQL 18.3
 ├── public (App Data)
 │   ├── tenants                     ← Tenant registry (id, name, db_name/schema_name)
 │   ├── users                       ← Auth, linked to tenants via tenant_id
@@ -217,8 +217,8 @@ results = vector_db.search(
 | **Orchestration**     | Dagster                          | Pipeline scheduling, monitoring, data lineage, retry |
 | **Transformation**    | Polars                           | Fast, memory-efficient DataFrame processing          |
 | **Raw Storage**       | S3 / MinIO                       | Bronze layer — immutable source files                |
-| **App Data**          | PostgreSQL 18.1 (public schema)  | Users, chat, tenants registry, MLOps metadata        |
-| **KPI Storage**       | PostgreSQL 18.1 (tenant schemas) | Gold layer — schema-per-tenant KPI tables            |
+| **App Data**          | PostgreSQL 18.3 (public schema)  | Users, chat, tenants registry, MLOps metadata        |
+| **KPI Storage**       | PostgreSQL 18.3 (tenant schemas) | Gold layer — schema-per-tenant KPI tables            |
 | **Schema Migrations** | Drizzle/Alembic                  | Core App and multi-schema migration strategies       |
 | **Data Quality**      | Great Expectations               | Validation rules, anomaly detection                  |
 | **AI Agent**          | LangGraph + LangChain            | Multi-agent Text-to-SQL orchestration                |

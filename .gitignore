@@ -51,6 +51,11 @@ data-pipeline/bronze/
 data-pipeline/silver/
 data-pipeline/gold/
 data-pipeline/.venv/
+data-pipeline/.pytest_cache/
 data-pipeline/pipeline_run_metadata.json
 data-pipeline/pipeline_qa_results.json
+data-pipeline/.coverage
+data-pipeline/gold_omop_tenant.sql.gz
 
+# Test caches
+.pytest_cache/

@@ -11,15 +11,15 @@ test.describe('Thread Management', () => {
       .click();
 
     // Wait for the chat interface to be ready
-    await expect(
-      page.getByRole('textbox', { name: /Ask Mediquery/i }),
-    ).toBeVisible({ timeout: 15000 });
+    await expect(page.getByPlaceholder(/Ask Mediquery/i)).toBeVisible({
+      timeout: 15000,
+    });
   });
 
   test('should create a new thread when sending a message', async ({
     page,
   }) => {
-    const input = page.getByRole('textbox', { name: /Ask Mediquery/i });
+    const input = page.getByPlaceholder(/Ask Mediquery/i);
     await input.fill('list people in Texas');
 
     // Wait for the real backend stream to respond

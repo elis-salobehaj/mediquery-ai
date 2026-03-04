@@ -31,12 +31,20 @@ def run_command(command: list[str], cwd: Path | None = None) -> None:
     subprocess.run(command, cwd=cwd, check=True)
 
 
-def ensure_postgres_container() -> None:
+def ensure_postgres_container() -> bool:
+    """Start the transient PostgreSQL container when PIPELINE_DB_HOST is localhost.
+
+    Returns:
+        True  — if this call actually started the container (caller should
+                tear it down when done).
+        False — if the DB was already reachable or the host is not localhost
+                (caller must NOT tear it down).
+    """
     if settings.pipeline_db_host not in {"localhost", "127.0.0.1"}:
         print(
             "[pipeline] PIPELINE_DB_HOST is not localhost; skipping docker compose postgres bootstrap"
         )
-        return
+        return False
 
     dsn = settings.database_url.replace("postgresql+psycopg", "postgresql")
     try:
@@ -44,7 +52,7 @@ def ensure_postgres_container() -> None:
             with conn.cursor() as cur:
                 cur.execute("SELECT 1")
         print("[pipeline] Existing local DB is reachable; skipping container bootstrap")
-        return
+        return False
     except Exception:
         pass
 
@@ -59,6 +67,32 @@ def ensure_postgres_container() -> None:
         cwd=PIPELINE_ROOT,
     )
     print("[pipeline] Transient pipeline DB container started.")
+    return True
+
+
+def teardown_postgres_container() -> None:
+    """Stop and remove the transient PostgreSQL container and its volume.
+
+    Should only be called when ``ensure_postgres_container()`` returned True
+    (i.e. the pipeline itself started the container).
+    """
+    compose_file = PIPELINE_ROOT / "docker-compose.yml"
+    if not compose_file.exists():
+        print("[pipeline] docker-compose.yml not found; skipping container teardown")
+        return
+    print("[pipeline] Tearing down transient pipeline DB container...")
+    try:
+        run_command(
+            [
+                "docker", "compose",
+                "-f", str(compose_file),
+                "down", "-v", "--remove-orphans",
+            ],
+            cwd=PIPELINE_ROOT,
+        )
+        print("[pipeline] Transient pipeline DB container removed.")
+    except Exception as exc:  # teardown failure must never mask the real error
+        print(f"[pipeline] WARNING: container teardown failed: {exc}", file=sys.stderr)
 
 
 def wait_for_database(timeout_seconds: int = 120) -> None:
@@ -85,13 +119,21 @@ def wait_for_database(timeout_seconds: int = 120) -> None:
     raise RuntimeError(f"Database did not become ready in time: {last_error}")
 
 
-def run_synthea_generation() -> None:
+def run_synthea_generation(
+    population_size: int | None = None,
+    seed: int | None = None,
+) -> None:
+    resolved_population = (
+        population_size if population_size is not None else settings.synthea_population_size
+    )
+    resolved_seed = seed if seed is not None else settings.synthea_seed
+
     run_command(
         [
             "bash",
             "generate_synthea.sh",
-            str(settings.synthea_population_size),
-            str(settings.synthea_seed),
+            str(resolved_population),
+            str(resolved_seed),
         ],
         cwd=PIPELINE_ROOT,
     )
@@ -357,28 +399,32 @@ def main() -> None:
     )
     validate_profile_settings()
 
-    ensure_postgres_container()
-    wait_for_database()
-    run_synthea_generation()
-    run_alembic_upgrade()
-    run_omop_etl()
-
-    # Phase 4: run blocking QA gates before Gold export
-    qa_summary_holder: list[QaGateSummary] = []
+    started_container = ensure_postgres_container()
     try:
-        run_qa_gates_postload(qa_summary_holder)
-    except QaGateFailure:
-        elapsed = time.time() - run_start
+        wait_for_database()
+        run_synthea_generation()
+        run_alembic_upgrade()
+        run_omop_etl()
+
+        # Phase 4: run blocking QA gates before Gold export
+        qa_summary_holder: list[QaGateSummary] = []
+        try:
+            run_qa_gates_postload(qa_summary_holder)
+        except QaGateFailure:
+            elapsed = time.time() - run_start
+            qa_summary = qa_summary_holder[0] if qa_summary_holder else None
+            write_run_metadata(elapsed_seconds=elapsed, status="qa_failed", qa_summary=qa_summary)
+            raise
+
         qa_summary = qa_summary_holder[0] if qa_summary_holder else None
-        write_run_metadata(elapsed_seconds=elapsed, status="qa_failed", qa_summary=qa_summary)
-        raise
+        export_gold_dump()
 
-    qa_summary = qa_summary_holder[0] if qa_summary_holder else None
-    export_gold_dump()
-
-    elapsed = time.time() - run_start
-    print("[pipeline] Complete: bronze + silver + gold generated successfully")
-    write_run_metadata(elapsed_seconds=elapsed, status="success", qa_summary=qa_summary)
+        elapsed = time.time() - run_start
+        print("[pipeline] Complete: bronze + silver + gold generated successfully")
+        write_run_metadata(elapsed_seconds=elapsed, status="success", qa_summary=qa_summary)
+    finally:
+        if started_container:
+            teardown_postgres_container()
 
 
 if __name__ == "__main__":

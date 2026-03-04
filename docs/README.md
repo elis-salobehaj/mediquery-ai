@@ -36,9 +36,10 @@ Suggested starting points:
 
 ### Plans
 
-- Active work: [plans/active](plans/active/) — **2 plans in progress**
-- Featured active plan: [OMOP Vocabulary Automation (Open-License, No Manual Steps)](plans/active/omop_vocabulary_automation_open_data.md) — Phase 5/6
-- Recently completed: [OMOP Golden Dataset Hardening](plans/implemented/omop_golden_dataset_hardening.md) — all 8 phases done (2026-03-03)
+- Active work: [plans/active](plans/active/) — **1 plan in progress**
+- Featured active plan: [Automated Benchmarking & Evaluation Pipeline](plans/active/automated_benchmarking_evaluation_pipeline.md)
+- Recently completed: [OMOP Vocabulary Automation (Open-License, No Manual Steps)](plans/implemented/omop_vocabulary_automation_open_data.md) — all 6 phases done (2026-03-03)
+- Previously completed: [OMOP Golden Dataset Hardening](plans/implemented/omop_golden_dataset_hardening.md) — all 8 phases done (2026-03-03)
 - Implemented plans: [plans/implemented](plans/implemented/)
 - Backlog: [plans/backlog](plans/backlog/)
 

@@ -48,25 +48,11 @@ App.tsx (Root)
 
 ## Data Flow
 
-### Usage Indicator Auto-Refresh
+### Usage Indicator Flow
 ```mermaid
 flowchart TD
-    A[User Logs In] --> B[UsageIndicator mounts]
-    B --> C[useEffect runs fetchUsageStatus]
-    C --> D[tokenUsageService.getUsageStatus]
-    D --> E[API: GET /api/v1/token-usage/status]
-    E --> F[Backend returns data]
-    F --> G[State updates: setUsageStatus]
-    G --> H[Component re-renders with progress bar]
-    H --> I[setTimeout 30 seconds]
-    I --> C
-```
-
-### Navigation Flow
-```mermaid
-flowchart TD
-    A[User clicks Usage Indicator] --> B[App.tsx: setCurrentPage = 'usage']
-    B --> C[Layout renders UsageDashboard]
+  A[User clicks Usage Indicator] --> B["useNavigate('/dashboard')"]
+  B --> C["React Router renders /dashboard route"]
     C --> D[Fetch getUsageStatus]
     C --> E[Fetch getMonthlyBreakdown]
     D --> F[Both API calls complete]
@@ -74,39 +60,24 @@ flowchart TD
     F --> G[Dashboard renders with charts and stats]
 ```
 
-### Admin Quota Update
-```mermaid
-flowchart TD
-    A[Admin clicks Edit ✏️] --> B[setEditingUserId]
-    B --> C[Input field appears]
-    C --> D[Admin types new value]
-    D --> E[Admin clicks Save ✓]
-    E --> F[tokenUsageService.updateUserQuota]
-    F --> G[API: PUT /admin/users/userId/quota]
-    G --> H[Backend updates database]
-    H --> I[Returns updated record]
-    I --> J[fetchUsers refresh]
-    J --> K[Table updates with new quota]
-```
-
 ### Warning Notification Flow
 ```mermaid
 flowchart TD
-    A[UsageNotifications mounts] --> B[useEffect runs fetchStatus]
-    B --> C[API: GET /api/v1/token-usage/status]
-    C --> D{Check warning_level}
-    D -->|normal| E[No notification]
-    D -->|medium/high 90-99%| F[Warning Banner]
-    D -->|critical 100%+| G[Full-screen Modal]
-    F --> H{Already dismissed?}
-    G --> H
-    H -->|No| I[Render notification]
-    H -->|Yes| E
-    I --> J[User clicks Dismiss]
-    J --> K[localStorage.setItem]
-    K --> L[Notification disappears]
-    L --> M[setTimeout 30s]
-    M --> B
+  A[TokenUsageProvider mounts] --> B[Initial GET /api/v1/token-usage/status]
+  B --> C[Open SSE stream /api/v1/token-usage/events]
+  C --> D[SSE event updates usageStatus in context]
+  D --> E[UsageNotifications consumes shared context]
+  E --> F{Check warning_level}
+  F -->|normal| G[No notification]
+  F -->|medium/high 90-99%| H[Warning Banner]
+  F -->|critical 100%+| I[Full-screen Modal]
+  H --> J{Already dismissed?}
+  I --> J
+  J -->|No| K[Render notification]
+  J -->|Yes| G
+  K --> L[User clicks Dismiss]
+  L --> M[localStorage.setItem]
+  M --> N[Notification disappears]
 ```
 
 ## API Service Architecture
@@ -125,6 +96,14 @@ tokenUsageService
 │   → GET /api/v1/token-usage/status
 │   → Returns: UsageStatus { percentage, warning_level, ... }
 │
+├── getProviderBreakdown()
+│   → GET /api/v1/token-usage/monthly/breakdown
+│   → Returns: ProviderBreakdown { usage[] }
+│
+├── getNodeMetrics()
+│   → GET /api/v1/token-usage/metrics/nodes
+│   → Returns: NodeMetricsResponse
+│
 ├── getAdminUsers()
 │   → GET /api/v1/token-usage/admin/users
 │   → Returns: AdminUsersResponse { users[], total_users }
@@ -140,7 +119,7 @@ tokenUsageService
 
 ```typescript
 App.tsx State:
-├── currentPage: 'chat' | 'usage' | 'admin-quota'  ← Navigation
+├── route-driven navigation via React Router (`/`, `/dashboard`, `/admin`, `/preferences`)
 ├── token: string | null                            ← JWT auth
 ├── user: string | null                             ← Username
 ├── threads: Thread[]                               ← Chat threads
@@ -158,6 +137,8 @@ UsageIndicator State:
 UsageDashboard State:
 ├── usageStatus: UsageStatus | null                 ← Current usage
 ├── monthlyData: MonthlyBreakdown | null            ← History
+├── providerData: ProviderBreakdown | null          ← Provider-level usage
+├── nodeMetrics: NodeMetricsResponse | null         ← Node telemetry
 ├── loading: boolean                                ← Initial load
 ├── refreshing: boolean                             ← Refresh state
 └── error: string | null                            ← Error message
@@ -198,8 +179,6 @@ flowchart TD
     
     C -->|429 Quota Exceeded| K[Axios Interceptor catches]
     K --> L[Show Token quota exceeded alert]
-    L --> M[Auto-navigate to usage dashboard]
-    M --> N[Prevent further API calls]
     
     C -->|Network Error / Other| O[Show Failed to load data]
     O --> P[Display retry button]
@@ -301,6 +280,45 @@ interface AdminUsersResponse {
 interface QuotaUpdate {
   tokens_limit: number;
 }
+
+interface ProviderUsage {
+  month: string;
+  provider: string;
+  total_tokens: number;
+  total_cost_usd: number;
+  request_count: number;
+}
+
+interface ProviderBreakdown {
+  usage: ProviderUsage[];
+}
+
+interface NodeMetric {
+  node: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  call_count: number;
+  avg_latency_ms: number;
+  p50_latency_ms: number;
+  p95_latency_ms: number;
+  avg_selected_table_count: number;
+  avg_overlap_ratio: number;
+}
+
+interface NodeMetricsResponse {
+  user_id: string;
+  window: {
+    start_month: string;
+    end_month: string;
+  };
+  summary: {
+    request_count: number;
+    avg_attempts_per_request: number;
+    first_pass_validity_rate: number;
+  };
+  node_metrics: NodeMetric[];
+}
 ```
 
 ## CSS Variables Used
@@ -381,5 +399,5 @@ xl:  1280px /* Extra large devices */
 
 ---
 
-**Last Updated**: February 1, 2026  
+**Last Updated**: March 3, 2026  
 **Status**: ✅ Implementation Complete

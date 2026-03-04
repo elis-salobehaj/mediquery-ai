@@ -159,7 +159,7 @@ Fix:
 ```bash
 # Ensure OMOP tenant data is loaded
 docker compose up -d mediquery-postgres
-# Check the tenant schema was initialized from gold_omop_tenant.sql
+# Check the tenant schema was initialized from gold_omop_tenant.sql.gz
 docker exec mediquery-ai-postgres psql -U mediquery -c "\dn"
 ```
 

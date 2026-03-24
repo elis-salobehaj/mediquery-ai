@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 test('homepage has title and main elements', async ({ page }) => {
   await page.goto('/');
@@ -43,9 +43,7 @@ async function assertVisualizationIfAvailable(page: any) {
   }
 }
 
-test('E2E Test 1: Single-agent + Fast mode - list people in Texas', async ({
-  page,
-}) => {
+test('E2E Test 1: Single-agent + Fast mode - list people in Texas', async ({ page }) => {
   await loginAsGuest(page);
 
   // Enable fast mode
@@ -66,9 +64,7 @@ test('E2E Test 1: Single-agent + Fast mode - list people in Texas', async ({
   await assertVisualizationIfAvailable(page);
 });
 
-test('E2E Test 2: Multi-agent mode - list people in Texas', async ({
-  page,
-}) => {
+test('E2E Test 2: Multi-agent mode - list people in Texas', async ({ page }) => {
   await loginAsGuest(page);
 
   // Enable multi-agent mode
@@ -92,9 +88,7 @@ test('E2E Test 2: Multi-agent mode - list people in Texas', async ({
   await assertVisualizationIfAvailable(page);
 });
 
-test('E2E Test 3: Multi-agent + Fast mode - list people in Texas', async ({
-  page,
-}) => {
+test('E2E Test 3: Multi-agent + Fast mode - list people in Texas', async ({ page }) => {
   await loginAsGuest(page);
 
   // Enable multi-agent mode
@@ -118,9 +112,7 @@ test('E2E Test 3: Multi-agent + Fast mode - list people in Texas', async ({
   await assertVisualizationIfAvailable(page);
 });
 
-test('E2E Test 4: Complex Multi-agent Query - compare person count by state', async ({
-  page,
-}) => {
+test('E2E Test 4: Complex Multi-agent Query - compare person count by state', async ({ page }) => {
   await loginAsGuest(page);
 
   // Enable multi-agent mode

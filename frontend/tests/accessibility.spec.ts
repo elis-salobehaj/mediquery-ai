@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { expect, test } from '@playwright/test';
 
 test.describe('Accessibility & Visual Regression Tests', () => {
   test.skip('Accessibility: Dashboard should be accessible and visually consistent', async ({
@@ -14,7 +14,7 @@ test.describe('Accessibility & Visual Regression Tests', () => {
 
     // Accessibility test
     const accessibilityScanResults = await new AxeBuilder({ page }).analyze();
-    
+
     // We expect 0 accessibility violations
     // Filter out some known issues if needed, but ideally we check for true
     expect(accessibilityScanResults.violations).toEqual([]);

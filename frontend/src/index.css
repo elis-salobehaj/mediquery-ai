@@ -1,7 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
-@import 'tailwindcss';
-@import 'tw-animate-css';
-@import 'shadcn/tailwind.css';
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -43,9 +43,9 @@
 
   /* Design Tokens */
   --radius-xl: 1rem;
-  --font-body: 'Inter', sans-serif;
-  --font-heading: 'Outfit', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-body: "Inter", sans-serif;
+  --font-heading: "Outfit", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
 
   /* Table Specific Tokens (Light) - Using Hex for Plotly Compatibility */
   --color-table-text: #000000;
@@ -60,7 +60,7 @@
 }
 
 /* Dark Theme Overrides (Abyss Mode) */
-[data-theme='dark'] {
+[data-theme="dark"] {
   --color-surface: oklch(15% 0.05 260);
   --color-surface-elevated: oklch(18% 0.05 260);
   --color-text: oklch(98% 0.02 260);
@@ -86,7 +86,7 @@
 }
 
 /* Clinical Slate Theme (Healthcare Industry) */
-[data-theme='clinical-slate'] {
+[data-theme="clinical-slate"] {
   --color-surface: oklch(25% 0.02 250);
   /* Slate 800: #1e293b */
   --color-surface-elevated: oklch(28% 0.02 250);
@@ -217,7 +217,7 @@
   --sidebar-ring: var(--accent-primary);
 }
 
-[data-theme='dark'] {
+[data-theme="dark"] {
   /* Abyss Mode (Deep, Modern) */
   --bg-primary: oklch(8% 0.05 260);
   --bg-secondary: oklch(12% 0.05 260);
@@ -252,7 +252,7 @@
   /* oklch(35% 0.03 260) */
 }
 
-[data-theme='clinical-slate'] {
+[data-theme="clinical-slate"] {
   /* Clinical Slate Mode (Healthcare Industry) */
   --bg-primary: oklch(25% 0.02 250);
   --bg-secondary: oklch(28% 0.02 250);
@@ -331,17 +331,14 @@ body {
   background: var(--text-secondary);
 }
 
-
-
 /* Plotly Override - Force Transparent Backgrounds */
 .js-plotly-plot .main-svg {
-  background: transparent !important;
+  background: transparent;
 }
 
 .js-plotly-plot .bg {
-  fill: transparent !important;
+  fill: transparent;
 }
-
 
 /* Scroll Stability */
 .custom-scrollbar {
@@ -413,8 +410,8 @@ body {
    cascade into --background, --foreground, etc. automatically.
    We only need to signal dark color-scheme to the browser here.
    ===================================================== */
-[data-theme='dark'],
-[data-theme='clinical-slate'] {
+[data-theme="dark"],
+[data-theme="clinical-slate"] {
   color-scheme: dark;
 }
 
@@ -427,6 +424,7 @@ body {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }

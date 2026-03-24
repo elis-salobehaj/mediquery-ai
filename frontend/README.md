@@ -75,7 +75,7 @@ We use **Playwright** for both Component and End-to-End testing.
 
 ```bash
 # Run locally
-pnpm exec playwright test
+pnpm exec playwright test --reporter=list
 
 # Run in Docker (recommended for CI)
 cd ..
@@ -93,7 +93,7 @@ cd ..
 
 ```bash
 # Run locally (requires backend running)
-pnpm exec playwright test -c playwright-e2e.config.ts
+pnpm exec playwright test -c playwright-e2e.config.ts --reporter=list
 
 # Run in Docker (recommended - full stack)
 cd ..

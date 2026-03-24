@@ -1,9 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
-import {
-  BaseChatModel,
-  SimpleChatModel,
-} from '@langchain/core/language_models/chat_models';
+import { BaseChatModel, SimpleChatModel } from '@langchain/core/language_models/chat_models';
 import { BaseMessage } from '@langchain/core/messages';
+import { Injectable, Logger } from '@nestjs/common';
 
 /**
  * Minimal Mock LLM for E2E tests
@@ -20,10 +17,7 @@ export class MockLLM extends SimpleChatModel {
     return 'mock';
   }
 
-  async _call(
-    messages: BaseMessage[],
-    _options: this['ParsedCallOptions'],
-  ): Promise<string> {
+  async _call(messages: BaseMessage[], _options: this['ParsedCallOptions']): Promise<string> {
     const firstMsg = (
       typeof messages[0].content === 'string'
         ? messages[0].content
@@ -48,9 +42,7 @@ export class MockLLM extends SimpleChatModel {
     // 2. Mock Router
     if (
       this.assignedRole === 'navigator' &&
-      (firstMsg.includes('router') ||
-        firstMsg.includes('intent') ||
-        firstMsg.includes('classify'))
+      (firstMsg.includes('router') || firstMsg.includes('intent') || firstMsg.includes('classify'))
     ) {
       new Logger('MockLLM').log('Matched: ROUTER');
       return JSON.stringify({
@@ -107,10 +99,7 @@ export class MockLLM extends SimpleChatModel {
 
 @Injectable()
 export class MockLLMService {
-  createChatModel(
-    roleOrModel?: string,
-    _providerOverride?: string,
-  ): BaseChatModel {
+  createChatModel(roleOrModel?: string, _providerOverride?: string): BaseChatModel {
     return new MockLLM(roleOrModel || 'base');
   }
 

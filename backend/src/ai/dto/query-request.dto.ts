@@ -1,10 +1,7 @@
 import { z } from 'zod';
 
 export const QueryRequestSchema = z.object({
-  question: z
-    .string()
-    .min(1, 'Question cannot be empty')
-    .max(1000, 'Question too long'),
+  question: z.string().min(1, 'Question cannot be empty').max(1000, 'Question too long'),
   thread_id: z.uuid('thread_id must be a valid UUID').nullable().optional(),
   model_id: z.string().nullable().optional(),
   model_provider: z.string().nullable().optional(),

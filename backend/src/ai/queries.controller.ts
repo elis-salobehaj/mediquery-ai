@@ -1,33 +1,30 @@
+import { randomUUID } from 'node:crypto';
+import { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import {
-  Controller,
-  Post,
   Body,
-  UseGuards,
-  Request,
+  Controller,
   HttpCode,
   HttpStatus,
+  Post,
+  Request,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request as ExpressRequest, Response } from 'express';
+import { deriveScopedMemory, MEMORY_SOURCE_MESSAGE_LIMIT } from '@/ai/memory-context';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
-import { GraphBuilder } from './graph';
-import { ThreadsService } from '@/threads/threads.service';
-import { DatabaseService } from '@/database/database.service';
-import { InsightService } from './insight.service';
-import { VisualizationService } from './visualization.service';
-import { GraphState } from './state';
-import { HumanMessage, BaseMessage } from '@langchain/core/messages';
-import type { KpiQueryResult } from '@/common/types';
-import { randomUUID } from 'crypto';
-import {
-  deriveScopedMemory,
-  MEMORY_SOURCE_MESSAGE_LIMIT,
-} from '@/ai/memory-context';
-import { ThreadMemoryService } from '@/threads/thread-memory.service';
-import { UserMemoryPreferencesService } from '@/threads/user-memory-preferences.service';
-
-import { QueryRequestDto, QueryRequestSchema } from './dto/query-request.dto';
 import { ZodValidationPipe } from '@/common/pipes/zod-validation.pipe';
+import { getAuthenticatedUser } from '@/common/request-utils';
+import type { KpiQueryResult } from '@/common/types';
+import { DatabaseService } from '@/database/database.service';
+import { ThreadMemoryService } from '@/threads/thread-memory.service';
+import { ThreadsService } from '@/threads/threads.service';
+import { UserMemoryPreferencesService } from '@/threads/user-memory-preferences.service';
+import { QueryRequestDto, QueryRequestSchema } from './dto/query-request.dto';
+import { GraphBuilder } from './graph';
+import { InsightService } from './insight.service';
+import { GraphState } from './state';
+import { VisualizationService } from './visualization.service';
 
 function isClinicalUnitSystem(value?: string): value is 'SI' | 'conventional' {
   return value === 'SI' || value === 'conventional';
@@ -78,9 +75,7 @@ export class QueriesController {
     const mergedMemory = {
       ...derived,
       preferred_clinical_units:
-        derived.preferred_clinical_units ||
-        persistedPreferences?.preferredUnits ||
-        undefined,
+        derived.preferred_clinical_units || persistedPreferences?.preferredUnits || undefined,
     };
 
     const scopedMemory = this.threadMemoryService.upsertThreadMemory(
@@ -93,12 +88,9 @@ export class QueriesController {
       isClinicalUnitSystem(scopedMemory.preferred_clinical_units) &&
       scopedMemory.preferred_clinical_units !== persistedPreferences?.preferredUnits
     ) {
-      await this.userMemoryPreferencesService.upsertUserMemoryPreferences(
-        userId,
-        {
-          preferredUnits: scopedMemory.preferred_clinical_units,
-        },
-      );
+      await this.userMemoryPreferencesService.upsertUserMemoryPreferences(userId, {
+        preferredUnits: scopedMemory.preferred_clinical_units,
+      });
     }
 
     return scopedMemory;
@@ -113,9 +105,7 @@ export class QueriesController {
     }
 
     const last = aiMessages[aiMessages.length - 1];
-    return typeof last.content === 'string'
-      ? last.content
-      : JSON.stringify(last.content);
+    return typeof last.content === 'string' ? last.content : JSON.stringify(last.content);
   }
 
   @Post('query')
@@ -125,19 +115,18 @@ export class QueriesController {
     @Body(new ZodValidationPipe(QueryRequestSchema)) request: QueryRequestDto,
     @Request() req: ExpressRequest,
   ) {
-    const userId = req.user!.id;
+    const authenticatedUser = getAuthenticatedUser(req);
+    const userId = authenticatedUser.id;
     let threadId = request.thread_id;
 
     if (!threadId) {
       const title =
-        request.question.length > 30
-          ? request.question.slice(0, 30) + '...'
-          : request.question;
+        request.question.length > 30 ? `${request.question.slice(0, 30)}...` : request.question;
       threadId = await this.threadsService.createThread(userId, title);
     }
 
     await this.threadsService.addMessage(threadId, 'user', request.question, {
-      user: req.user!.username,
+      user: authenticatedUser.username,
     });
 
     const scopedMemory = await this.buildScopedMemory(
@@ -169,9 +158,7 @@ export class QueriesController {
       fast_mode: fastMode,
     };
 
-    const finalState = (await workflow.invoke(
-      initialState,
-    )) as unknown as GraphState;
+    const finalState = (await workflow.invoke(initialState)) as unknown as GraphState;
 
     const sqlQuery = finalState.generated_sql;
     let results: KpiQueryResult | null = null;
@@ -189,8 +176,7 @@ export class QueriesController {
 
     let insight: string;
     let visType: string;
-    const isUnsupportedIntent =
-      finalState.validation_result?.error === 'UNSUPPORTED_INTENT';
+    const isUnsupportedIntent = finalState.validation_result?.error === 'UNSUPPORTED_INTENT';
 
     if (
       isUnsupportedIntent ||
@@ -254,19 +240,18 @@ export class QueriesController {
     @Request() req: ExpressRequest,
     @Res() res: Response,
   ) {
-    const userId = req.user!.id;
+    const authenticatedUser = getAuthenticatedUser(req);
+    const userId = authenticatedUser.id;
     let threadId = request.thread_id;
 
     if (!threadId) {
       const title =
-        request.question.length > 30
-          ? request.question.slice(0, 30) + '...'
-          : request.question;
+        request.question.length > 30 ? `${request.question.slice(0, 30)}...` : request.question;
       threadId = await this.threadsService.createThread(userId, title);
     }
 
     await this.threadsService.addMessage(threadId, 'user', request.question, {
-      user: req.user!.username,
+      user: authenticatedUser.username,
     });
 
     const scopedMemory = await this.buildScopedMemory(
@@ -280,7 +265,7 @@ export class QueriesController {
     res.setHeader('Transfer-Encoding', 'chunked');
 
     const sendEvent = (event: Record<string, unknown>) => {
-      res.write(JSON.stringify(event) + '\n');
+      res.write(`${JSON.stringify(event)}\n`);
     };
 
     try {
@@ -365,8 +350,7 @@ export class QueriesController {
 
       let insight: string;
       let visType: string;
-      const isUnsupportedIntent =
-        finalState.validation_result?.error === 'UNSUPPORTED_INTENT';
+      const isUnsupportedIntent = finalState.validation_result?.error === 'UNSUPPORTED_INTENT';
 
       if (
         isUnsupportedIntent ||
@@ -413,9 +397,7 @@ export class QueriesController {
         },
       };
 
-      console.log(
-        `[Stream] Sending Result. SQL: ${finalResult.sql ? 'YES' : 'NO'}`,
-      );
+      console.log(`[Stream] Sending Result. SQL: ${finalResult.sql ? 'YES' : 'NO'}`);
       sendEvent({ type: 'result', payload: finalResult });
       sendEvent({ type: 'meta', thread_id: threadId });
 

@@ -1,14 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
 import { HumanMessage } from '@langchain/core/messages';
+import { Injectable, Logger } from '@nestjs/common';
+import type { KpiQueryResult, LangChainLLMResponse } from '@/common/types';
+import { ConfigService } from '@/config/config.service';
+import { AgentRole, Provider, TokenUsageService } from '@/token-usage/token-usage.service';
 import { LLMService } from './llm.service';
 import { PromptService } from './prompt.service';
-import {
-  TokenUsageService,
-  Provider,
-  AgentRole,
-} from '@/token-usage/token-usage.service';
-import { ConfigService } from '@/config/config.service';
-import type { LangChainLLMResponse, KpiQueryResult } from '@/common/types';
 
 @Injectable()
 export class InsightService {
@@ -32,8 +28,7 @@ export class InsightService {
     const formatterConfig = this.promptService.getPrompt('response_formatter');
     const role = formatterConfig?.role || 'medical KPI Response Formatter';
     const instructions =
-      formatterConfig?.instructions ||
-      'Format query results for operational teams.';
+      formatterConfig?.instructions || 'Format query results for operational teams.';
 
     const dataPreview = JSON.stringify(data.data || []).slice(0, 5000);
     const rowCount = data.row_count || 0;
@@ -56,19 +51,13 @@ Task:
     try {
       const response = await llm.invoke([new HumanMessage(prompt)]);
       const content =
-        typeof response.content === 'string'
-          ? response.content
-          : JSON.stringify(response.content);
+        typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
 
       // Track usage
       const usage = (response as LangChainLLMResponse).usage_metadata;
       if (userId && usage) {
-        const provider = (providerOverride ||
-          this.config.getActiveProvider()) as Provider;
-        const model = this.config.getActiveModelForRole(
-          'base',
-          providerOverride,
-        );
+        const provider = (providerOverride || this.config.getActiveProvider()) as Provider;
+        const model = this.config.getActiveModelForRole('base', providerOverride);
 
         await this.tokenUsageService.logTokenUsage(
           userId,

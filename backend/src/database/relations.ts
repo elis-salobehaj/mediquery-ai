@@ -1,11 +1,5 @@
 import { relations } from 'drizzle-orm/relations';
-import {
-  users,
-  chatThreads,
-  chatMessages,
-  tokenUsage,
-  userMemoryPreferences,
-} from './schema';
+import { chatMessages, chatThreads, tokenUsage, userMemoryPreferences, users } from './schema';
 
 export const chatThreadsRelations = relations(chatThreads, ({ one, many }) => ({
   user: one(users, {
@@ -43,12 +37,9 @@ export const tokenUsageRelations = relations(tokenUsage, ({ one }) => ({
   }),
 }));
 
-export const userMemoryPreferencesRelations = relations(
-  userMemoryPreferences,
-  ({ one }) => ({
-    user: one(users, {
-      fields: [userMemoryPreferences.userId],
-      references: [users.id],
-    }),
+export const userMemoryPreferencesRelations = relations(userMemoryPreferences, ({ one }) => ({
+  user: one(users, {
+    fields: [userMemoryPreferences.userId],
+    references: [users.id],
   }),
-);
+}));

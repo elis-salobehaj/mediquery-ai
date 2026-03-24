@@ -168,13 +168,24 @@ If Drizzle prompts for destructive actions during local sync (drop/truncate), re
 ```bash
 # Backend (TypeScript)
 cd backend
-pnpm lint
+pnpm check
+pnpm check:ci
+pnpm typecheck
 
 # Frontend
 cd frontend
-pnpm lint
-pnpm format
+pnpm check
+pnpm check:ci
+pnpm typecheck
+
+# Drizzle package
+cd packages/db
+pnpm check
+pnpm check:ci
 ```
+
+Biome handles linting, formatting, and import sorting for all TypeScript/JavaScript packages.
+The shared configuration lives in the repo-root `biome.json`.
 
 ### Dependency Management (data-pipeline)
 

@@ -1,15 +1,15 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { INestApplication } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { Test, TestingModule } from '@nestjs/testing';
+import * as dotenv from 'dotenv';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { LLMService } from './../src/ai/llm.service';
+import { AppModule } from './../src/app.module';
 import { MockLLMService } from './mocks/llm.service';
-import { describe, it, beforeEach, expect, afterAll } from 'vitest';
-import * as dotenv from 'dotenv';
-import * as path from 'path';
-import * as fs from 'fs';
-import { JwtService } from '@nestjs/jwt';
 
 const envPath = path.resolve(__dirname, '../../.env.e2e.test');
 if (fs.existsSync(envPath)) {

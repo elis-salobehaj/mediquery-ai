@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/experimental-ct-react';
+import { expect, test } from '@playwright/experimental-ct-react';
 import PlotlyVisualizer from '@/components/Chat/PlotlyVisualizer';
 
 test.use({ viewport: { width: 500, height: 500 } });
@@ -7,14 +7,10 @@ test('renders no data message when empty', async ({ mount }) => {
   const component = await mount(
     <PlotlyVisualizer data={null} visualizationType="table" theme="light" />,
   );
-  await expect(
-    component.getByText('No data available for visualization'),
-  ).toBeVisible();
+  await expect(component.getByText('No data available for visualization')).toBeVisible();
 });
 
-test('identifies compatible chart types and notifies parent', async ({
-  mount,
-}) => {
+test('identifies compatible chart types and notifies parent', async ({ mount }) => {
   const data = {
     columns: ['Category', 'Value'],
     data: [

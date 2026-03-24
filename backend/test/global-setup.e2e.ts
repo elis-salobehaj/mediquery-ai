@@ -1,10 +1,7 @@
-import {
-  PostgreSqlContainer,
-  StartedPostgreSqlContainer,
-} from '@testcontainers/postgresql';
-import { execSync } from 'child_process';
-import path from 'path';
-import * as fs from 'fs';
+import { execSync } from 'node:child_process';
+import * as fs from 'node:fs';
+import path from 'node:path';
+import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { Client } from 'pg';
 import { z } from 'zod';
 
@@ -25,9 +22,7 @@ export async function setup() {
 
   // Phase 1: Ensure Backend Services are running
   if (e2eEnv.POSTGRES_HOST) {
-    console.log(
-      'Using existing database services (skipping Testcontainers startup)',
-    );
+    console.log('Using existing database services (skipping Testcontainers startup)');
   } else {
     console.log('Starting Testcontainers...');
     pgContainer = await new PostgreSqlContainer('postgres:18.3-alpine')
@@ -57,10 +52,7 @@ POSTGRES_USER=${e2eEnv.POSTGRES_USER}
 POSTGRES_PASSWORD=${e2eEnv.POSTGRES_PASSWORD}
 APP_DB_NAME=${e2eEnv.APP_DB_NAME}
 `;
-  await fs.promises.writeFile(
-    path.join(projectRoot, '.env.e2e.test'),
-    envContent.trim(),
-  );
+  await fs.promises.writeFile(path.join(projectRoot, '.env.e2e.test'), envContent.trim());
 
   // Push drizzle schema to Postgres
   console.log('Pushing schema to PostgreSQL...');
@@ -84,9 +76,7 @@ APP_DB_NAME=${e2eEnv.APP_DB_NAME}
   });
 
   await pgClient.connect();
-  await pgClient.query(
-    'CREATE TABLE dummy_kpi (id INT PRIMARY KEY, name VARCHAR(255))',
-  );
+  await pgClient.query('CREATE TABLE dummy_kpi (id INT PRIMARY KEY, name VARCHAR(255))');
   await pgClient.end();
 }
 

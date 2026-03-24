@@ -1,18 +1,11 @@
-import {
-  Controller,
-  Delete,
-  UseGuards,
-  Request,
-  Get,
-  Patch,
-  Body,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Patch, Request, UseGuards } from '@nestjs/common';
 import type { Request as ExpressRequest } from 'express';
+import { z } from 'zod';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
+import { ZodValidationPipe } from '@/common/pipes/zod-validation.pipe';
+import { getAuthenticatedUser } from '@/common/request-utils';
 import { ThreadMemoryService } from '@/threads/thread-memory.service';
 import { UserMemoryPreferencesService } from '@/threads/user-memory-preferences.service';
-import { z } from 'zod';
-import { ZodValidationPipe } from '@/common/pipes/zod-validation.pipe';
 
 const ClinicalUnitSystemSchema = z.enum(['SI', 'conventional']);
 
@@ -33,7 +26,7 @@ export class MemoryController {
 
   @Delete()
   async clearUserMemory(@Request() req: ExpressRequest) {
-    const userId = req.user!.id;
+    const userId = getAuthenticatedUser(req).id;
     this.threadMemoryService.clearUserMemory(userId);
     await this.userMemoryPreferencesService.clearUserMemoryPreferences(userId);
     return { status: 'success' };
@@ -41,9 +34,8 @@ export class MemoryController {
 
   @Get('preferences')
   async getUserMemoryPreferences(@Request() req: ExpressRequest) {
-    const userId = req.user!.id;
-    const preferences =
-      await this.userMemoryPreferencesService.getUserMemoryPreferences(userId);
+    const userId = getAuthenticatedUser(req).id;
+    const preferences = await this.userMemoryPreferencesService.getUserMemoryPreferences(userId);
 
     return {
       preferred_units: preferences?.preferredUnits || null,
@@ -58,15 +50,14 @@ export class MemoryController {
     @Body(new ZodValidationPipe(MemoryPreferencesSchema))
     body: MemoryPreferencesDto,
   ) {
-    const userId = req.user!.id;
-    const preferences =
-      await this.userMemoryPreferencesService.upsertUserMemoryPreferences(
-        userId,
-        {
-          preferredUnits: body.preferred_units,
-          preferredChartStyle: body.preferred_chart_style,
-        },
-      );
+    const userId = getAuthenticatedUser(req).id;
+    const preferences = await this.userMemoryPreferencesService.upsertUserMemoryPreferences(
+      userId,
+      {
+        preferredUnits: body.preferred_units,
+        preferredChartStyle: body.preferred_chart_style,
+      },
+    );
 
     return {
       preferred_units: preferences?.preferredUnits || null,

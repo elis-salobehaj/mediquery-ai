@@ -1,8 +1,8 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { Injectable, Logger } from '@nestjs/common';
-import * as fs from 'fs';
-import * as path from 'path';
 import * as yaml from 'js-yaml';
-import type { PromptsSchema, PromptCategory } from '@/common/types';
+import type { PromptCategory, PromptsSchema } from '@/common/types';
 
 @Injectable()
 export class PromptService {
@@ -15,19 +15,13 @@ export class PromptService {
 
   public reloadPrompts() {
     try {
-      const promptPath = path.resolve(
-        __dirname,
-        '../ai/prompts/system_prompts.yaml',
-      );
+      const promptPath = path.resolve(__dirname, '../ai/prompts/system_prompts.yaml');
       if (fs.existsSync(promptPath)) {
         const fileContents = fs.readFileSync(promptPath, 'utf8');
         this.prompts = yaml.load(fileContents) as PromptsSchema;
         this.logger.log('Loaded system prompts configuration');
       } else {
-        const devPath = path.resolve(
-          process.cwd(),
-          'src/ai/prompts/system_prompts.yaml',
-        );
+        const devPath = path.resolve(process.cwd(), 'src/ai/prompts/system_prompts.yaml');
         if (fs.existsSync(devPath)) {
           const fileContents = fs.readFileSync(devPath, 'utf8');
           this.prompts = yaml.load(fileContents) as PromptsSchema;

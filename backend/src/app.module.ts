@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
+import { LoggerModule } from 'nestjs-pino';
+import { AIModule } from '@/ai/ai.module';
 import { AppController } from '@/app.controller';
 import { AppService } from '@/app.service';
-import { LoggerModule } from 'nestjs-pino';
-import { ConfigModule } from '@/config/config.module';
-import { DatabaseModule } from '@/database/database.module';
 import { AuthModule } from '@/auth/auth.module';
-import { TokenUsageModule } from '@/token-usage/token-usage.module';
-import { ThreadsModule } from '@/threads/threads.module';
-import { AIModule } from '@/ai/ai.module';
+import { ConfigModule } from '@/config/config.module';
 import { config } from '@/config/env.config';
+import { DatabaseModule } from '@/database/database.module';
+import { ThreadsModule } from '@/threads/threads.module';
+import { TokenUsageModule } from '@/token-usage/token-usage.module';
 
 @Module({
   imports: [

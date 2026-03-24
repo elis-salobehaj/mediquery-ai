@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { DatabaseService } from '@/database/database.service';
-import { TokenUsageEventsService } from '@/token-usage/token-usage-events.service';
-import { users, tokenUsage } from '@/database/schema';
-import { eq, sum, and, sql } from 'drizzle-orm';
+import { and, eq, sql, sum } from 'drizzle-orm';
 import { v4 as uuidv4 } from 'uuid';
+import { DatabaseService } from '@/database/database.service';
+import { tokenUsage, users } from '@/database/schema';
+import { TokenUsageEventsService } from '@/token-usage/token-usage-events.service';
 
 export enum Provider {
   BEDROCK = 'bedrock',
@@ -64,11 +64,7 @@ export class TokenUsageService {
   async checkMonthlyLimit(userId: string): Promise<[boolean, number, number]> {
     const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
 
-    const userRes = await this.db.pg
-      .select()
-      .from(users)
-      .where(eq(users.id, userId))
-      .execute();
+    const userRes = await this.db.pg.select().from(users).where(eq(users.id, userId)).execute();
     if (userRes.length === 0) {
       this.logger.error(`User ${userId} not found`);
       return [false, 0, 0];
@@ -119,26 +115,18 @@ export class TokenUsageService {
     };
   }
 
-  async getMonthlyUsage(
-    userId: string,
-    startMonth?: string,
-    endMonth?: string,
-  ) {
+  async getMonthlyUsage(userId: string, startMonth?: string, endMonth?: string) {
     const end = endMonth || new Date().toISOString().slice(0, 7);
     const start =
       startMonth ||
-      new Date(new Date().setMonth(new Date().getMonth() - 6))
-        .toISOString()
-        .slice(0, 7);
+      new Date(new Date().setMonth(new Date().getMonth() - 6)).toISOString().slice(0, 7);
 
     const results = await this.db.pg
       .select({
         month: sql<string>`to_char(${tokenUsage.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM')`,
         totalInputTokens: sum(tokenUsage.inputTokens),
         totalOutputTokens: sum(tokenUsage.outputTokens),
-        totalTokens: sum(
-          sql`${tokenUsage.inputTokens} + ${tokenUsage.outputTokens}`,
-        ),
+        totalTokens: sum(sql`${tokenUsage.inputTokens} + ${tokenUsage.outputTokens}`),
         totalCost: sum(tokenUsage.costUsd),
         requestCount: sql<number>`count(${tokenUsage.id})`,
       })
@@ -150,12 +138,8 @@ export class TokenUsageService {
           sql`to_char(${tokenUsage.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM') <= ${end}`,
         ),
       )
-      .groupBy(
-        sql`to_char(${tokenUsage.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM')`,
-      )
-      .orderBy(
-        sql`to_char(${tokenUsage.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM') DESC`,
-      )
+      .groupBy(sql`to_char(${tokenUsage.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM')`)
+      .orderBy(sql`to_char(${tokenUsage.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM') DESC`)
       .execute();
 
     return results.map((r) => ({
@@ -168,17 +152,11 @@ export class TokenUsageService {
     }));
   }
 
-  async getProviderBreakdown(
-    userId: string,
-    startMonth?: string,
-    endMonth?: string,
-  ) {
+  async getProviderBreakdown(userId: string, startMonth?: string, endMonth?: string) {
     const end = endMonth || new Date().toISOString().slice(0, 7);
     const start =
       startMonth ||
-      new Date(new Date().setMonth(new Date().getMonth() - 6))
-        .toISOString()
-        .slice(0, 7);
+      new Date(new Date().setMonth(new Date().getMonth() - 6)).toISOString().slice(0, 7);
 
     const results = await this.db.pg
       .select({
@@ -186,9 +164,7 @@ export class TokenUsageService {
         provider: tokenUsage.provider,
         totalInputTokens: sum(tokenUsage.inputTokens),
         totalOutputTokens: sum(tokenUsage.outputTokens),
-        totalTokens: sum(
-          sql`${tokenUsage.inputTokens} + ${tokenUsage.outputTokens}`,
-        ),
+        totalTokens: sum(sql`${tokenUsage.inputTokens} + ${tokenUsage.outputTokens}`),
         totalCost: sum(tokenUsage.costUsd),
         requestCount: sql<number>`count(${tokenUsage.id})`,
       })
@@ -225,9 +201,7 @@ export class TokenUsageService {
     const end = endMonth || new Date().toISOString().slice(0, 7);
     const start =
       startMonth ||
-      new Date(new Date().setMonth(new Date().getMonth() - 6))
-        .toISOString()
-        .slice(0, 7);
+      new Date(new Date().setMonth(new Date().getMonth() - 6)).toISOString().slice(0, 7);
 
     const rows = await this.db.pg
       .select({
@@ -265,10 +239,7 @@ export class TokenUsageService {
     const percentile = (values: number[], p: number): number => {
       if (values.length === 0) return 0;
       const sorted = [...values].sort((a, b) => a - b);
-      const idx = Math.max(
-        0,
-        Math.min(sorted.length - 1, Math.ceil(p * sorted.length) - 1),
-      );
+      const idx = Math.max(0, Math.min(sorted.length - 1, Math.ceil(p * sorted.length) - 1));
       return sorted[idx];
     };
 
@@ -313,9 +284,7 @@ export class TokenUsageService {
 
       const sqlTableCount = Number(metadata.sql_table_count || 0);
       if (selectedTableCount > 0 && sqlTableCount >= 0) {
-        bucket.overlap_ratios.push(
-          Math.min(1, Math.max(0, sqlTableCount / selectedTableCount)),
-        );
+        bucket.overlap_ratios.push(Math.min(1, Math.max(0, sqlTableCount / selectedTableCount)));
       }
 
       const attempt = Number(metadata.attempt || 0);
@@ -346,9 +315,7 @@ export class TokenUsageService {
         avg_latency_ms: Math.round(avg(bucket.latencies)),
         p50_latency_ms: Math.round(percentile(bucket.latencies, 0.5)),
         p95_latency_ms: Math.round(percentile(bucket.latencies, 0.95)),
-        avg_selected_table_count: Number(
-          avg(bucket.selected_table_counts).toFixed(2),
-        ),
+        avg_selected_table_count: Number(avg(bucket.selected_table_counts).toFixed(2)),
         avg_overlap_ratio: Number(avg(bucket.overlap_ratios).toFixed(4)),
       }));
 
@@ -405,11 +372,7 @@ export class TokenUsageService {
       .where(eq(users.id, userId))
       .execute();
 
-    const userRes = await this.db.pg
-      .select()
-      .from(users)
-      .where(eq(users.id, userId))
-      .execute();
+    const userRes = await this.db.pg.select().from(users).where(eq(users.id, userId)).execute();
 
     return {
       user_id: userId,
@@ -429,12 +392,7 @@ export class TokenUsageService {
     requestId?: string,
   ) {
     const reqId = requestId || uuidv4();
-    const costUsd = this.calculateCost(
-      provider,
-      model,
-      inputTokens,
-      outputTokens,
-    );
+    const costUsd = this.calculateCost(provider, model, inputTokens, outputTokens);
 
     await this.db.pg
       .insert(tokenUsage)
@@ -478,17 +436,15 @@ export class TokenUsageService {
       pricing = BEDROCK_PRICING[model];
       if (!pricing) {
         const ml = model.toLowerCase();
-        if (ml.includes('sonnet')) pricing = BEDROCK_PRICING['sonnet'];
-        else if (ml.includes('haiku')) pricing = BEDROCK_PRICING['haiku'];
+        if (ml.includes('sonnet')) pricing = BEDROCK_PRICING.sonnet;
+        else if (ml.includes('haiku')) pricing = BEDROCK_PRICING.haiku;
       }
     } else if (provider === Provider.OPENAI) {
       pricing = OPENAI_PRICING[model];
       if (!pricing) {
         const ml = model.toLowerCase();
-        if (ml.includes('gpt') || ml.includes('codex'))
-          pricing = OPENAI_PRICING['gpt'];
-        else if (ml.includes('o3') || ml.includes('o4'))
-          pricing = OPENAI_PRICING['o3'];
+        if (ml.includes('gpt') || ml.includes('codex')) pricing = OPENAI_PRICING.gpt;
+        else if (ml.includes('o3') || ml.includes('o4')) pricing = OPENAI_PRICING.o3;
       }
     }
 
@@ -496,9 +452,7 @@ export class TokenUsageService {
       return inputTokens * pricing.input + outputTokens * pricing.output;
     }
 
-    this.logger.warn(
-      `No pricing data for provider=${provider}, model=${model}`,
-    );
+    this.logger.warn(`No pricing data for provider=${provider}, model=${model}`);
     return 0;
   }
 }

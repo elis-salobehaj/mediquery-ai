@@ -1,14 +1,13 @@
+import { Download, Minimize2 } from 'lucide-react';
 import React, { useState } from 'react';
-import { Minimize2, Download } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogClose,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -16,8 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import PlotlyVisualizer from './PlotlyVisualizer';
+import { Separator } from '@/components/ui/separator';
 import { exportToCSV } from '../../utils/export';
+import PlotlyVisualizer from './PlotlyVisualizer';
 
 interface VisualizationData {
   columns: string[];
@@ -48,9 +48,7 @@ const VisualizationDialog: React.FC<VisualizationDialogProps> = ({
   theme,
   onVisualizationTypeChange,
 }) => {
-  const [chartSelector, setChartSelector] = useState<ChartSelectorState | null>(
-    null,
-  );
+  const [chartSelector, setChartSelector] = useState<ChartSelectorState | null>(null);
 
   // Reset to the incoming type whenever dialog opens with a new viz
   React.useEffect(() => {
@@ -83,10 +81,8 @@ const VisualizationDialog: React.FC<VisualizationDialogProps> = ({
         }}
       >
         {/* ── Header ── */}
-        <DialogHeader className="bg-card flex shrink-0 flex-row items-center justify-between px-6 py-3">
-          <DialogTitle className="text-base font-semibold">
-            Visualization Workspace
-          </DialogTitle>
+        <DialogHeader className="flex shrink-0 flex-row items-center justify-between bg-card px-6 py-3">
+          <DialogTitle className="font-semibold text-base">Visualization Workspace</DialogTitle>
 
           <div className="flex items-center gap-2">
             {/* Chart type selector — only when multiple types available */}
@@ -98,7 +94,7 @@ const VisualizationDialog: React.FC<VisualizationDialogProps> = ({
                   onVisualizationTypeChange?.(newType);
                 }}
               >
-                <SelectTrigger className="text-muted-foreground hover:bg-primary/20 hover:text-foreground h-7 cursor-pointer gap-1 rounded-full border-none pl-4 text-xs font-medium shadow-none transition-colors focus:ring-0">
+                <SelectTrigger className="h-7 cursor-pointer gap-1 rounded-full border-none pl-4 font-medium text-muted-foreground text-xs shadow-none transition-colors hover:bg-primary/20 hover:text-foreground focus:ring-0">
                   <SelectValue placeholder="Select chart" />
                 </SelectTrigger>
                 <SelectContent>
@@ -116,7 +112,7 @@ const VisualizationDialog: React.FC<VisualizationDialogProps> = ({
               variant="ghost"
               size="sm"
               onClick={handleExport}
-              className="text-muted-foreground hover:bg-primary/20 hover:text-foreground h-8 w-8 cursor-pointer rounded-full"
+              className="h-8 w-8 cursor-pointer rounded-full text-muted-foreground hover:bg-primary/20 hover:text-foreground"
               title="Export CSV"
             >
               <Download size={13} />
@@ -127,7 +123,7 @@ const VisualizationDialog: React.FC<VisualizationDialogProps> = ({
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-muted-foreground hover:bg-primary/20 hover:text-foreground h-8 w-8 cursor-pointer rounded-full"
+                className="h-8 w-8 cursor-pointer rounded-full text-muted-foreground hover:bg-primary/20 hover:text-foreground"
                 aria-label="Close visualization workspace"
                 title="Minimize"
               >
@@ -140,7 +136,7 @@ const VisualizationDialog: React.FC<VisualizationDialogProps> = ({
         <Separator />
 
         {/* ── Content ── */}
-        <div className="bg-background flex-1 overflow-auto p-4">
+        <div className="flex-1 overflow-auto bg-background p-4">
           <PlotlyVisualizer
             data={data}
             visualizationType={visualizationType}
@@ -149,10 +145,7 @@ const VisualizationDialog: React.FC<VisualizationDialogProps> = ({
             onChartTypesReady={(types, current, setCurrent) => {
               setChartSelector((prev) => {
                 // Only update if something actually changed to avoid infinite loop
-                if (
-                  prev?.current === current &&
-                  prev.types.join(',') === types.join(',')
-                )
+                if (prev?.current === current && prev.types.join(',') === types.join(','))
                   return prev;
                 return { types, current, setCurrent };
               });
@@ -161,10 +154,10 @@ const VisualizationDialog: React.FC<VisualizationDialogProps> = ({
         </div>
 
         {/* ── Footer ── */}
-        <div className="bg-card shrink-0 px-6 py-2">
-          <p className="text-muted-foreground text-center text-xs">
-            {data.row_count.toLocaleString()} rows · {data.columns.length}{' '}
-            columns · Scroll to zoom · Drag to pan
+        <div className="shrink-0 bg-card px-6 py-2">
+          <p className="text-center text-muted-foreground text-xs">
+            {data.row_count.toLocaleString()} rows · {data.columns.length} columns · Scroll to zoom
+            · Drag to pan
           </p>
         </div>
       </DialogContent>

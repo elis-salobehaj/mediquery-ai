@@ -2,6 +2,11 @@
 
 ## Active Completion Reports
 
+- **[Biome Migration Kickoff](biome_migration_kickoff_2026-03-24.md)** (2026-03-24)
+  - Introduces the shared repo-root `biome.json` modeled after wellspring-ai
+  - Migrates backend, frontend, and `packages/db` package scripts away from ESLint/Prettier
+  - Adds CI/editor/doc wiring for the initial Biome adoption track
+
 - **[Token Consolidation Completion](token_consolidation_completion.md)** (2026-02-10)
   - Multi-provider token usage consolidation across all 5 LLM providers
   - Global quota enforcement, unified dashboard, per-provider breakdown toggle

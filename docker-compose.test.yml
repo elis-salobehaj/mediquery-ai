@@ -26,7 +26,7 @@ services:
     environment:
       - CI=true
     # No volumes!
-    command: pnpm exec playwright test
+    command: pnpm exec playwright test --reporter=list
 
   # ==========================================
   # 2. E2E Services (Full Stack Integration)
@@ -122,7 +122,7 @@ services:
       frontend:
         condition: service_healthy
     command: >
-      sh -c "corepack enable && pnpm install && pnpm exec playwright test -c playwright-e2e.config.ts --workers=2 --trace on --shard=$${PLAYWRIGHT_SHARD:-1/1}"
+      sh -c "corepack enable && pnpm install && pnpm exec playwright test -c playwright-e2e.config.ts --workers=2 --trace on --shard=$${PLAYWRIGHT_SHARD:-1/1} --reporter=list"
 
   # Backend E2E Runner (Database Integration Tests via Vitest)
   backend-e2e:

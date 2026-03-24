@@ -1,17 +1,13 @@
-import { Logger } from '@nestjs/common';
 import { HumanMessage } from '@langchain/core/messages';
-import { GraphState } from '@/ai/state';
+import { Logger } from '@nestjs/common';
 import { addThought } from '@/ai/common';
 import { QuotaExceededException } from '@/ai/exceptions';
-import {
-  TokenUsageService,
-  Provider,
-  AgentRole,
-} from '@/token-usage/token-usage.service';
 import { LLMService } from '@/ai/llm.service';
 import { PromptService } from '@/ai/prompt.service';
-import { ConfigService } from '@/config/config.service';
+import { GraphState } from '@/ai/state';
 import type { LangChainLLMResponse } from '@/common/types';
+import { ConfigService } from '@/config/config.service';
+import { AgentRole, Provider, TokenUsageService } from '@/token-usage/token-usage.service';
 
 const logger = new Logger('ReflectorNode');
 
@@ -46,16 +42,12 @@ function parseReflectorContract(raw: string): ReflectorContract | null {
     };
 
     const keepOrReplace =
-      parsed.keep_or_replace_query === 'keep' ||
-      parsed.keep_or_replace_query === 'replace'
+      parsed.keep_or_replace_query === 'keep' || parsed.keep_or_replace_query === 'replace'
         ? parsed.keep_or_replace_query
         : 'replace';
 
     return {
-      root_cause:
-        typeof parsed.root_cause === 'string'
-          ? parsed.root_cause
-          : 'unknown_root_cause',
+      root_cause: typeof parsed.root_cause === 'string' ? parsed.root_cause : 'unknown_root_cause',
       fix:
         typeof parsed.fix === 'string'
           ? parsed.fix
@@ -84,8 +76,7 @@ export async function reflectorNode(
 
   const userId = state.user_id;
   if (userId) {
-    const [canProceed, used, limit] =
-      await deps.tokenUsageService.checkMonthlyLimit(userId);
+    const [canProceed, used, limit] = await deps.tokenUsageService.checkMonthlyLimit(userId);
     if (!canProceed) {
       const currentMonth = new Date().toISOString().slice(0, 7);
       throw new QuotaExceededException(userId, used, limit, currentMonth);
@@ -98,10 +89,7 @@ export async function reflectorNode(
     reflectorConfig?.instructions ||
     'Provide root-cause guidance and next-step correction in strict JSON.';
 
-  const llm = deps.llmService.createChatModel(
-    overrides?.model || 'critic',
-    overrides?.provider,
-  );
+  const llm = deps.llmService.createChatModel(overrides?.model || 'critic', overrides?.provider);
 
   const prompt = `${role}
 
@@ -126,18 +114,14 @@ Return strict JSON only.`;
     const response = await llm.invoke([new HumanMessage(prompt)]);
     const llmDurationMs = Date.now() - llmStartMs;
     const content =
-      typeof response.content === 'string'
-        ? response.content
-        : JSON.stringify(response.content);
+      typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
     contract = parseReflectorContract(content);
 
     const usage = (response as LangChainLLMResponse).usage_metadata;
     if (userId && usage) {
-      const provider = (overrides?.provider ||
-        deps.config.getActiveProvider()) as Provider;
+      const provider = (overrides?.provider || deps.config.getActiveProvider()) as Provider;
       const model =
-        overrides?.model ||
-        deps.config.getActiveModelForRole('critic', overrides?.provider);
+        overrides?.model || deps.config.getActiveModelForRole('critic', overrides?.provider);
 
       await deps.tokenUsageService.logTokenUsage(
         userId,
@@ -156,9 +140,7 @@ Return strict JSON only.`;
       );
     }
   } catch (err) {
-    logger.error(
-      `Reflector LLM call failed: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    logger.error(`Reflector LLM call failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   if (!contract) {
@@ -171,15 +153,10 @@ Return strict JSON only.`;
   }
 
   const reflection = `Attempt ${attemptNum} failed (${contract.root_cause}): ${contract.fix}`;
-  addThought(
-    state,
-    `🪞 Reflector: ${contract.fix} (root cause: ${contract.root_cause})`,
-  );
+  addThought(state, `🪞 Reflector: ${contract.fix} (root cause: ${contract.root_cause})`);
 
   const reflections = [...(state.reflections || []), reflection];
-  logger.log(
-    `[REFLECTOR] Added reflection #${reflections.length}: ${reflection.slice(0, 150)}...`,
-  );
+  logger.log(`[REFLECTOR] Added reflection #${reflections.length}: ${reflection.slice(0, 150)}...`);
 
   return {
     reflections,

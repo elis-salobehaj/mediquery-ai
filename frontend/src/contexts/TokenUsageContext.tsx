@@ -11,21 +11,15 @@
  * double-fetches just because it re-mounted.
  */
 
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-} from 'react';
-import { tokenUsageService } from '../services/tokenUsageService';
-import type {
-  UsageStatus,
-  MonthlyBreakdown,
-  ProviderBreakdown,
-  NodeMetricsResponse,
-} from '../services/tokenUsageService';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { getApiUrl } from '../config/api';
+import type {
+  MonthlyBreakdown,
+  NodeMetricsResponse,
+  ProviderBreakdown,
+  UsageStatus,
+} from '../services/tokenUsageService';
+import { tokenUsageService } from '../services/tokenUsageService';
 
 interface TokenUsageContextValue {
   usageStatus: UsageStatus | null;
@@ -54,17 +48,11 @@ const TokenUsageContext = createContext<TokenUsageContextValue>({
   refresh: async () => {},
 });
 
-export const TokenUsageProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const TokenUsageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [usageStatus, setUsageStatus] = useState<UsageStatus | null>(null);
   const [monthlyData, setMonthlyData] = useState<MonthlyBreakdown | null>(null);
-  const [providerData, setProviderData] = useState<ProviderBreakdown | null>(
-    null,
-  );
-  const [nodeMetrics, setNodeMetrics] = useState<NodeMetricsResponse | null>(
-    null,
-  );
+  const [providerData, setProviderData] = useState<ProviderBreakdown | null>(null);
+  const [nodeMetrics, setNodeMetrics] = useState<NodeMetricsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,22 +62,18 @@ export const TokenUsageProvider: React.FC<{ children: React.ReactNode }> = ({
     setDashboardLoading(true);
     setDashboardError(null);
     try {
-      const [breakdown, providerBreakdown, nodeMetricsData] = await Promise.all(
-        [
-          tokenUsageService.getMonthlyBreakdown(tokensLimit),
-          tokenUsageService.getProviderBreakdown(),
-          tokenUsageService.getNodeMetrics(),
-        ],
-      );
+      const [breakdown, providerBreakdown, nodeMetricsData] = await Promise.all([
+        tokenUsageService.getMonthlyBreakdown(tokensLimit),
+        tokenUsageService.getProviderBreakdown(),
+        tokenUsageService.getNodeMetrics(),
+      ]);
       setMonthlyData(breakdown);
       setProviderData(providerBreakdown);
       setNodeMetrics(nodeMetricsData);
     } catch (err: unknown) {
       const e = err as { response?: { status?: number } };
       setDashboardError(
-        e.response?.status === 403
-          ? 'Access denied.'
-          : 'Failed to load usage data.',
+        e.response?.status === 403 ? 'Access denied.' : 'Failed to load usage data.',
       );
     } finally {
       setDashboardLoading(false);
@@ -104,9 +88,7 @@ export const TokenUsageProvider: React.FC<{ children: React.ReactNode }> = ({
       return status;
     } catch (err: unknown) {
       const e = err as { response?: { status?: number } };
-      setError(
-        e.response?.status === 403 ? 'Access denied' : 'Failed to load usage',
-      );
+      setError(e.response?.status === 403 ? 'Access denied' : 'Failed to load usage');
       return null;
     } finally {
       setLoading(false);
@@ -140,11 +122,7 @@ export const TokenUsageProvider: React.FC<{ children: React.ReactNode }> = ({
       } catch (err: unknown) {
         const e = err as { response?: { status?: number } };
         if (!cancelled)
-          setError(
-            e.response?.status === 403
-              ? 'Access denied'
-              : 'Failed to load usage',
-          );
+          setError(e.response?.status === 403 ? 'Access denied' : 'Failed to load usage');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -184,9 +162,7 @@ export const TokenUsageProvider: React.FC<{ children: React.ReactNode }> = ({
                     rawData.warning_level,
                     rawData.usage_percentage ?? rawData.percentage,
                   ),
-                  reset_date:
-                    rawData.reset_date ||
-                    tokenUsageService.getNextMonthFirstDay(),
+                  reset_date: rawData.reset_date || tokenUsageService.getNextMonthFirstDay(),
                 };
                 if (!cancelled) setUsageStatus(data);
               } catch {
@@ -225,6 +201,4 @@ export const TokenUsageProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 };
 
-// eslint-disable-next-line react-refresh/only-export-components
-export const useTokenUsage = (): TokenUsageContextValue =>
-  useContext(TokenUsageContext);
+export const useTokenUsage = (): TokenUsageContextValue => useContext(TokenUsageContext);

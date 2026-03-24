@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { FiAlertCircle, FiBarChart2 } from 'react-icons/fi';
-import { formatNumber } from '../../services/tokenUsageService';
+import { useNavigate } from 'react-router-dom';
 import { useTokenUsage } from '../../contexts/TokenUsageContext';
+import { formatNumber } from '../../services/tokenUsageService';
 
 const UsageIndicator: React.FC = () => {
   const navigate = useNavigate();
@@ -16,8 +16,8 @@ const UsageIndicator: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-(--text-tertiary)">
-        <div className="h-4 w-4 animate-spin rounded-full border-2 border-(--accent-primary) border-t-transparent"></div>
+      <div className="flex items-center gap-2 px-3 py-1.5 text-(--text-tertiary) text-xs">
+        <div className="h-4 w-4 animate-spin rounded-full border-(--accent-primary) border-2 border-t-transparent"></div>
         <span>Loading usage...</span>
       </div>
     );
@@ -25,7 +25,7 @@ const UsageIndicator: React.FC = () => {
 
   if (error || !usageStatus) {
     return (
-      <div className="flex items-center gap-2 px-3 py-1.5 text-xs text-(--text-tertiary)">
+      <div className="flex items-center gap-2 px-3 py-1.5 text-(--text-tertiary) text-xs">
         <FiAlertCircle size={14} />
         <span>Usage unavailable</span>
       </div>
@@ -41,7 +41,6 @@ const UsageIndicator: React.FC = () => {
         return 'bg-orange-500';
       case 'medium':
         return 'bg-yellow-500';
-      case 'normal':
       default:
         return 'bg-green-500';
     }
@@ -55,7 +54,6 @@ const UsageIndicator: React.FC = () => {
         return 'text-orange-500';
       case 'medium':
         return 'text-yellow-500';
-      case 'normal':
       default:
         return 'text-green-500';
     }
@@ -67,10 +65,11 @@ const UsageIndicator: React.FC = () => {
   return (
     <div
       className="relative"
-      onMouseEnter={() => setShowTooltip(true)}
-      onMouseLeave={() => setShowTooltip(false)}
+      onPointerEnter={() => setShowTooltip(true)}
+      onPointerLeave={() => setShowTooltip(false)}
     >
-      <div
+      <button
+        type="button"
         className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-1.5 transition-colors hover:bg-(--bg-tertiary)"
         onClick={() => navigate('/dashboard')}
         title="View detailed usage dashboard"
@@ -80,17 +79,13 @@ const UsageIndicator: React.FC = () => {
 
         {/* Usage Text */}
         <div className="flex items-center gap-1 font-mono text-xs">
-          <span className={textColor}>
-            {formatNumber(usageStatus.tokens_used)}
-          </span>
+          <span className={textColor}>{formatNumber(usageStatus.tokens_used)}</span>
           <span className="text-(--text-tertiary)">/</span>
-          <span className="text-(--text-secondary)">
-            {formatNumber(usageStatus.tokens_limit)}
-          </span>
+          <span className="text-(--text-secondary)">{formatNumber(usageStatus.tokens_limit)}</span>
         </div>
 
         {/* Progress Bar */}
-        <div className="bg-muted/50 h-1.5 w-16 overflow-hidden rounded-full">
+        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted/50">
           <div
             className={`h-full ${progressColor} transition-all`}
             style={{ width: `${Math.min(usageStatus.percentage, 100)}%` }}
@@ -101,7 +96,7 @@ const UsageIndicator: React.FC = () => {
         {usageStatus.warning_level !== 'normal' && (
           <FiAlertCircle size={14} className={textColor} />
         )}
-      </div>
+      </button>
 
       {/* Tooltip - No gap, use pt-2 on inner content for visual spacing */}
       {showTooltip && usageStatus && (
@@ -109,10 +104,8 @@ const UsageIndicator: React.FC = () => {
           <div className="rounded-lg border border-(--border-subtle) bg-(--bg-secondary) p-3 shadow-lg">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-(--text-primary)">
-                  Token Usage
-                </span>
-                <span className={`text-xs font-bold ${textColor}`}>
+                <span className="font-semibold text-(--text-primary) text-xs">Token Usage</span>
+                <span className={`font-bold text-xs ${textColor}`}>
                   {typeof usageStatus.percentage === 'number'
                     ? usageStatus.percentage.toFixed(1)
                     : '0.0'}
@@ -136,42 +129,35 @@ const UsageIndicator: React.FC = () => {
                 <div className="flex justify-between">
                   <span className="text-(--text-tertiary)">Remaining:</span>
                   <span className="font-mono text-(--text-primary)">
-                    {formatNumber(
-                      (usageStatus.tokens_limit || 0) -
-                        (usageStatus.tokens_used || 0),
-                    )}
+                    {formatNumber((usageStatus.tokens_limit || 0) - (usageStatus.tokens_used || 0))}
                   </span>
                 </div>
               </div>
 
               {usageStatus.message && (
-                <div
-                  className={`text-xs ${textColor} mt-2 border-t border-(--border-subtle) pt-2`}
-                >
+                <div className={`text-xs ${textColor} mt-2 border-(--border-subtle) border-t pt-2`}>
                   {usageStatus.message}
                 </div>
               )}
 
-              <div className="border-t border-(--border-subtle) pt-2 text-xs text-(--text-tertiary)">
+              <div className="border-(--border-subtle) border-t pt-2 text-(--text-tertiary) text-xs">
                 Resets:{' '}
                 {usageStatus.reset_date
-                  ? new Date(usageStatus.reset_date).toLocaleDateString(
-                      'en-US',
-                      {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      },
-                    )
+                  ? new Date(usageStatus.reset_date).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })
                   : 'N/A'}
               </div>
 
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   navigate('/dashboard');
                 }}
-                className="mt-2 w-full cursor-pointer rounded bg-(--accent-primary) px-2 py-1.5 text-xs text-white transition-colors hover:bg-(--accent-hover)"
+                className="mt-2 w-full cursor-pointer rounded bg-(--accent-primary) px-2 py-1.5 text-white text-xs transition-colors hover:bg-(--accent-hover)"
               >
                 View Full Dashboard
               </button>

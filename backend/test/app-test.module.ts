@@ -6,21 +6,21 @@
  * providers, controllers and modules are identical to production.
  */
 import { Module } from '@nestjs/common';
-import { AppController } from '../src/app.controller';
-import { AppService } from '../src/app.service';
 import { LoggerModule } from 'nestjs-pino';
-import { ConfigModule } from '../src/config/config.module';
-import { DatabaseModule } from '../src/database/database.module';
-import { AuthModule } from '../src/auth/auth.module';
-import { TokenUsageModule } from '../src/token-usage/token-usage.module';
-import { ThreadsModule } from '../src/threads/threads.module';
-import { LLMService } from '../src/ai/llm.service';
-import { PromptService } from '../src/ai/prompt.service';
+import { ConfigController } from '../src/ai/config.controller';
 import { GraphBuilder } from '../src/ai/graph';
 import { InsightService } from '../src/ai/insight.service';
-import { VisualizationService } from '../src/ai/visualization.service';
+import { LLMService } from '../src/ai/llm.service';
+import { PromptService } from '../src/ai/prompt.service';
 import { QueriesController } from '../src/ai/queries.controller';
-import { ConfigController } from '../src/ai/config.controller';
+import { VisualizationService } from '../src/ai/visualization.service';
+import { AppController } from '../src/app.controller';
+import { AppService } from '../src/app.service';
+import { AuthModule } from '../src/auth/auth.module';
+import { ConfigModule } from '../src/config/config.module';
+import { DatabaseModule } from '../src/database/database.module';
+import { ThreadsModule } from '../src/threads/threads.module';
+import { TokenUsageModule } from '../src/token-usage/token-usage.module';
 import { MockLLMService } from './mocks/llm.service';
 
 /**
@@ -29,13 +29,7 @@ import { MockLLMService } from './mocks/llm.service';
  * so NestJS resolves MockLLMService wherever LLMService is injected.
  */
 @Module({
-  imports: [
-    ConfigModule,
-    TokenUsageModule,
-    DatabaseModule,
-    AuthModule,
-    ThreadsModule,
-  ],
+  imports: [ConfigModule, TokenUsageModule, DatabaseModule, AuthModule, ThreadsModule],
   controllers: [QueriesController, ConfigController],
   providers: [
     { provide: LLMService, useClass: MockLLMService },
@@ -44,13 +38,7 @@ import { MockLLMService } from './mocks/llm.service';
     InsightService,
     VisualizationService,
   ],
-  exports: [
-    LLMService,
-    PromptService,
-    GraphBuilder,
-    InsightService,
-    VisualizationService,
-  ],
+  exports: [LLMService, PromptService, GraphBuilder, InsightService, VisualizationService],
 })
 class AITestModule {}
 

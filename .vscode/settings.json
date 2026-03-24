@@ -1,0 +1,3 @@
+{
+  "biome.lsp.bin": "${workspaceFolder}/backend/node_modules/.bin/biome"
+}

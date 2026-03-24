@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/experimental-ct-react';
+import { expect, test } from '@playwright/experimental-ct-react';
 import Login from '@/components/Login';
 
 test.use({ viewport: { width: 500, height: 500 } });
@@ -7,18 +7,14 @@ test('renders login form by default', async ({ mount }) => {
   const component = await mount(<Login onLogin={() => {}} />);
   await expect(component.getByText('IDENTITY VERIFICATION')).toBeVisible();
   await expect(component.getByPlaceholder('ENTER USERNAME')).toBeVisible();
-  await expect(
-    component.getByRole('button', { name: 'AUTHENTICATE' }),
-  ).toBeVisible();
+  await expect(component.getByRole('button', { name: 'AUTHENTICATE' })).toBeVisible();
 });
 
 test('switches to registration mode', async ({ mount }) => {
   const component = await mount(<Login onLogin={() => {}} />);
   await component.getByText('>> CREATE NEW IDENTITY').click();
   await expect(component.getByText('INITIALIZE IDENTITY')).toBeVisible();
-  await expect(
-    component.getByRole('button', { name: 'ESTABLISH LINK' }),
-  ).toBeVisible();
+  await expect(component.getByRole('button', { name: 'ESTABLISH LINK' })).toBeVisible();
 });
 
 test('handles guest login interaction', async ({ mount, page }) => {
@@ -33,9 +29,7 @@ test('handles guest login interaction', async ({ mount, page }) => {
 
   const component = await mount(<Login onLogin={() => {}} />);
 
-  await component
-    .getByRole('button', { name: 'INITIATE GUEST PROTOCOL' })
-    .click();
+  await component.getByRole('button', { name: 'INITIATE GUEST PROTOCOL' }).click();
 
   // Wait for async operation to complete (simplistic check)
   // In a real app we might wait for a UI change, but here checking the prop callback requires some state reflection or we trust the mock.

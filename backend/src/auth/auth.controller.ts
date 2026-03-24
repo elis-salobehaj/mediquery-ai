@@ -1,19 +1,20 @@
 import {
-  Controller,
-  Post,
   Body,
-  UnauthorizedException,
-  UseGuards,
-  Request,
+  Controller,
+  Get,
   HttpException,
   HttpStatus,
-  Get,
+  Post,
+  Request,
+  UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request as ExpressRequest } from 'express';
 import { AuthService } from '@/auth/auth.service';
-import { JwtAuthGuard } from './jwt-auth.guard';
-import { UserCreateDto } from './dto/user.dto';
+import { getAuthenticatedUser } from '@/common/request-utils';
 import type { LoginFormBody, ValidatedUser } from '@/common/types';
+import { UserCreateDto } from './dto/user.dto';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
 @Controller('api/v1/auth')
 export class AuthController {
@@ -22,10 +23,7 @@ export class AuthController {
   @Post('token')
   async login(@Body() body: LoginFormBody) {
     // A simplified version matching OAuth2PasswordRequestForm
-    const user = await this.authService.validateUser(
-      body.username,
-      body.password,
-    );
+    const user = await this.authService.validateUser(body.username, body.password);
     if (!user) {
       throw new UnauthorizedException('Incorrect username or password');
     }
@@ -41,20 +39,11 @@ export class AuthController {
       userDto.email,
     );
     if (!success) {
-      throw new HttpException(
-        'Username already registered',
-        HttpStatus.BAD_REQUEST,
-      );
+      throw new HttpException('Username already registered', HttpStatus.BAD_REQUEST);
     }
-    const user = await this.authService.validateUser(
-      userDto.username,
-      userDto.password,
-    );
+    const user = await this.authService.validateUser(userDto.username, userDto.password);
     if (!user) {
-      throw new HttpException(
-        'Registration failed',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException('Registration failed', HttpStatus.INTERNAL_SERVER_ERROR);
     }
     return this.authService.login(user);
   }
@@ -89,9 +78,8 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   async getMe(@Request() req: ExpressRequest) {
-    // req.user is attached by JwtAuthGuard (decoded JWT payload)
-    // Fetch full user from DB for profile info
-    const user = await this.authService.getUserById(req.user!.id);
+    const authenticatedUser = getAuthenticatedUser(req);
+    const user = await this.authService.getUserById(authenticatedUser.id);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }

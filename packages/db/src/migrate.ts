@@ -1,7 +1,7 @@
-import { Pool } from 'pg';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import * as dotenv from 'dotenv';
-import * as path from 'path';
-import * as fs from 'fs';
+import { Pool } from 'pg';
 import { loadDbEnv } from './env';
 
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
@@ -34,9 +34,7 @@ async function runMigration() {
       path.resolve(__dirname, '../../drizzle'),
       path.resolve(process.cwd(), 'drizzle'),
     ];
-    const migrationDir = migrationDirCandidates.find((dirPath) =>
-      fs.existsSync(dirPath),
-    );
+    const migrationDir = migrationDirCandidates.find((dirPath) => fs.existsSync(dirPath));
 
     if (!migrationDir) {
       throw new Error(
@@ -52,9 +50,7 @@ async function runMigration() {
     const appliedResult = await pool.query<{ name: string }>(
       `SELECT name FROM "${dbEnv.APP_DB_SCHEMA}".__drizzle_sql_migrations`,
     );
-    const applied = new Set(
-      appliedResult.rows.map((row: { name: string }) => row.name),
-    );
+    const applied = new Set(appliedResult.rows.map((row: { name: string }) => row.name));
 
     const usersTableCheck = await pool.query<{ regclass: string | null }>(
       `SELECT to_regclass('${dbEnv.APP_DB_SCHEMA}.users') AS regclass`,
@@ -77,10 +73,7 @@ async function runMigration() {
         continue;
       }
 
-      const migrationSql = fs.readFileSync(
-        path.join(migrationDir, fileName),
-        'utf8',
-      );
+      const migrationSql = fs.readFileSync(path.join(migrationDir, fileName), 'utf8');
       const client = await pool.connect();
       try {
         await client.query('BEGIN');

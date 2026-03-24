@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { VisualizationService } from '@/ai/visualization.service';
 import type { KpiQueryResult } from '@/common/types';
 
@@ -18,11 +18,7 @@ function buildService(llmContent = 'table') {
     getActiveModelForRole: vi.fn(() => 'base-model'),
   };
 
-  return new VisualizationService(
-    llmService as never,
-    tokenUsageService as never,
-    config as never,
-  );
+  return new VisualizationService(llmService as never, tokenUsageService as never, config as never);
 }
 
 describe('VisualizationService', () => {
@@ -74,10 +70,7 @@ describe('VisualizationService', () => {
       ],
     };
 
-    const visType = await service.determineVisualization(
-      'plot this on a map',
-      data,
-    );
+    const visType = await service.determineVisualization('plot this on a map', data);
 
     expect(visType).toBe('table');
   });
@@ -122,10 +115,7 @@ describe('VisualizationService', () => {
       ],
     };
 
-    const visType = await service.determineVisualization(
-      'best chart type for this dataset',
-      data,
-    );
+    const visType = await service.determineVisualization('best chart type for this dataset', data);
 
     expect(visType).toBe('scattermapbox');
   });

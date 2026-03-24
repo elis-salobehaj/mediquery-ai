@@ -27,8 +27,7 @@ const CLINICAL_KEYWORDS: Array<{ keyword: string; intent: string }> = [
 const TIMEFRAME_PATTERN =
   /(last\s+\d+\s+(day|days|week|weeks|month|months|year|years)|this\s+(week|month|quarter|year)|today|yesterday|q[1-4]\s*\d{4}|20\d{2})/i;
 
-const UNIT_PATTERN =
-  /(\bmg\/dL\b|\bmmHg\b|\bkg\b|\bcm\b|\bbpm\b|\bmmol\/L\b|\b%\b)/i;
+const UNIT_PATTERN = /(\bmg\/dL\b|\bmmHg\b|\bkg\b|\bcm\b|\bbpm\b|\bmmol\/L\b|\b%\b)/i;
 
 const PERSON_STOPWORDS = new Set([
   'active',
@@ -69,11 +68,7 @@ function extractPersonMentions(text: string): string[] {
   for (const match of explicit) {
     const value = match[1].trim();
     const normalized = value.toLowerCase();
-    if (
-      value.length >= 2 &&
-      !PERSON_STOPWORDS.has(normalized) &&
-      !normalized.startsWith('[')
-    ) {
+    if (value.length >= 2 && !PERSON_STOPWORDS.has(normalized) && !normalized.startsWith('[')) {
       persons.add(value.toUpperCase());
     }
   }
@@ -147,9 +142,7 @@ export function deriveScopedMemory(
   return memory;
 }
 
-export function summarizeScopedMemory(
-  memory: ScopedConversationMemory,
-): string {
+export function summarizeScopedMemory(memory: ScopedConversationMemory): string {
   const segments: string[] = [];
 
   if (memory.active_persons.length > 0) {
@@ -170,9 +163,7 @@ export function summarizeScopedMemory(
     segments.push(`Units: ${memory.preferred_clinical_units}`);
   }
 
-  return segments.length > 0
-    ? segments.join(' • ')
-    : 'No persistent context yet';
+  return segments.length > 0 ? segments.join(' • ') : 'No persistent context yet';
 }
 
 export function formatMemoryContext(memory?: ScopedConversationMemory): string {

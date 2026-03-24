@@ -1,17 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
 import { HumanMessage } from '@langchain/core/messages';
-import { LLMService } from './llm.service';
-import {
-  TokenUsageService,
-  Provider,
-  AgentRole,
-} from '@/token-usage/token-usage.service';
+import { Injectable, Logger } from '@nestjs/common';
+import type { KpiQueryResult, KpiRow, LangChainLLMResponse } from '@/common/types';
 import { ConfigService } from '@/config/config.service';
-import type {
-  LangChainLLMResponse,
-  KpiQueryResult,
-  KpiRow,
-} from '@/common/types';
+import { AgentRole, Provider, TokenUsageService } from '@/token-usage/token-usage.service';
+import { LLMService } from './llm.service';
 
 @Injectable()
 export class VisualizationService {
@@ -110,11 +102,7 @@ export class VisualizationService {
     });
     const hasLongitude = columns.some((col) => {
       const normalized = col.toLowerCase();
-      return (
-        normalized.includes('longitude') ||
-        normalized === 'lon' ||
-        normalized === 'lng'
-      );
+      return normalized.includes('longitude') || normalized === 'lon' || normalized === 'lng';
     });
 
     return hasLatitude && hasLongitude;
@@ -133,9 +121,7 @@ export class VisualizationService {
 
   private isMapIntent(userQuery: string): boolean {
     const queryLower = userQuery.toLowerCase();
-    return this.MAP_QUERY_KEYWORDS.some((keyword) =>
-      queryLower.includes(keyword),
-    );
+    return this.MAP_QUERY_KEYWORDS.some((keyword) => queryLower.includes(keyword));
   }
 
   private isHierarchicalIntent(userQuery: string): boolean {
@@ -187,12 +173,8 @@ export class VisualizationService {
     }
 
     // Classify columns
-    const numericCols = columns.filter((col: string) =>
-      this.isNumericCol(col, rows),
-    );
-    const categoricalCols = columns.filter(
-      (col: string) => !this.isNumericCol(col, rows),
-    );
+    const numericCols = columns.filter((col: string) => this.isNumericCol(col, rows));
+    const categoricalCols = columns.filter((col: string) => !this.isNumericCol(col, rows));
 
     // ===== HEURISTIC RULES (Fast path) =====
 
@@ -233,9 +215,7 @@ export class VisualizationService {
     // Time series detection → line/area
     if (
       columns.some(
-        (col: string) =>
-          col.toLowerCase().includes('date') ||
-          col.toLowerCase().includes('time'),
+        (col: string) => col.toLowerCase().includes('date') || col.toLowerCase().includes('time'),
       )
     ) {
       if (numericCols.length >= 1) return 'line';
@@ -249,22 +229,14 @@ export class VisualizationService {
     }
 
     // 2 columns (1 categorical, 1 numeric) → bar/pie
-    if (
-      columns.length === 2 &&
-      categoricalCols.length === 1 &&
-      numericCols.length === 1
-    ) {
+    if (columns.length === 2 && categoricalCols.length === 1 && numericCols.length === 1) {
       if (rowCount <= 10) return 'pie';
       if (rowCount <= 50) return 'bar';
       return 'histogram';
     }
 
     // Ranked comparisons should default to bar (not hierarchical charts).
-    if (
-      rankingIntent &&
-      categoricalCols.length >= 1 &&
-      numericCols.length >= 1
-    ) {
+    if (rankingIntent && categoricalCols.length >= 1 && numericCols.length >= 1) {
       return rowCount <= 75 ? 'bar' : 'histogram';
     }
 
@@ -275,30 +247,17 @@ export class VisualizationService {
 
     // Query keyword analysis
     const queryLower = userQuery.toLowerCase();
-    if (
-      ['distribution', 'spread', 'quartile', 'outlier'].some((kw) =>
-        queryLower.includes(kw),
-      )
-    )
+    if (['distribution', 'spread', 'quartile', 'outlier'].some((kw) => queryLower.includes(kw)))
       return 'box';
-    if (queryLower.includes('frequency') || queryLower.includes('count'))
-      return 'histogram';
-    if (
-      queryLower.includes('correlation') ||
-      queryLower.includes('relationship')
-    ) {
+    if (queryLower.includes('frequency') || queryLower.includes('count')) return 'histogram';
+    if (queryLower.includes('correlation') || queryLower.includes('relationship')) {
       return numericCols.length > 4 ? 'heatmap' : 'scatter';
     }
-    if (['flow', 'journey', 'path'].some((kw) => queryLower.includes(kw)))
-      return 'sankey';
-    if (queryLower.includes('trend') || queryLower.includes('over time'))
-      return 'line';
-    if (queryLower.includes('compare') || queryLower.includes('comparison'))
-      return 'bar';
-    if (['total', 'sum', 'kpi'].some((kw) => queryLower.includes(kw)))
-      return 'indicator';
-    if (['gauge', 'score', 'rating'].some((kw) => queryLower.includes(kw)))
-      return 'gauge';
+    if (['flow', 'journey', 'path'].some((kw) => queryLower.includes(kw))) return 'sankey';
+    if (queryLower.includes('trend') || queryLower.includes('over time')) return 'line';
+    if (queryLower.includes('compare') || queryLower.includes('comparison')) return 'bar';
+    if (['total', 'sum', 'kpi'].some((kw) => queryLower.includes(kw))) return 'indicator';
+    if (['gauge', 'score', 'rating'].some((kw) => queryLower.includes(kw))) return 'gauge';
 
     // ===== LLM-BASED SELECTION (Fallback) =====
     return this.llmVisualizationSelection(
@@ -364,9 +323,7 @@ Return ONLY the chart type name (lowercase, no explanation).`;
     try {
       const response = await llm.invoke([new HumanMessage(prompt)]);
       let visType = (
-        typeof response.content === 'string'
-          ? response.content
-          : JSON.stringify(response.content)
+        typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
       )
         .toLowerCase()
         .trim();
@@ -374,12 +331,8 @@ Return ONLY the chart type name (lowercase, no explanation).`;
       // Track usage
       const usage = (response as LangChainLLMResponse).usage_metadata;
       if (userId && usage) {
-        const provider = (providerOverride ||
-          this.config.getActiveProvider()) as Provider;
-        const model = this.config.getActiveModelForRole(
-          'base',
-          providerOverride,
-        );
+        const provider = (providerOverride || this.config.getActiveProvider()) as Provider;
+        const model = this.config.getActiveModelForRole('base', providerOverride);
 
         await this.tokenUsageService.logTokenUsage(
           userId,
@@ -392,9 +345,7 @@ Return ONLY the chart type name (lowercase, no explanation).`;
       }
 
       if (visType === 'map') {
-        visType = this.hasLatLonColumns(columns)
-          ? 'scattermapbox'
-          : 'choropleth';
+        visType = this.hasLatLonColumns(columns) ? 'scattermapbox' : 'choropleth';
       }
 
       if (this.VALID_CHART_TYPES.includes(visType)) {

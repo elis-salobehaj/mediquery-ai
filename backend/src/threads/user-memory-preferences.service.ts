@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { eq, sql } from 'drizzle-orm';
 import { DatabaseService } from '@/database/database.service';
 import { userMemoryPreferences } from '@/database/schema';
-import { eq, sql } from 'drizzle-orm';
 
 interface UserMemoryPreferencesUpdate {
   preferredUnits?: string;
@@ -27,10 +27,7 @@ export class UserMemoryPreferencesService {
     return rows[0] ?? null;
   }
 
-  async upsertUserMemoryPreferences(
-    userId: string,
-    updates: UserMemoryPreferencesUpdate,
-  ) {
+  async upsertUserMemoryPreferences(userId: string, updates: UserMemoryPreferencesUpdate) {
     if (!updates.preferredUnits && !updates.preferredChartStyle) {
       return this.getUserMemoryPreferences(userId);
     }

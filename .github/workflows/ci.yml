@@ -11,7 +11,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: '10.32.1'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+          cache-dependency-path: './backend/pnpm-lock.yaml'
+
+      - name: Install Backend Dependencies
+        run: pnpm install
+        working-directory: ./backend
+
+      - name: Lint Backend
+        run: pnpm check:ci
+        working-directory: ./backend
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -38,7 +58,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: '10.32.1'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+          cache-dependency-path: './frontend/pnpm-lock.yaml'
+
+      - name: Install Frontend Dependencies
+        run: pnpm install
+        working-directory: ./frontend
+
+      - name: Lint Frontend
+        run: pnpm check:ci
+        working-directory: ./frontend
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

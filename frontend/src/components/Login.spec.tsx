@@ -1,39 +1,40 @@
-import { test, expect } from '@playwright/experimental-ct-react';
+import { expect, test } from '@playwright/experimental-ct-react';
 import Login from './Login';
 
 test.use({ viewport: { width: 500, height: 500 } });
 
 test('renders login form by default', async ({ mount }) => {
-  const component = await mount(<Login onLogin={() => { }} />);
+  const component = await mount(<Login onLogin={() => {}} />);
   await expect(component.getByText('IDENTITY VERIFICATION')).toBeVisible();
   await expect(component.getByPlaceholder('ENTER USERNAME')).toBeVisible();
   await expect(component.getByRole('button', { name: 'AUTHENTICATE' })).toBeVisible();
 });
 
 test('switches to registration mode', async ({ mount }) => {
-  const component = await mount(<Login onLogin={() => { }} />);
+  const component = await mount(<Login onLogin={() => {}} />);
   await component.getByText('>> CREATE NEW IDENTITY').click();
   await expect(component.getByText('INITIALIZE IDENTITY')).toBeVisible();
   await expect(component.getByRole('button', { name: 'ESTABLISH LINK' })).toBeVisible();
 });
 
 test('handles guest login interaction', async ({ mount, page }) => {
-  let loggedIn = false;
-
   // Mock the guest login endpoint
-  await page.route('**/auth/guest', async route => {
+  await page.route('**/auth/guest', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ access_token: 'guest-token' })
+      body: JSON.stringify({ access_token: 'guest-token' }),
     });
   });
 
-  const component = await mount(<Login onLogin={(token, user) => {
-    if (token === 'guest-token' && user === 'Guest') {
-      loggedIn = true;
-    }
-  }} />);
+  const component = await mount(
+    <Login
+      onLogin={(token, user) => {
+        void token;
+        void user;
+      }}
+    />,
+  );
 
   await component.getByRole('button', { name: 'INITIATE GUEST PROTOCOL' }).click();
 

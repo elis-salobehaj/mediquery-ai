@@ -53,6 +53,7 @@ Suggested starting points:
 ### Reports
 
 - Current reports: [reports/current](reports/current/)
+- Latest toolchain report: [reports/current/biome_migration_kickoff_2026-03-24.md](reports/current/biome_migration_kickoff_2026-03-24.md)
 - Archive: [reports/archive](reports/archive/)
 
 ---
@@ -72,5 +73,6 @@ Suggested starting points:
 - Backend: NestJS + TypeScript (`backend/`)
 - Frontend: React + Vite (`frontend/`)
 - App data schema: Drizzle (`packages/db`)
+- Linting & formatting: Biome (shared repo-root `biome.json`)
 - Clinical standard: OMOP CDM v5.4
 - Pipeline: Python + Polars + Alembic (`data-pipeline/`)

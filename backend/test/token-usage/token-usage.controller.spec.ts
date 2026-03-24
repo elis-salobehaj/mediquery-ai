@@ -1,10 +1,10 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { ForbiddenException } from '@nestjs/common';
+import { Test, TestingModule } from '@nestjs/testing';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { TokenUsageController } from '@/token-usage/token-usage.controller';
 import { TokenUsageService } from '@/token-usage/token-usage.service';
 import { TokenUsageEventsService } from '@/token-usage/token-usage-events.service';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
-import { vi, describe, beforeEach, it, expect } from 'vitest';
 
 describe('TokenUsageController', () => {
   let controller: TokenUsageController;
@@ -47,9 +47,7 @@ describe('TokenUsageController', () => {
         node_metrics: [],
       }),
       getAllUsersUsage: vi.fn().mockResolvedValue([]),
-      updateUserQuota: vi
-        .fn()
-        .mockResolvedValue({ user_id: 'u2', new_limit: 5000 }),
+      updateUserQuota: vi.fn().mockResolvedValue({ user_id: 'u2', new_limit: 5000 }),
     };
 
     eventsService = {
@@ -110,26 +108,16 @@ describe('TokenUsageController', () => {
 
   describe('GET /monthly', () => {
     it('returns usage array wrapped with user_id', async () => {
-      service.getMonthlyUsage.mockResolvedValue([
-        { month: '2026-02', total_tokens: 500 },
-      ]);
+      service.getMonthlyUsage.mockResolvedValue([{ month: '2026-02', total_tokens: 500 }]);
       const req = {
         user: { id: 'user-1' },
       } as unknown as import('express').Request;
-      const result = await controller.getMonthlyUsage(
-        req,
-        '2026-01',
-        '2026-02',
-      );
+      const result = await controller.getMonthlyUsage(req, '2026-01', '2026-02');
       expect(result).toEqual({
         user_id: 'user-1',
         usage: [{ month: '2026-02', total_tokens: 500 }],
       });
-      expect(service.getMonthlyUsage).toHaveBeenCalledWith(
-        'user-1',
-        '2026-01',
-        '2026-02',
-      );
+      expect(service.getMonthlyUsage).toHaveBeenCalledWith('user-1', '2026-01', '2026-02');
     });
 
     it('works without optional query params', async () => {
@@ -138,11 +126,7 @@ describe('TokenUsageController', () => {
       } as unknown as import('express').Request;
       const result = await controller.getMonthlyUsage(req);
       expect(result).toHaveProperty('user_id', 'user-1');
-      expect(service.getMonthlyUsage).toHaveBeenCalledWith(
-        'user-1',
-        undefined,
-        undefined,
-      );
+      expect(service.getMonthlyUsage).toHaveBeenCalledWith('user-1', undefined, undefined);
     });
   });
 
@@ -150,17 +134,11 @@ describe('TokenUsageController', () => {
 
   describe('GET /monthly/breakdown', () => {
     it('returns provider breakdown wrapped with user_id', async () => {
-      service.getProviderBreakdown.mockResolvedValue([
-        { month: '2026-02', provider: 'bedrock' },
-      ]);
+      service.getProviderBreakdown.mockResolvedValue([{ month: '2026-02', provider: 'bedrock' }]);
       const req = {
         user: { id: 'user-1' },
       } as unknown as import('express').Request;
-      const result = await controller.getProviderBreakdown(
-        req,
-        '2026-01',
-        '2026-02',
-      );
+      const result = await controller.getProviderBreakdown(req, '2026-01', '2026-02');
       expect(result.user_id).toBe('user-1');
       expect(result.usage).toHaveLength(1);
     });
@@ -175,11 +153,7 @@ describe('TokenUsageController', () => {
       } as unknown as import('express').Request;
       const result = await controller.getNodeMetrics(req, '2026-01', '2026-02');
 
-      expect(service.getNodeMetrics).toHaveBeenCalledWith(
-        'user-1',
-        '2026-01',
-        '2026-02',
-      );
+      expect(service.getNodeMetrics).toHaveBeenCalledWith('user-1', '2026-01', '2026-02');
       expect(result).toHaveProperty('summary');
       expect(result).toHaveProperty('node_metrics');
     });
@@ -228,9 +202,7 @@ describe('TokenUsageController', () => {
 
   describe('GET /admin/users', () => {
     it('returns all users usage for admin', async () => {
-      service.getAllUsersUsage.mockResolvedValue([
-        { user_id: 'u1', username: 'alice' },
-      ]);
+      service.getAllUsersUsage.mockResolvedValue([{ user_id: 'u1', username: 'alice' }]);
       const req = {
         user: { id: 'admin-1', role: 'admin' },
       } as unknown as import('express').Request;
@@ -243,9 +215,7 @@ describe('TokenUsageController', () => {
       const req = {
         user: { id: 'user-1', role: 'user' },
       } as unknown as import('express').Request;
-      await expect(controller.getAllUsersUsage(req)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(controller.getAllUsersUsage(req)).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -265,9 +235,7 @@ describe('TokenUsageController', () => {
       const req = {
         user: { id: 'user-1', role: 'user' },
       } as unknown as import('express').Request;
-      await expect(controller.updateUserQuota(req, 'u2', 5000)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(controller.updateUserQuota(req, 'u2', 5000)).rejects.toThrow(ForbiddenException);
     });
   });
 });

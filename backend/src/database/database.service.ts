@@ -1,17 +1,12 @@
-import { Injectable, Inject, Logger } from '@nestjs/common';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import * as schema from '@/database/schema';
-import { ConfigService } from '@/config/config.service';
-import * as fs from 'fs';
-import * as path from 'path';
 import * as yaml from 'js-yaml';
 import { Pool } from 'pg';
-import type {
-  SemanticView,
-  SemanticViewTable,
-  KpiRow,
-  KpiQueryResult,
-} from '@/common/types';
+import type { KpiQueryResult, KpiRow, SemanticView, SemanticViewTable } from '@/common/types';
+import { ConfigService } from '@/config/config.service';
+import * as schema from '@/database/schema';
 
 const PG_CONNECTION = 'PG_CONNECTION';
 
@@ -60,10 +55,8 @@ export class DatabaseService {
 
     if (cause && typeof cause === 'object') {
       const causeRecord = cause as Record<string, unknown>;
-      const message =
-        typeof causeRecord.message === 'string' ? causeRecord.message : '';
-      const detail =
-        typeof causeRecord.detail === 'string' ? causeRecord.detail : '';
+      const message = typeof causeRecord.message === 'string' ? causeRecord.message : '';
+      const detail = typeof causeRecord.detail === 'string' ? causeRecord.detail : '';
       const hint = typeof causeRecord.hint === 'string' ? causeRecord.hint : '';
 
       const parts = [message, detail, hint].filter(Boolean);
@@ -77,20 +70,14 @@ export class DatabaseService {
 
   private loadSemanticView() {
     try {
-      const viewPath = path.resolve(
-        __dirname,
-        '../ai/prompts/semantic_view.yaml',
-      );
+      const viewPath = path.resolve(__dirname, '../ai/prompts/semantic_view.yaml');
       if (fs.existsSync(viewPath)) {
         const fileContents = fs.readFileSync(viewPath, 'utf8');
         this.semanticView = yaml.load(fileContents) as SemanticView;
         this.logger.log('Loaded semantic view configuration');
       } else {
         // Try alternate path for dev/watch mode
-        const devPath = path.resolve(
-          process.cwd(),
-          'src/ai/prompts/semantic_view.yaml',
-        );
+        const devPath = path.resolve(process.cwd(), 'src/ai/prompts/semantic_view.yaml');
         if (fs.existsSync(devPath)) {
           const fileContents = fs.readFileSync(devPath, 'utf8');
           this.semanticView = yaml.load(fileContents) as SemanticView;
@@ -115,24 +102,25 @@ export class DatabaseService {
     const parts: string[] = [];
     const view = this.semanticView;
 
-    parts.push(`Database: ${view!.database || 'mediquery'}`);
-    parts.push(`Dialect: ${view!.dialect || 'postgresql'}`);
-    parts.push(`Hub Table: ${view!.hub_table || 'patients'}`);
+    if (!view) {
+      throw new Error('Semantic view is not loaded');
+    }
+
+    parts.push(`Database: ${view.database || 'mediquery'}`);
+    parts.push(`Dialect: ${view.dialect || 'postgresql'}`);
+    parts.push(`Hub Table: ${view.hub_table || 'patients'}`);
     parts.push('');
 
-    if (view!.reasoning) {
+    if (view.reasoning) {
       parts.push('System Overview:');
-      parts.push(view!.reasoning);
+      parts.push(view.reasoning);
       parts.push('');
     }
 
-    const tables = view!.tables || {};
-    for (const [tableName, tableInfo] of Object.entries<SemanticViewTable>(
-      tables,
-    )) {
+    const tables = view.tables || {};
+    for (const [tableName, tableInfo] of Object.entries<SemanticViewTable>(tables)) {
       parts.push(`Table: ${tableName}`);
-      if (tableInfo.description)
-        parts.push(`  Description: ${tableInfo.description}`);
+      if (tableInfo.description) parts.push(`  Description: ${tableInfo.description}`);
       if (tableInfo.primary_key) {
         const pk = Array.isArray(tableInfo.primary_key)
           ? tableInfo.primary_key.join(', ')
@@ -145,9 +133,7 @@ export class DatabaseService {
 
       if (tableInfo.columns) {
         parts.push('  Columns:');
-        for (const [colName, colDesc] of Object.entries<string>(
-          tableInfo.columns,
-        )) {
+        for (const [colName, colDesc] of Object.entries<string>(tableInfo.columns)) {
           parts.push(`    - ${colName}: ${colDesc}`);
         }
       }
@@ -199,9 +185,7 @@ export class DatabaseService {
       );
       return result.rows.map((row) => String(row.tablename));
     } catch (err) {
-      this.logger.error(
-        `Failed to get table names: ${this.extractDbErrorMessage(err)}`,
-      );
+      this.logger.error(`Failed to get table names: ${this.extractDbErrorMessage(err)}`);
       return [];
     }
   }
@@ -221,10 +205,7 @@ export class DatabaseService {
       `,
         [tableName, tenantSchema, vocabSchema],
       );
-      return result.rows.map((row) => [
-        String(row.column_name),
-        String(row.data_type),
-      ]);
+      return result.rows.map((row) => [String(row.column_name), String(row.data_type)]);
     } catch (err) {
       this.logger.error(
         `Failed to get schema for table ${tableName}: ${this.extractDbErrorMessage(err)}`,
@@ -254,9 +235,7 @@ export class DatabaseService {
       const tenantPool = this.getTenantPool();
 
       // 1. Count omop_vocab.concept rows
-      const countResult = await tenantPool.query(
-        `SELECT COUNT(*) AS cnt FROM omop_vocab.concept`,
-      );
+      const countResult = await tenantPool.query(`SELECT COUNT(*) AS cnt FROM omop_vocab.concept`);
       const conceptCount = Number(countResult.rows[0]?.cnt ?? 0);
 
       // 2. Check required visit concept IDs
@@ -265,12 +244,8 @@ export class DatabaseService {
          WHERE concept_id = ANY($1::int[])`,
         [REQUIRED_VISIT_CONCEPT_IDS],
       );
-      const foundIds = new Set(
-        foundResult.rows.map((r) => Number(r.concept_id)),
-      );
-      const missingVisitConceptIds = REQUIRED_VISIT_CONCEPT_IDS.filter(
-        (id) => !foundIds.has(id),
-      );
+      const foundIds = new Set(foundResult.rows.map((r) => Number(r.concept_id)));
+      const missingVisitConceptIds = REQUIRED_VISIT_CONCEPT_IDS.filter((id) => !foundIds.has(id));
 
       const conceptTableNonEmpty = conceptCount > 0;
       const requiredVisitConceptsPresent = missingVisitConceptIds.length === 0;
@@ -364,9 +339,7 @@ export class DatabaseService {
       ]);
 
       const coveragePct =
-        visitStats.total > 0
-          ? Math.round((visitStats.joinable / visitStats.total) * 1000) / 10
-          : 0;
+        visitStats.total > 0 ? Math.round((visitStats.joinable / visitStats.total) * 1000) / 10 : 0;
 
       return {
         profile: 'synthetic_open',
@@ -379,9 +352,7 @@ export class DatabaseService {
         },
       };
     } catch (err) {
-      this.logger.error(
-        `getOmopVocabStatus failed: ${this.extractDbErrorMessage(err)}`,
-      );
+      this.logger.error(`getOmopVocabStatus failed: ${this.extractDbErrorMessage(err)}`);
       return {
         profile: 'unknown',
         vocabConceptCount: 0,
@@ -421,9 +392,7 @@ export class DatabaseService {
       // Filtering patient_id from sample data
       const filteredSample = sampleResult.rows.map((row) => {
         return Object.fromEntries(
-          Object.entries(row).filter(
-            ([key]) => !['patient_id', 'patient_id'].includes(key),
-          ),
+          Object.entries(row).filter(([key]) => !['patient_id', 'patient_id'].includes(key)),
         );
       });
 
@@ -457,16 +426,12 @@ export class DatabaseService {
       // Filter out patient_id from results
       const filteredRows: KpiRow[] = rows.map((row) => {
         return Object.fromEntries(
-          Object.entries(row).filter(
-            ([key]) => !['patient_id', 'patient_id'].includes(key),
-          ),
+          Object.entries(row).filter(([key]) => !['patient_id', 'patient_id'].includes(key)),
         ) as unknown as KpiRow;
       });
 
       return {
-        columns: columns.filter(
-          (c) => !['patient_id', 'patient_id'].includes(c),
-        ),
+        columns: columns.filter((c) => !['patient_id', 'patient_id'].includes(c)),
         data: filteredRows,
         row_count: filteredRows.length,
       };

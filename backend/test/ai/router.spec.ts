@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { routerNode } from '@/ai/agents/router-agent';
 import { createInitialState } from '@/ai/state';
 
@@ -33,9 +33,7 @@ describe('routerNode', () => {
     const result = await routerNode(state, deps as never);
 
     expect(result.routing_decision).toBe('DOMAIN_KNOWLEDGE');
-    expect(result.thoughts).toContain(
-      '🧭 Router: User is asking about schema contents.',
-    );
+    expect(result.thoughts).toContain('🧭 Router: User is asking about schema contents.');
   });
 
   it('falls back to legacy type/reason JSON shape', async () => {
@@ -50,8 +48,6 @@ describe('routerNode', () => {
     const result = await routerNode(state, deps as never);
 
     expect(result.routing_decision).toBe('DATA');
-    expect(result.thoughts).toContain(
-      '🧭 Router: Requires ranking rows from database tables.',
-    );
+    expect(result.thoughts).toContain('🧭 Router: Requires ranking rows from database tables.');
   });
 });

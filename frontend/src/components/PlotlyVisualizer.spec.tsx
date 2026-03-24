@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/experimental-ct-react';
+import { expect, test } from '@playwright/experimental-ct-react';
 import PlotlyVisualizer from './PlotlyVisualizer';
 
 test.use({ viewport: { width: 500, height: 500 } });
@@ -15,7 +15,7 @@ test('renders specific chart selector when valid data provided', async ({ mount 
       { Category: 'A', Value: 10 },
       { Category: 'B', Value: 20 },
     ],
-    row_count: 2
+    row_count: 2,
   };
 
   const component = await mount(<PlotlyVisualizer data={data} visualizationType="bar" />);

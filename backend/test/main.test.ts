@@ -7,9 +7,9 @@
  * tests run without any external LLM API keys.
  */
 import { NestFactory } from '@nestjs/core';
-import { AppTestModule } from './app-test.module';
 import { Logger } from 'nestjs-pino';
 import { config } from '../src/config/env.config';
+import { AppTestModule } from './app-test.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppTestModule, { bufferLogs: true });

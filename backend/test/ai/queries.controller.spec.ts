@@ -1,14 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { QueriesController } from '@/ai/queries.controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GraphBuilder } from '@/ai/graph';
-import { ThreadsService } from '@/threads/threads.service';
-import { ThreadMemoryService } from '@/threads/thread-memory.service';
-import { UserMemoryPreferencesService } from '@/threads/user-memory-preferences.service';
-import { DatabaseService } from '@/database/database.service';
 import { InsightService } from '@/ai/insight.service';
+import { QueriesController } from '@/ai/queries.controller';
 import { VisualizationService } from '@/ai/visualization.service';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { DatabaseService } from '@/database/database.service';
+import { ThreadMemoryService } from '@/threads/thread-memory.service';
+import { ThreadsService } from '@/threads/threads.service';
+import { UserMemoryPreferencesService } from '@/threads/user-memory-preferences.service';
 
 describe('QueriesController', () => {
   let controller: QueriesController;
@@ -155,10 +155,7 @@ describe('QueriesController', () => {
     });
 
     it('returns sql, data, insight, visualization_type and meta', async () => {
-      const result = await controller.query(
-        { question: 'show persons' },
-        mockReq,
-      );
+      const result = await controller.query({ question: 'show persons' }, mockReq);
       expect(result).toMatchObject({
         sql: expect.any(String),
         data: expect.any(Object),
@@ -169,10 +166,7 @@ describe('QueriesController', () => {
     });
 
     it('skips memory when enable_memory is false', async () => {
-      await controller.query(
-        { question: 'show persons', enable_memory: false },
-        mockReq,
-      );
+      await controller.query({ question: 'show persons', enable_memory: false }, mockReq);
 
       expect(threadMemoryService.upsertThreadMemory).not.toHaveBeenCalled();
     });
@@ -192,10 +186,7 @@ describe('QueriesController', () => {
         reflections: [],
       });
 
-      const result = await controller.query(
-        { question: 'what data is in my database?' },
-        mockReq,
-      );
+      const result = await controller.query({ question: 'what data is in my database?' }, mockReq);
 
       expect(result.insight).toBe('Schema summary from meta agent');
       expect(result.visualization_type).toBe('text');

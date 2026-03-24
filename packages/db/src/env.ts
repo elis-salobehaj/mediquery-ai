@@ -17,9 +17,7 @@ export type DbEnv = z.infer<typeof DbEnvSchema>;
 export const loadDbEnv = (): DbEnv => {
   const parsed = DbEnvSchema.safeParse(process.env);
   if (!parsed.success) {
-    throw new Error(
-      `Invalid DB environment: ${JSON.stringify(parsed.error.format())}`,
-    );
+    throw new Error(`Invalid DB environment: ${JSON.stringify(parsed.error.format())}`);
   }
   return parsed.data;
 };

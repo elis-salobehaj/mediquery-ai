@@ -5,9 +5,7 @@ export class QuotaExceededException extends Error {
     public readonly limit: number,
     public readonly month: string,
   ) {
-    super(
-      `Monthly token quota exceeded for user ${userId}. Used: ${used}, Limit: ${limit}.`,
-    );
+    super(`Monthly token quota exceeded for user ${userId}. Used: ${used}, Limit: ${limit}.`);
     this.name = 'QuotaExceededException';
   }
 }

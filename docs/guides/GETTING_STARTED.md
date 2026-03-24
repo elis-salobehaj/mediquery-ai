@@ -16,7 +16,7 @@
 
 ### Recommended
 
-- **VS Code** with ESLint, Prettier, and Playwright extensions.
+- **VS Code** with the Biome and Playwright extensions.
 - **Chrome** or **Edge** (for frontend debugging)
 
 ---

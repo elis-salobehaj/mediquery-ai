@@ -1,12 +1,11 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { criticNode } from '@/ai/agents/critic-agent';
 import { createInitialState } from '@/ai/state';
 
 describe('criticNode', () => {
   it('downgrades alias false-positives and advisory notes to warnings', async () => {
     const state = createInitialState('top 10 diagnoses by prevalence');
-    state.generated_sql =
-      'SELECT co.condition_concept_id FROM condition_occurrence co';
+    state.generated_sql = 'SELECT co.condition_concept_id FROM condition_occurrence co';
     state.table_schemas = {
       condition_occurrence: 'person_id, condition_concept_id',
       concept: 'concept_id, concept_name',
@@ -91,9 +90,7 @@ describe('criticNode', () => {
             content: JSON.stringify({
               valid: false,
               severity: 'high',
-              issues: [
-                'Column `bad_column` does not exist in `condition_occurrence`.',
-              ],
+              issues: ['Column `bad_column` does not exist in `condition_occurrence`.'],
               fixes: ['Replace `bad_column` with `condition_concept_id`.'],
             }),
             usage_metadata: { input_tokens: 1, output_tokens: 1 },

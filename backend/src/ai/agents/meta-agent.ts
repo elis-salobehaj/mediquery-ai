@@ -1,17 +1,13 @@
+import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { Logger } from '@nestjs/common';
-import { HumanMessage, AIMessage } from '@langchain/core/messages';
-import { GraphState } from '@/ai/state';
 import { addThought } from '@/ai/common';
 import { QuotaExceededException } from '@/ai/exceptions';
-import {
-  TokenUsageService,
-  Provider,
-  AgentRole,
-} from '@/token-usage/token-usage.service';
-import type { LangChainLLMResponse } from '@/common/types';
 import { LLMService } from '@/ai/llm.service';
-import { DatabaseService } from '@/database/database.service';
+import { GraphState } from '@/ai/state';
+import type { LangChainLLMResponse } from '@/common/types';
 import { ConfigService } from '@/config/config.service';
+import { DatabaseService } from '@/database/database.service';
+import { AgentRole, Provider, TokenUsageService } from '@/token-usage/token-usage.service';
 
 const logger = new Logger('MetaAgentNode');
 
@@ -38,8 +34,7 @@ function parseMetaAgentResponse(raw: string): MetaAgentResponse {
     if (typeof parsed.answer === 'string') {
       return {
         answer: parsed.answer,
-        thought:
-          typeof parsed.thought === 'string' ? parsed.thought : undefined,
+        thought: typeof parsed.thought === 'string' ? parsed.thought : undefined,
       };
     }
   } catch {
@@ -67,8 +62,7 @@ export async function metaAgentNode(
 
     // 1. Quota check
     if (userId) {
-      const [canProceed, used, limit] =
-        await deps.tokenUsageService.checkMonthlyLimit(userId);
+      const [canProceed, used, limit] = await deps.tokenUsageService.checkMonthlyLimit(userId);
       if (!canProceed) {
         const currentMonth = new Date().toISOString().slice(0, 7);
         throw new QuotaExceededException(userId, used, limit, currentMonth);
@@ -81,9 +75,7 @@ export async function metaAgentNode(
     for (const tableName of tables) {
       const schema = await deps.dbService.getTableSchema(tableName);
       if (schema.length > 0) {
-        const columnsStr = schema
-          .map(([col, dtype]) => `${col} ${dtype}`)
-          .join(', ');
+        const columnsStr = schema.map(([col, dtype]) => `${col} ${dtype}`).join(', ');
         tableSchemas[tableName] = `CREATE TABLE ${tableName} (${columnsStr})`;
       }
     }
@@ -109,15 +101,10 @@ Your Goal:
 Return strict JSON only:
 {"thought":"one short sentence on how you approached this","answer":"final user-facing response"}`;
 
-    const llm = deps.llmService.createChatModel(
-      overrides?.model || 'base',
-      overrides?.provider,
-    );
+    const llm = deps.llmService.createChatModel(overrides?.model || 'base', overrides?.provider);
     const response = await llm.invoke([new HumanMessage(prompt)]);
     const rawResponse = (
-      typeof response.content === 'string'
-        ? response.content
-        : JSON.stringify(response.content)
+      typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
     ).trim();
     const parsed = parseMetaAgentResponse(rawResponse);
     const answer = parsed.answer;
@@ -125,11 +112,9 @@ Return strict JSON only:
     // 3. Track Usage
     const usage = (response as LangChainLLMResponse).usage_metadata;
     if (userId && usage) {
-      const provider = (overrides?.provider ||
-        deps.config.getActiveProvider()) as Provider;
+      const provider = (overrides?.provider || deps.config.getActiveProvider()) as Provider;
       const model =
-        overrides?.model ||
-        deps.config.getActiveModelForRole('base', overrides?.provider);
+        overrides?.model || deps.config.getActiveModelForRole('base', overrides?.provider);
 
       await deps.tokenUsageService.logTokenUsage(
         userId,
@@ -147,10 +132,7 @@ Return strict JSON only:
     addThought(state, `✅ MetaAgent: Provided answer (${answer.length} chars)`);
 
     return {
-      messages: [
-        ...state.messages,
-        new AIMessage({ content: answer, name: 'meta_agent' }),
-      ],
+      messages: [...state.messages, new AIMessage({ content: answer, name: 'meta_agent' })],
     };
   } catch (err) {
     if (err instanceof QuotaExceededException) {

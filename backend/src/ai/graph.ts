@@ -1,22 +1,19 @@
-import { StateGraph, END, START } from '@langchain/langgraph';
 import type { BaseMessage } from '@langchain/core/messages';
-import { GraphState } from '@/ai/state';
-import { routerNode, RouterDeps } from '@/ai/agents/router-agent';
-import {
-  schemaNavigatorNode,
-  NavigatorDeps,
-} from '@/ai/agents/schema-navigator-agent';
-import { sqlWriterNode, SQLWriterDeps } from '@/ai/agents/sql-writer-agent';
-import { criticNode, CriticDeps } from '@/ai/agents/critic-agent';
-import { metaAgentNode, MetaAgentDeps } from '@/ai/agents/meta-agent';
-import { reflectorNode, ReflectorDeps } from '@/ai/agents/reflector-agent';
-import { policyGateNode } from '@/ai/agents/policy-gate';
+import { END, START, StateGraph } from '@langchain/langgraph';
 import { Injectable, Logger } from '@nestjs/common';
+import { CriticDeps, criticNode } from '@/ai/agents/critic-agent';
+import { MetaAgentDeps, metaAgentNode } from '@/ai/agents/meta-agent';
+import { policyGateNode } from '@/ai/agents/policy-gate';
+import { ReflectorDeps, reflectorNode } from '@/ai/agents/reflector-agent';
+import { RouterDeps, routerNode } from '@/ai/agents/router-agent';
+import { NavigatorDeps, schemaNavigatorNode } from '@/ai/agents/schema-navigator-agent';
+import { SQLWriterDeps, sqlWriterNode } from '@/ai/agents/sql-writer-agent';
 import { LLMService } from '@/ai/llm.service';
-import { TokenUsageService } from '@/token-usage/token-usage.service';
-import { DatabaseService } from '@/database/database.service';
-import { ConfigService } from '@/config/config.service';
 import { PromptService } from '@/ai/prompt.service';
+import { GraphState } from '@/ai/state';
+import { ConfigService } from '@/config/config.service';
+import { DatabaseService } from '@/database/database.service';
+import { TokenUsageService } from '@/token-usage/token-usage.service';
 
 const logger = new Logger('WorkflowGraph');
 
@@ -38,7 +35,6 @@ export class GraphBuilder {
   ) {}
 
   public build() {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     const workflow = new StateGraph<GraphState>({
       channels: {
         original_query: {
@@ -61,29 +57,20 @@ export class GraphBuilder {
           }),
         },
         navigator_contract: {
-          value: (
-            _x: GraphState['navigator_contract'],
-            y: GraphState['navigator_contract'],
-          ) => y,
+          value: (_x: GraphState['navigator_contract'], y: GraphState['navigator_contract']) => y,
         },
         generated_sql: {
           value: (x: string, y: string) => y,
         },
         validation_result: {
-          value: (
-            _x: GraphState['validation_result'],
-            y: GraphState['validation_result'],
-          ) => y,
+          value: (_x: GraphState['validation_result'], y: GraphState['validation_result']) => y,
         },
         reflections: {
           value: (x: string[], y: string[]) => x.concat(y),
           default: () => [],
         },
         reflector_contract: {
-          value: (
-            _x: GraphState['reflector_contract'],
-            y: GraphState['reflector_contract'],
-          ) => y,
+          value: (_x: GraphState['reflector_contract'], y: GraphState['reflector_contract']) => y,
         },
         previous_sqls: {
           value: (x: string[], y: string[]) => x.concat(y),
@@ -121,17 +108,15 @@ export class GraphBuilder {
           value: (_x: string, y: string) => y,
         },
         scoped_memory: {
-          value: (
-            _x: GraphState['scoped_memory'],
-            y: GraphState['scoped_memory'],
-          ) => y,
+          value: (_x: GraphState['scoped_memory'], y: GraphState['scoped_memory']) => y,
         },
         fast_mode: {
           value: (_x: boolean, y: boolean) => y,
           default: () => false,
         },
       },
-    } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+      // biome-ignore lint/suspicious/noExplicitAny: LangGraph's imperative builder still needs a one-time escape hatch here.
+    } as any);
 
     /**
      * LangGraph's TypeScript generics track node names through chained calls.
@@ -141,10 +126,7 @@ export class GraphBuilder {
     type ImperativeGraph = {
       addNode: (name: string, fn: (state: GraphState) => unknown) => void;
       addEdge: (from: string, to: string) => void;
-      addConditionalEdges: (
-        from: string,
-        router: (state: GraphState) => string,
-      ) => void;
+      addConditionalEdges: (from: string, router: (state: GraphState) => string) => void;
       compile: typeof workflow.compile;
     };
     const w = workflow as unknown as ImperativeGraph;
@@ -202,9 +184,7 @@ export class GraphBuilder {
     // Conditional edges from router
     w.addConditionalEdges('router', (state: GraphState) => {
       const decision = state.routing_decision || 'DATA';
-      logger.log(
-        `[ROUTING] request_id=${state.request_id || 'n/a'} router_decision=${decision}`,
-      );
+      logger.log(`[ROUTING] request_id=${state.request_id || 'n/a'} router_decision=${decision}`);
       if (decision === 'DOMAIN_KNOWLEDGE') return 'meta_agent';
       if (decision === 'OFF_TOPIC') return END;
       return 'policy_gate';
@@ -249,18 +229,14 @@ export class GraphBuilder {
 
       // Check max attempts
       if (state.attempt_count >= state.max_attempts) {
-        logger.warn(
-          `[SHOULD_CONTINUE] Max attempts (${state.max_attempts}) reached - ending`,
-        );
+        logger.warn(`[SHOULD_CONTINUE] Max attempts (${state.max_attempts}) reached - ending`);
         return END;
       }
 
       logger.log(
         `[SHOULD_CONTINUE] request_id=${
           state.request_id || 'n/a'
-        } retrying SQL generation (attempt ${
-          state.attempt_count + 1
-        }/${state.max_attempts})`,
+        } retrying SQL generation (attempt ${state.attempt_count + 1}/${state.max_attempts})`,
       );
       return 'reflector';
     });

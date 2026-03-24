@@ -1,22 +1,14 @@
+import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { Logger } from '@nestjs/common';
-import { HumanMessage, AIMessage } from '@langchain/core/messages';
-import { GraphState } from '@/ai/state';
-import {
-  addThought,
-  enforceReadOnlySql,
-  enforceSqlComplexity,
-} from '@/ai/common';
+import { addThought, enforceReadOnlySql, enforceSqlComplexity } from '@/ai/common';
 import { QuotaExceededException } from '@/ai/exceptions';
-import {
-  TokenUsageService,
-  Provider,
-  AgentRole,
-} from '@/token-usage/token-usage.service';
 import { LLMService } from '@/ai/llm.service';
 import { PromptService } from '@/ai/prompt.service';
-import { DatabaseService } from '@/database/database.service';
-import { ConfigService } from '@/config/config.service';
+import { GraphState } from '@/ai/state';
 import type { LangChainLLMResponse } from '@/common/types';
+import { ConfigService } from '@/config/config.service';
+import { DatabaseService } from '@/database/database.service';
+import { AgentRole, Provider, TokenUsageService } from '@/token-usage/token-usage.service';
 
 const logger = new Logger('CriticNode');
 
@@ -81,9 +73,7 @@ function isAdvisoryIssue(issue: string): boolean {
 
 function triageSemanticIssues(contract: CriticContract): SemanticIssueTriage {
   const normalizedIssues = Array.from(
-    new Set(
-      (contract.issues || []).map(normalizeSemanticIssue).filter(Boolean),
-    ),
+    new Set((contract.issues || []).map(normalizeSemanticIssue).filter(Boolean)),
   );
 
   const blockingIssues: string[] = [];
@@ -133,12 +123,8 @@ function parseCriticContract(raw: string): CriticContract | null {
     return {
       valid: Boolean(parsed.valid),
       severity,
-      issues: Array.isArray(parsed.issues)
-        ? parsed.issues.map((issue) => String(issue))
-        : [],
-      fixes: Array.isArray(parsed.fixes)
-        ? parsed.fixes.map((fix) => String(fix))
-        : [],
+      issues: Array.isArray(parsed.issues) ? parsed.issues.map((issue) => String(issue)) : [],
+      fixes: Array.isArray(parsed.fixes) ? parsed.fixes.map((fix) => String(fix)) : [],
     };
   } catch {
     return null;
@@ -176,10 +162,7 @@ export async function criticNode(
   }
 
   if (state.generated_sql === 'UNSUPPORTED_QUERY') {
-    addThought(
-      state,
-      '🛑 Critic: Unsupported intent marked by upstream agents',
-    );
+    addThought(state, '🛑 Critic: Unsupported intent marked by upstream agents');
     return {
       validation_result: {
         valid: false,
@@ -222,9 +205,7 @@ export async function criticNode(
         valid: false,
         severity: 'high',
         issues: complexityCheck.issues,
-        fixes: [
-          'Reduce joins/UNION usage and add LIMIT for high-cardinality queries',
-        ],
+        fixes: ['Reduce joins/UNION usage and add LIMIT for high-cardinality queries'],
         error: 'QUERY_COMPLEXITY_LIMIT',
         row_count: 0,
         warnings: [],
@@ -241,20 +222,12 @@ export async function criticNode(
     let criticContract: CriticContract = {
       valid: validation.valid,
       severity: validation.valid ? 'none' : 'high',
-      issues: validation.valid
-        ? []
-        : [validation.error || 'SQL validation failed'],
-      fixes: validation.valid
-        ? []
-        : ['Fix SQL syntax/schema issues and retry generation'],
+      issues: validation.valid ? [] : [validation.error || 'SQL validation failed'],
+      fixes: validation.valid ? [] : ['Fix SQL syntax/schema issues and retry generation'],
     };
 
     if (validation.valid) {
-      const semanticCritique = await getSemanticCritique(
-        state,
-        deps,
-        overrides,
-      );
+      const semanticCritique = await getSemanticCritique(state, deps, overrides);
       if (semanticCritique) {
         criticContract = semanticCritique;
       }
@@ -271,8 +244,7 @@ export async function criticNode(
 
       if (triagedIssues.shouldBlock) {
         validation.valid = false;
-        validation.error =
-          triagedIssues.blockingIssues[0] || 'Semantic validation failed';
+        validation.error = triagedIssues.blockingIssues[0] || 'Semantic validation failed';
         addThought(
           state,
           `🔄 Critic: Found blocking semantic issues - ${triagedIssues.blockingIssues.join('; ')}`,
@@ -309,10 +281,7 @@ export async function criticNode(
         warnings: validation.warnings,
       },
       thoughts: state.thoughts,
-      messages: [
-        ...state.messages,
-        new AIMessage({ content: msg, name: 'critic' }),
-      ],
+      messages: [...state.messages, new AIMessage({ content: msg, name: 'critic' })],
     };
   } catch (err) {
     if (err instanceof QuotaExceededException) {
@@ -348,18 +317,14 @@ async function getSemanticCritique(
 
   // 1. Quota check
   if (userId) {
-    const [canProceed, used, limit] =
-      await deps.tokenUsageService.checkMonthlyLimit(userId);
+    const [canProceed, used, limit] = await deps.tokenUsageService.checkMonthlyLimit(userId);
     if (!canProceed) {
       const currentMonth = new Date().toISOString().slice(0, 7);
       throw new QuotaExceededException(userId, used, limit, currentMonth);
     }
   }
 
-  const llm = deps.llmService.createChatModel(
-    overrides?.model || 'critic',
-    overrides?.provider,
-  );
+  const llm = deps.llmService.createChatModel(overrides?.model || 'critic', overrides?.provider);
   const schemaContext = Object.entries(state.table_schemas || {})
     .map(([table, schema]) => `${table}: ${schema}`)
     .join('\n');
@@ -393,19 +358,15 @@ Respond ONLY in JSON format:
     const response = await llm.invoke([new HumanMessage(prompt)]);
     const llmDurationMs = Date.now() - llmStartMs;
     const content =
-      typeof response.content === 'string'
-        ? response.content
-        : JSON.stringify(response.content);
+      typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
     const parsed = parseCriticContract(content);
 
     // Track usage
     const usage = (response as LangChainLLMResponse).usage_metadata;
     if (userId && usage) {
-      const provider = (overrides?.provider ||
-        deps.config.getActiveProvider()) as Provider;
+      const provider = (overrides?.provider || deps.config.getActiveProvider()) as Provider;
       const model =
-        overrides?.model ||
-        deps.config.getActiveModelForRole('critic', overrides?.provider);
+        overrides?.model || deps.config.getActiveModelForRole('critic', overrides?.provider);
 
       await deps.tokenUsageService.logTokenUsage(
         userId,
@@ -430,9 +391,7 @@ Respond ONLY in JSON format:
     }
     return parsed;
   } catch (err) {
-    logger.error(
-      `Semantic critique error: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    logger.error(`Semantic critique error: ${err instanceof Error ? err.message : String(err)}`);
     return null;
   }
 }

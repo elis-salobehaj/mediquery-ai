@@ -15,11 +15,7 @@ function escapeCsvField(value: unknown): string {
   const stringValue = String(value);
 
   // If the value contains comma, newline, or quote, wrap it in quotes
-  if (
-    stringValue.includes(',') ||
-    stringValue.includes('\n') ||
-    stringValue.includes('"')
-  ) {
+  if (stringValue.includes(',') || stringValue.includes('\n') || stringValue.includes('"')) {
     // Double any quotes and wrap in quotes
     return `"${stringValue.replace(/"/g, '""')}"`;
   }
@@ -45,8 +41,7 @@ export function exportToCSV(
   }
 
   // Handle missing columns - fall back to keys from first object
-  const csvColumns =
-    columns && columns.length > 0 ? columns : Object.keys(data[0]);
+  const csvColumns = columns && columns.length > 0 ? columns : Object.keys(data[0]);
 
   // Create CSV header row
   const headerRow = csvColumns.map((col) => escapeCsvField(col)).join(',');

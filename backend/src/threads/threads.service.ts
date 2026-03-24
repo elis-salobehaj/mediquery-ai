@@ -1,18 +1,13 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { desc, eq, sql } from 'drizzle-orm';
 import { DatabaseService } from '@/database/database.service';
-import { chatThreads, chatMessages } from '@/database/schema';
-import { eq, desc, sql } from 'drizzle-orm';
+import { chatMessages, chatThreads } from '@/database/schema';
 
 @Injectable()
 export class ThreadsService {
-  private readonly logger = new Logger(ThreadsService.name);
-
   constructor(private readonly db: DatabaseService) {}
 
-  async createThread(
-    userId: string,
-    title: string = 'New Chat',
-  ): Promise<string> {
+  async createThread(userId: string, title: string = 'New Chat'): Promise<string> {
     const result = await this.db.pg
       .insert(chatThreads)
       .values({
@@ -46,10 +41,7 @@ export class ThreadsService {
   }
 
   async deleteThread(threadId: string) {
-    await this.db.pg
-      .delete(chatThreads)
-      .where(eq(chatThreads.id, threadId))
-      .execute();
+    await this.db.pg.delete(chatThreads).where(eq(chatThreads.id, threadId)).execute();
   }
 
   async updateThread(threadId: string, title?: string, pinned?: boolean) {
@@ -77,23 +69,15 @@ export class ThreadsService {
   }
 
   async getThreadMessages(threadId: string, limit?: number) {
-    const query = this.db.pg
-      .select()
-      .from(chatMessages)
-      .where(eq(chatMessages.threadId, threadId));
+    const query = this.db.pg.select().from(chatMessages).where(eq(chatMessages.threadId, threadId));
 
     const messages =
       typeof limit === 'number' && limit > 0
-        ? await query
-            .orderBy(desc(chatMessages.createdAt))
-            .limit(limit)
-            .execute()
+        ? await query.orderBy(desc(chatMessages.createdAt)).limit(limit).execute()
         : await query.orderBy(chatMessages.createdAt).execute();
 
     const orderedMessages =
-      typeof limit === 'number' && limit > 0
-        ? [...messages].reverse()
-        : messages;
+      typeof limit === 'number' && limit > 0 ? [...messages].reverse() : messages;
 
     return orderedMessages.map((m) => ({
       id: m.id,

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { config, AppConfig } from './env.config';
+import { AppConfig, config } from './env.config';
 
 @Injectable()
 export class ConfigService {
@@ -34,12 +34,9 @@ export class ConfigService {
    * critic, base, router.
    */
   getActiveModelForRole(role: string, providerOverride?: string): string {
-    const provider = (
-      providerOverride || this.getActiveProvider()
-    ).toUpperCase();
+    const provider = (providerOverride || this.getActiveProvider()).toUpperCase();
     const r = role.replace('-', '_').toUpperCase();
-    const key =
-      `${provider}_${r}_MODEL` as keyof import('./env.config').AppConfig;
+    const key = `${provider}_${r}_MODEL` as keyof import('./env.config').AppConfig;
     return (this.all[key] as string | undefined) || '';
   }
 }

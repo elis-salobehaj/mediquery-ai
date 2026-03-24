@@ -1,16 +1,12 @@
+import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { Logger } from '@nestjs/common';
-import { HumanMessage, AIMessage } from '@langchain/core/messages';
-import { GraphState } from '@/ai/state';
 import { addThought } from '@/ai/common';
 import { QuotaExceededException } from '@/ai/exceptions';
-import {
-  TokenUsageService,
-  Provider,
-  AgentRole,
-} from '@/token-usage/token-usage.service';
-import type { LangChainLLMResponse } from '@/common/types';
 import { LLMService } from '@/ai/llm.service';
+import { GraphState } from '@/ai/state';
+import type { LangChainLLMResponse } from '@/common/types';
 import { ConfigService } from '@/config/config.service';
+import { AgentRole, Provider, TokenUsageService } from '@/token-usage/token-usage.service';
 
 const logger = new Logger('RouterNode');
 
@@ -25,9 +21,7 @@ interface RouterDecision {
   thought: string;
 }
 
-function normalizeDecision(
-  raw: string,
-): 'DATA' | 'DOMAIN_KNOWLEDGE' | 'OFF_TOPIC' {
+function normalizeDecision(raw: string): 'DATA' | 'DOMAIN_KNOWLEDGE' | 'OFF_TOPIC' {
   const decision = raw.toUpperCase();
   if (decision.includes('DATA')) {
     return 'DATA';
@@ -99,8 +93,7 @@ export async function routerNode(
 
   // 1. Quota check
   if (userId) {
-    const [canProceed, used, limit] =
-      await deps.tokenUsageService.checkMonthlyLimit(userId);
+    const [canProceed, used, limit] = await deps.tokenUsageService.checkMonthlyLimit(userId);
     if (!canProceed) {
       const currentMonth = new Date().toISOString().slice(0, 7);
       throw new QuotaExceededException(userId, used, limit, currentMonth);
@@ -131,9 +124,7 @@ Return strict JSON only:
 
     // LangChain.js BaseMessage.content can be string or MessageContent[]
     const responseContent = (
-      typeof response.content === 'string'
-        ? response.content
-        : JSON.stringify(response.content)
+      typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
     ).trim();
 
     const parsedDecision = parseRouterResponse(responseContent);
@@ -141,11 +132,9 @@ Return strict JSON only:
     // 3. Track Usage
     const usage = (response as LangChainLLMResponse).usage_metadata;
     if (userId && usage) {
-      const provider = (overrides?.provider ||
-        deps.config.getActiveProvider()) as Provider;
+      const provider = (overrides?.provider || deps.config.getActiveProvider()) as Provider;
       const model =
-        overrides?.model ||
-        deps.config.getActiveModelForRole('navigator', overrides?.provider);
+        overrides?.model || deps.config.getActiveModelForRole('navigator', overrides?.provider);
 
       await deps.tokenUsageService.logTokenUsage(
         userId,
@@ -182,8 +171,7 @@ Return strict JSON only:
       updates.messages = [
         ...state.messages,
         new AIMessage({
-          content:
-            'I can only help with questions about the Mediquery medical database.',
+          content: 'I can only help with questions about the Mediquery medical database.',
           name: 'router',
         }),
       ];

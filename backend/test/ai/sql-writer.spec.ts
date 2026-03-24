@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { sqlWriterNode } from '@/ai/agents/sql-writer-agent';
 import { createInitialState } from '@/ai/state';
 
@@ -35,8 +35,7 @@ describe('sqlWriterNode', () => {
     const state = createInitialState('top person by duration');
     state.selected_tables = ['person', 'visit_occurrence'];
     state.table_schemas = {
-      person:
-        'CREATE TABLE person (person_id integer, person_source_value text)',
+      person: 'CREATE TABLE person (person_id integer, person_source_value text)',
       visit_occurrence:
         'CREATE TABLE visit_occurrence (person_id integer, visit_start_date date, visit_end_date date)',
     };
@@ -44,10 +43,8 @@ describe('sqlWriterNode', () => {
     const deps = buildDeps(
       JSON.stringify({
         sql: 'SELECT p.person_source_value FROM person p JOIN visit_occurrence v ON p.person_id = v.person_id ORDER BY v.visit_start_date DESC LIMIT 10',
-        thought:
-          'Join person demographics with visit occurrence for timeline analysis.',
-        table_strategy:
-          'Use person as base and visit_occurrence for encounter dates.',
+        thought: 'Join person demographics with visit occurrence for timeline analysis.',
+        table_strategy: 'Use person as base and visit_occurrence for encounter dates.',
       }),
     );
 

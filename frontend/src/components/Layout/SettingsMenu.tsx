@@ -1,7 +1,7 @@
-import React from 'react';
-import { FiMoon, FiSun, FiMonitor, FiLogOut, FiSliders } from 'react-icons/fi';
-import { FaStethoscope } from 'react-icons/fa';
 import { Check } from 'lucide-react';
+import React from 'react';
+import { FaStethoscope } from 'react-icons/fa';
+import { FiLogOut, FiMonitor, FiMoon, FiSliders, FiSun } from 'react-icons/fi';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,15 +51,13 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({
         sideOffset={8}
       >
         {/* Theme selection */}
-        <DropdownMenuLabel className="text-muted-foreground text-xs font-bold tracking-wider uppercase">
+        <DropdownMenuLabel className="font-bold text-muted-foreground text-xs uppercase tracking-wider">
           Appearance
         </DropdownMenuLabel>
 
         <DropdownMenuRadioGroup
           value={theme}
-          onValueChange={(v) =>
-            setTheme(v as 'light' | 'dark' | 'clinical-slate' | 'system')
-          }
+          onValueChange={(v) => setTheme(v as 'light' | 'dark' | 'clinical-slate' | 'system')}
         >
           {themeOptions.map(({ value, label, icon: Icon }) => (
             <DropdownMenuRadioItem
@@ -69,16 +67,14 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({
             >
               <Icon size={15} />
               <span>{label}</span>
-              {theme === value && (
-                <Check size={13} className="text-primary ml-auto" />
-              )}
+              {theme === value && <Check size={13} className="ml-auto text-primary" />}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
 
         <DropdownMenuSeparator />
 
-        <DropdownMenuLabel className="text-muted-foreground text-xs font-bold tracking-wider uppercase">
+        <DropdownMenuLabel className="font-bold text-muted-foreground text-xs uppercase tracking-wider">
           User Preferences
         </DropdownMenuLabel>
         <DropdownMenuItem
@@ -95,9 +91,7 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({
         <DropdownMenuSeparator />
 
         {/* Help / About */}
-        <DropdownMenuItem className="cursor-pointer">
-          Help &amp; Support
-        </DropdownMenuItem>
+        <DropdownMenuItem className="cursor-pointer">Help &amp; Support</DropdownMenuItem>
         <DropdownMenuItem className="cursor-pointer">
           About {import.meta.env.VITE_APP_TITLE || 'MediqueryAI'}
         </DropdownMenuItem>
@@ -106,7 +100,7 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({
 
         {/* Sign out */}
         <DropdownMenuItem
-          className="text-destructive focus:text-destructive cursor-pointer gap-2"
+          className="cursor-pointer gap-2 text-destructive focus:text-destructive"
           onClick={() => {
             onLogout();
             onClose();

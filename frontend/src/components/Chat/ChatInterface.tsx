@@ -1,26 +1,16 @@
-import React, { useEffect, useRef, Component, useState } from 'react';
-import type { ErrorInfo } from 'react';
-import ReactMarkdown from 'react-markdown';
-import {
-  FiDatabase,
-  FiDownload,
-  FiChevronDown,
-  FiAlertTriangle,
-} from 'react-icons/fi';
-import { LiaFileMedicalAltSolid } from 'react-icons/lia';
 import { Maximize2 } from 'lucide-react';
+import type { ErrorInfo } from 'react';
+import React, { Component, useEffect, useRef, useState } from 'react';
+import { FiAlertTriangle, FiChevronDown, FiDatabase, FiDownload } from 'react-icons/fi';
+import { LiaFileMedicalAltSolid } from 'react-icons/lia';
+import ReactMarkdown from 'react-markdown';
+import type { Message } from '@/App';
 import PlotlyVisualizer from '@/components/Chat/PlotlyVisualizer';
 import VisualizationDialog from '@/components/Chat/VisualizationDialog';
-import { exportToCSV } from '@/utils/export';
-import type { Message } from '@/App';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   Select,
   SelectContent,
@@ -29,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { exportToCSV } from '@/utils/export';
 
 // ── Error Boundary ──────────────────────────────────────────────────────────
 
@@ -52,11 +43,9 @@ class ErrorBoundary extends Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="bg-destructive/10 text-destructive flex items-center gap-2 rounded-lg p-4">
+        <div className="flex items-center gap-2 rounded-lg bg-destructive/10 p-4 text-destructive">
           <FiAlertTriangle />
-          <div className="font-mono text-xs">
-            Visualization Error: {this.state.error?.message}
-          </div>
+          <div className="font-mono text-xs">Visualization Error: {this.state.error?.message}</div>
         </div>
       );
     }
@@ -80,18 +69,19 @@ const ThinkingProcess: React.FC<{ thoughts: string[] }> = ({ thoughts }) => {
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mb-3">
       <CollapsibleTrigger asChild>
-        <button className="group text-primary hover:text-foreground hover:bg-primary/20 mb-2 flex cursor-pointer items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors select-none">
+        <button
+          type="button"
+          className="group mb-2 flex cursor-pointer select-none items-center gap-2 rounded-full px-4 py-2 font-medium text-primary text-sm transition-colors hover:bg-primary/20 hover:text-foreground"
+        >
           <span>Show thinking</span>
-          <FiChevronDown
-            className={cn('transition-transform', isOpen && 'rotate-180')}
-          />
+          <FiChevronDown className={cn('transition-transform', isOpen && 'rotate-180')} />
         </button>
       </CollapsibleTrigger>
 
-      <CollapsibleContent className="animate-in fade-in-0 slide-in-from-top-1">
-        <div className="border-subtle ml-6 space-y-2 border-l-2 pl-2">
-          {thoughts.map((thought, idx) => (
-            <div key={idx} className="thinking-process-text p-1">
+      <CollapsibleContent className="fade-in-0 slide-in-from-top-1 animate-in">
+        <div className="ml-6 space-y-2 border-subtle border-l-2 pl-2">
+          {thoughts.map((thought) => (
+            <div key={thought} className="thinking-process-text p-1">
               {thought}
             </div>
           ))}
@@ -124,16 +114,14 @@ const VisualizationCard: React.FC<VisualizationCardProps> = ({
   onExpand,
   onUpdateMessage,
 }) => {
-  const [chartSelector, setChartSelector] = useState<ChartSelectorState | null>(
-    null,
-  );
+  const [chartSelector, setChartSelector] = useState<ChartSelectorState | null>(null);
 
   return (
     <Card className="mt-4 overflow-hidden">
-      <CardHeader className="bg-muted/30 flex flex-row items-center justify-between px-4 py-2">
+      <CardHeader className="flex flex-row items-center justify-between bg-muted/30 px-4 py-2">
         {/* Left: label */}
         <div className="flex min-w-0 items-center gap-3">
-          <span className="text-muted-foreground shrink-0 text-xs font-bold tracking-wide uppercase">
+          <span className="shrink-0 font-bold text-muted-foreground text-xs uppercase tracking-wide">
             Visualization
           </span>
         </div>
@@ -149,7 +137,7 @@ const VisualizationCard: React.FC<VisualizationCardProps> = ({
                 onUpdateMessage?.(msg.id, { visualization_type: newType });
               }}
             >
-              <SelectTrigger className="text-muted-foreground hover:bg-primary/20 hover:text-foreground h-7 cursor-pointer gap-1 rounded-full border-none pl-4 text-xs font-medium shadow-none transition-colors focus:ring-0">
+              <SelectTrigger className="h-7 cursor-pointer gap-1 rounded-full border-none pl-4 font-medium text-muted-foreground text-xs shadow-none transition-colors hover:bg-primary/20 hover:text-foreground focus:ring-0">
                 <SelectValue placeholder="Select chart" />
               </SelectTrigger>
               <SelectContent>
@@ -175,7 +163,7 @@ const VisualizationCard: React.FC<VisualizationCardProps> = ({
               );
             }}
             title="Export CSV"
-            className="text-muted-foreground hover:bg-primary/20 hover:text-foreground h-8 w-8 cursor-pointer rounded-full"
+            className="h-8 w-8 cursor-pointer rounded-full text-muted-foreground hover:bg-primary/20 hover:text-foreground"
           >
             <FiDownload size={13} />
           </Button>
@@ -185,7 +173,7 @@ const VisualizationCard: React.FC<VisualizationCardProps> = ({
             variant="ghost"
             size="sm"
             onClick={onExpand}
-            className="text-muted-foreground hover:bg-primary/20 hover:text-foreground h-8 w-8 cursor-pointer rounded-full"
+            className="h-8 w-8 cursor-pointer rounded-full text-muted-foreground hover:bg-primary/20 hover:text-foreground"
             title="Expand visualization"
           >
             <Maximize2 size={13} />
@@ -193,7 +181,7 @@ const VisualizationCard: React.FC<VisualizationCardProps> = ({
         </div>
       </CardHeader>
 
-      <CardContent className="bg-card w-full p-0">
+      <CardContent className="w-full bg-card p-0">
         <ErrorBoundary>
           <PlotlyVisualizer
             data={
@@ -217,29 +205,13 @@ const VisualizationCard: React.FC<VisualizationCardProps> = ({
 
 // ── ChatInterface ───────────────────────────────────────────────────────────
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({
-  messages,
-  theme,
-  onUpdateMessage,
-}) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ messages, theme, onUpdateMessage }) => {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [expandedMsgId, setExpandedMsgId] = useState<string | null>(null);
-  const lastMessage = messages[messages.length - 1];
-  const lastMessageId = lastMessage?.id;
-  const lastMessageText = lastMessage?.text;
-  const lastMessageThoughtsCount = lastMessage?.thoughts?.length;
 
-  // Scroll to bottom when messages are added or when the last message's content changes (streaming).
-  // We specifically exclude visualization_type changes from the dependencies to prevent the UI
-  // from jumping/scrolling when the user switches between chart types in an existing message.
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [
-    messages.length,
-    lastMessageId,
-    lastMessageText,
-    lastMessageThoughtsCount,
-  ]);
+  });
 
   // Find the message whose visualization is expanded
   const expandedMsg = messages.find((m) => m.id === expandedMsgId);
@@ -247,15 +219,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   if (messages.length === 0) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center p-8 text-center opacity-50">
-        <div className="bg-muted text-primary mb-4 flex h-16 w-16 items-center justify-center rounded-full">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted text-primary">
           <LiaFileMedicalAltSolid size={32} />
         </div>
-        <h2 className="font-heading text-foreground mb-2 text-xl font-medium">
+        <h2 className="mb-2 font-heading font-medium text-foreground text-xl">
           How can I help you today?
         </h2>
-        <p className="text-muted-foreground max-w-md">
-          Ask about patient demographics, admission trends, or encounter analytics. I
-          can visualize data and write SQL.
+        <p className="max-w-md text-muted-foreground">
+          Ask about patient demographics, admission trends, or encounter analytics. I can visualize
+          data and write SQL.
         </p>
       </div>
     );
@@ -291,12 +263,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <div
               key={msg.id}
               id={msg.id}
-              className="animate-in fade-in-0 slide-in-from-bottom-2 group"
+              className="fade-in-0 slide-in-from-bottom-2 group animate-in"
             >
               {/* ── User Message ── */}
               {msg.sender === 'user' ? (
                 <div className="mb-6 flex justify-end">
-                  <div className="bg-muted text-foreground max-w-full rounded-2xl rounded-tr-sm px-5 py-3 shadow-sm @sm:max-w-[80%]">
+                  <div className="@sm:max-w-[80%] max-w-full rounded-2xl rounded-tr-sm bg-muted px-5 py-3 text-foreground shadow-sm">
                     {msg.text}
                   </div>
                 </div>
@@ -306,24 +278,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   <div className="min-w-0 flex-1 space-y-4">
                     <div className="flex items-center gap-2">
                       {/* Avatar */}
-                      <div className="from-primary flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-linear-to-tr to-primary text-white shadow-sm">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-linear-to-tr from-primary to-primary text-white shadow-sm">
                         <LiaFileMedicalAltSolid size={16} />
                       </div>
                       {/* Sender Badge */}
                       <div className="flex h-8 items-center gap-2">
-                        <Badge
-                          variant="secondary"
-                          className="text-sm font-semibold"
-                        >
+                        <Badge variant="secondary" className="font-semibold text-sm">
                           Agent
                         </Badge>
                       </div>
                     </div>
 
                     {/* Thinking process */}
-                    {msg.thoughts && (
-                      <ThinkingProcess thoughts={msg.thoughts} />
-                    )}
+                    {msg.thoughts && <ThinkingProcess thoughts={msg.thoughts} />}
 
                     {/* Text Content */}
                     <div className="prose prose-sm dark:prose-invert chat-message-text max-w-none pl-2">
@@ -344,14 +311,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     {msg.sql && (
                       <Collapsible className="mt-2">
                         <CollapsibleTrigger asChild>
-                          <button className="text-muted-foreground hover:text-foreground flex w-fit cursor-pointer items-center gap-1 text-xs transition-colors select-none">
+                          <button
+                            type="button"
+                            className="flex w-fit cursor-pointer select-none items-center gap-1 text-muted-foreground text-xs transition-colors hover:text-foreground"
+                          >
                             <FiDatabase size={12} />
                             View SQL Query
                           </button>
                         </CollapsibleTrigger>
                         <CollapsibleContent>
-                          <div className="bg-muted/50 mt-2 overflow-x-auto rounded-md p-3">
-                            <code className="text-primary font-mono text-xs break-all whitespace-pre-wrap">
+                          <div className="mt-2 overflow-x-auto rounded-md bg-muted/50 p-3">
+                            <code className="whitespace-pre-wrap break-all font-mono text-primary text-xs">
                               {msg.sql}
                             </code>
                           </div>

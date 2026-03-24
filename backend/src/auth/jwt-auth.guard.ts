@@ -1,14 +1,9 @@
-import {
-  Injectable,
-  CanActivate,
-  ExecutionContext,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
 import { AuthService } from '@/auth/auth.service';
-import { ConfigService } from '@/config/config.service';
 import type { JwtPayload } from '@/common/types';
+import { ConfigService } from '@/config/config.service';
 
 type RequestWithUser = Request & { user?: JwtPayload };
 
@@ -56,7 +51,7 @@ export class JwtAuthGuard implements CanActivate {
     if (type === 'Bearer' && token) return token;
 
     // Fallback: query parameter (used by browser EventSource which cannot set headers)
-    const queryToken = (request.query as Record<string, string>)['token'];
+    const queryToken = (request.query as Record<string, string>).token;
     if (queryToken) return queryToken;
 
     return undefined;

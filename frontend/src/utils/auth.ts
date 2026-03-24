@@ -8,12 +8,9 @@ import axios from 'axios';
  * @param maxWait - Maximum time to wait in milliseconds (default: 2000)
  * @returns Cleanup function to clear intervals and timeouts
  */
-export const waitForAuthHeaders = (
-  callback: () => void,
-  maxWait = 2000,
-): (() => void) => {
+export const waitForAuthHeaders = (callback: () => void, maxWait = 2000): (() => void) => {
   const checkInterval = setInterval(() => {
-    if (axios.defaults.headers.common['Authorization']) {
+    if (axios.defaults.headers.common.Authorization) {
       clearInterval(checkInterval);
       callback();
     }
@@ -54,7 +51,7 @@ export function decodeToken(token: string): TokenPayload | null {
     const jsonPayload = decodeURIComponent(
       atob(base64)
         .split('')
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .map((c) => `%${`00${c.charCodeAt(0).toString(16)}`.slice(-2)}`)
         .join(''),
     );
 

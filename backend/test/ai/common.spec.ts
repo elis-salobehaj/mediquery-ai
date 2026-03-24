@@ -1,10 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   autoCorrectTableNames,
-  normalizeOmopDomainIdLiterals,
   classifySqlOperation,
   enforceReadOnlySql,
   enforceSqlComplexity,
+  normalizeOmopDomainIdLiterals,
 } from '@/ai/common';
 
 describe('autoCorrectTableNames', () => {
@@ -69,9 +69,7 @@ describe('phase6 sql policy utilities', () => {
 
   it('blocks non read-only sql', () => {
     expect(enforceReadOnlySql('DELETE FROM person').allowed).toBe(false);
-    expect(
-      enforceReadOnlySql('WITH cte AS (SELECT 1) SELECT * FROM cte').allowed,
-    ).toBe(true);
+    expect(enforceReadOnlySql('WITH cte AS (SELECT 1) SELECT * FROM cte').allowed).toBe(true);
   });
 
   it('enforces complexity policy for high-join no-limit queries', () => {

@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
 import { evaluateBenchmarkCases } from '@/ai/benchmarks/dev-benchmark';
 
 describe('dev benchmark harness', () => {
@@ -56,17 +56,12 @@ describe('dev benchmark harness', () => {
   it('golden corpus SQL queries reference all expected OMOP tables', async () => {
     const summary = await evaluateBenchmarkCases();
 
-    const missingTables = summary.golden_results.filter(
-      (r) => r.expectedTablesMissing.length > 0,
-    );
+    const missingTables = summary.golden_results.filter((r) => r.expectedTablesMissing.length > 0);
     expect(missingTables).toHaveLength(0);
   });
 
   it('golden corpus entries include expected_joins metadata', async () => {
-    const corpusPath = resolve(
-      process.cwd(),
-      'src/ai/benchmarks/corpus/omop_golden_queries.jsonl',
-    );
+    const corpusPath = resolve(process.cwd(), 'src/ai/benchmarks/corpus/omop_golden_queries.jsonl');
     const lines = readFileSync(corpusPath, 'utf8')
       .split('\n')
       .map((line) => line.trim())

@@ -18,9 +18,7 @@ function buildUnsupportedResponse(reason: string): string {
   ].join('\n');
 }
 
-export async function policyGateNode(
-  state: GraphState,
-): Promise<Partial<GraphState>> {
+export async function policyGateNode(state: GraphState): Promise<Partial<GraphState>> {
   if (state.routing_decision && state.routing_decision !== 'DATA') {
     return {};
   }
@@ -53,8 +51,7 @@ export async function policyGateNode(
   }
 
   if (UNSUPPORTED_ANALYTICS_PATTERN.test(query)) {
-    const reason =
-      'that request is outside supported SQL-based OMOP clinical analytics';
+    const reason = 'that request is outside supported SQL-based OMOP clinical analytics';
     addThought(state, `🛡️ Policy Gate: Blocked request - ${reason}`);
 
     return {

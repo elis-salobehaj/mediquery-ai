@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConfigController } from '@/ai/config.controller';
 import { LLMService } from '@/ai/llm.service';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const MOCK_MODELS = [
   { id: 'openai/gpt-4o', name: 'GPT-4o (OpenAI)', provider: 'openai' },

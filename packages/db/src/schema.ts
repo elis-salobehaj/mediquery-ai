@@ -1,19 +1,19 @@
+import { sql } from 'drizzle-orm';
 import {
-  pgSchema,
-  varchar,
+  bigint,
+  boolean,
+  foreignKey,
   index,
+  integer,
+  jsonb,
+  numeric,
+  pgSchema,
+  text,
+  timestamp,
   unique,
   uuid,
-  boolean,
-  jsonb,
-  integer,
-  timestamp,
-  foreignKey,
-  text,
-  numeric,
-  bigint,
+  varchar,
 } from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
 import { loadDbEnv } from './env';
 
 const dbEnv = loadDbEnv();
@@ -41,14 +41,8 @@ export const users = appSchema.table(
     }).default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [
-    index('idx_users_email').using(
-      'btree',
-      table.email.asc().nullsLast().op('text_ops'),
-    ),
-    index('idx_users_username').using(
-      'btree',
-      table.username.asc().nullsLast().op('text_ops'),
-    ),
+    index('idx_users_email').using('btree', table.email.asc().nullsLast().op('text_ops')),
+    index('idx_users_username').using('btree', table.username.asc().nullsLast().op('text_ops')),
     unique('users_username_key').on(table.username),
     unique('users_email_key').on(table.email),
   ],
@@ -145,9 +139,7 @@ export const tokenUsage = appSchema.table(
     model: varchar({ length: 255 }).notNull(),
     inputTokens: integer('input_tokens').notNull(),
     outputTokens: integer('output_tokens').notNull(),
-    totalTokens: integer('total_tokens').generatedAlwaysAs(
-      sql`(input_tokens + output_tokens)`,
-    ),
+    totalTokens: integer('total_tokens').generatedAlwaysAs(sql`(input_tokens + output_tokens)`),
     costUsd: numeric('cost_usd', { precision: 10, scale: 6 }),
     requestMetadata: jsonb('request_metadata'),
     createdAt: timestamp('created_at', {
@@ -157,10 +149,7 @@ export const tokenUsage = appSchema.table(
     agentType: varchar('agent_type', { length: 50 }),
   },
   (table) => [
-    index('idx_usage_request').using(
-      'btree',
-      table.requestId.asc().nullsLast().op('uuid_ops'),
-    ),
+    index('idx_usage_request').using('btree', table.requestId.asc().nullsLast().op('uuid_ops')),
     index('idx_usage_user_month').using(
       'btree',
       table.userId.asc().nullsLast().op('uuid_ops'),

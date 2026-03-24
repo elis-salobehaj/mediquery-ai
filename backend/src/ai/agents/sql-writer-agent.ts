@@ -1,29 +1,21 @@
+import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { Logger } from '@nestjs/common';
 import {
-  HumanMessage,
-  SystemMessage,
-  AIMessage,
-} from '@langchain/core/messages';
-import { GraphState } from '@/ai/state';
-import {
   addThought,
-  cleanSql,
   autoCorrectTableNames,
-  normalizeOmopDomainIdLiterals,
+  cleanSql,
   extractTablesFromSql,
+  normalizeOmopDomainIdLiterals,
 } from '@/ai/common';
 import { QuotaExceededException } from '@/ai/exceptions';
-import {
-  TokenUsageService,
-  Provider,
-  AgentRole,
-} from '@/token-usage/token-usage.service';
-import type { LangChainLLMResponse } from '@/common/types';
 import { LLMService } from '@/ai/llm.service';
-import { PromptService } from '@/ai/prompt.service';
-import { DatabaseService } from '@/database/database.service';
-import { ConfigService } from '@/config/config.service';
 import { formatMemoryContext, formatMemoryThought } from '@/ai/memory-context';
+import { PromptService } from '@/ai/prompt.service';
+import { GraphState } from '@/ai/state';
+import type { LangChainLLMResponse } from '@/common/types';
+import { ConfigService } from '@/config/config.service';
+import { DatabaseService } from '@/database/database.service';
+import { AgentRole, Provider, TokenUsageService } from '@/token-usage/token-usage.service';
 
 const logger = new Logger('SQLWriterNode');
 
@@ -58,11 +50,7 @@ function extractJsonCandidate(raw: string): string | null {
 }
 
 function tryParseJsonContract(raw: string): SQLWriterResponse | null {
-  const candidates = [
-    raw.trim(),
-    unwrapCodeFence(raw),
-    extractJsonCandidate(raw),
-  ]
+  const candidates = [raw.trim(), unwrapCodeFence(raw), extractJsonCandidate(raw)]
     .filter((candidate): candidate is string => Boolean(candidate))
     .map((candidate) => candidate.trim())
     .filter((candidate, index, array) => array.indexOf(candidate) === index);
@@ -78,12 +66,9 @@ function tryParseJsonContract(raw: string): SQLWriterResponse | null {
       if (typeof parsed.sql === 'string') {
         return {
           sql: parsed.sql,
-          thought:
-            typeof parsed.thought === 'string' ? parsed.thought : undefined,
+          thought: typeof parsed.thought === 'string' ? parsed.thought : undefined,
           table_strategy:
-            typeof parsed.table_strategy === 'string'
-              ? parsed.table_strategy
-              : undefined,
+            typeof parsed.table_strategy === 'string' ? parsed.table_strategy : undefined,
         };
       }
     } catch {
@@ -118,16 +103,12 @@ function tryExtractJsonLikeSql(raw: string): SQLWriterResponse | null {
   }
 
   const thoughtMatch = unwrapped.match(/"thought"\s*:\s*"([\s\S]*?)"\s*(?:,|\})/i);
-  const tableStrategyMatch = unwrapped.match(
-    /"table_strategy"\s*:\s*"([\s\S]*?)"\s*(?:,|\})/i,
-  );
+  const tableStrategyMatch = unwrapped.match(/"table_strategy"\s*:\s*"([\s\S]*?)"\s*(?:,|\})/i);
 
   return {
     sql,
     thought: thoughtMatch ? unescapeJsonSql(thoughtMatch[1]).trim() : undefined,
-    table_strategy: tableStrategyMatch
-      ? unescapeJsonSql(tableStrategyMatch[1]).trim()
-      : undefined,
+    table_strategy: tableStrategyMatch ? unescapeJsonSql(tableStrategyMatch[1]).trim() : undefined,
   };
 }
 
@@ -170,8 +151,7 @@ export async function sqlWriterNode(
 
     // 1. Quota check
     if (userId) {
-      const [canProceed, used, limit] =
-        await deps.tokenUsageService.checkMonthlyLimit(userId);
+      const [canProceed, used, limit] = await deps.tokenUsageService.checkMonthlyLimit(userId);
       if (!canProceed) {
         const currentMonth = new Date().toISOString().slice(0, 7);
         throw new QuotaExceededException(userId, used, limit, currentMonth);
@@ -230,8 +210,7 @@ export async function sqlWriterNode(
     const sqlWriterConfig = deps.promptService.getPrompt('sql_writer');
     const role = sqlWriterConfig?.role || 'OMOP SQL Writer';
     const instructions =
-      sqlWriterConfig?.instructions ||
-      'Generate PostgreSQL SQL queries for OMOP CDM v5.4.';
+      sqlWriterConfig?.instructions || 'Generate PostgreSQL SQL queries for OMOP CDM v5.4.';
     const dialect = sqlWriterConfig?.dialect || 'postgresql';
 
     const systemPrompt = `${role}
@@ -298,9 +277,7 @@ Rules:
     const llmDurationMs = Date.now() - llmStartMs;
 
     const rawResponse =
-      typeof response.content === 'string'
-        ? response.content
-        : JSON.stringify(response.content);
+      typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
     const parsed = parseSqlWriterResponse(rawResponse);
     let sql = cleanSql(parsed.sql);
 
@@ -312,10 +289,7 @@ Rules:
     }
 
     if (sql.toUpperCase() === 'UNSUPPORTED_QUERY') {
-      addThought(
-        state,
-        '🛑 SQL Writer: Returned UNSUPPORTED_QUERY per output contract',
-      );
+      addThought(state, '🛑 SQL Writer: Returned UNSUPPORTED_QUERY per output contract');
       return {
         generated_sql: 'UNSUPPORTED_QUERY',
         previous_sqls: [...(state.previous_sqls || []), 'UNSUPPORTED_QUERY'],
@@ -347,15 +321,9 @@ Rules:
 
     // 5. Auto-correct table names
     const validTables = new Set(Object.keys(state.table_schemas || {}));
-    const { correctedSql, correctionsMade } = autoCorrectTableNames(
-      sql,
-      validTables,
-    );
+    const { correctedSql, correctionsMade } = autoCorrectTableNames(sql, validTables);
     if (correctionsMade.length > 0) {
-      addThought(
-        state,
-        `🔧 SQL Writer: Auto-corrected table names: ${correctionsMade.join(', ')}`,
-      );
+      addThought(state, `🔧 SQL Writer: Auto-corrected table names: ${correctionsMade.join(', ')}`);
       sql = correctedSql;
     }
 
@@ -371,9 +339,7 @@ Rules:
     // 6. Update State
     const tablesInSql = extractTablesFromSql(sql, validTables);
     const tablesUsedStr =
-      tablesInSql.size > 0
-        ? Array.from(tablesInSql).sort().join(', ')
-        : 'none detected';
+      tablesInSql.size > 0 ? Array.from(tablesInSql).sort().join(', ') : 'none detected';
     addThought(
       state,
       `✅ SQL Writer: Generated SQL (${sql.length} chars), using tables: ${tablesUsedStr}`,
@@ -382,11 +348,9 @@ Rules:
     // 7. Track Usage
     const usage = (response as LangChainLLMResponse).usage_metadata;
     if (userId && usage) {
-      const provider = (overrides?.provider ||
-        deps.config.getActiveProvider()) as Provider;
+      const provider = (overrides?.provider || deps.config.getActiveProvider()) as Provider;
       const model =
-        overrides?.model ||
-        deps.config.getActiveModelForRole('sql_writer', overrides?.provider);
+        overrides?.model || deps.config.getActiveModelForRole('sql_writer', overrides?.provider);
 
       await deps.tokenUsageService.logTokenUsage(
         userId,

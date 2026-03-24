@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { schemaNavigatorNode } from '@/ai/agents/schema-navigator-agent';
 import { createInitialState } from '@/ai/state';
 
@@ -18,12 +18,7 @@ function buildDeps(
         options?.getTableSchema ||
           (async (tableName: string) => [
             ['person_id', 'integer'],
-            [
-              tableName === 'person'
-                ? 'person_source_value'
-                : 'visit_concept_id',
-              'text',
-            ],
+            [tableName === 'person' ? 'person_source_value' : 'visit_concept_id', 'text'],
           ]),
       ),
     },
@@ -64,11 +59,7 @@ describe('schemaNavigatorNode', () => {
 
     const result = await schemaNavigatorNode(state, deps as never);
 
-    expect(result.selected_tables).toEqual([
-      'person',
-      'visit_occurrence',
-      'concept',
-    ]);
+    expect(result.selected_tables).toEqual(['person', 'visit_occurrence', 'concept']);
   });
 
   it('returns empty selection for supported=false JSON contract', async () => {
@@ -92,11 +83,7 @@ describe('schemaNavigatorNode', () => {
 
     const result = await schemaNavigatorNode(state, deps as never);
 
-    expect(result.selected_tables).toEqual([
-      'person',
-      'visit_occurrence',
-      'concept',
-    ]);
+    expect(result.selected_tables).toEqual(['person', 'visit_occurrence', 'concept']);
   });
 
   it('includes candidate shortlist count in thoughts', async () => {
@@ -139,9 +126,8 @@ describe('schemaNavigatorNode', () => {
 
     await schemaNavigatorNode(state, deps as never);
 
-    const invokeMock = (
-      deps.llmService.createChatModel as ReturnType<typeof vi.fn>
-    ).mock.results[0]?.value.invoke as ReturnType<typeof vi.fn>;
+    const invokeMock = (deps.llmService.createChatModel as ReturnType<typeof vi.fn>).mock.results[0]
+      ?.value.invoke as ReturnType<typeof vi.fn>;
     const prompt = invokeMock.mock.calls[0][0][0].content as string;
 
     expect(prompt).toContain(

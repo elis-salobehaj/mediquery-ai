@@ -277,9 +277,7 @@ function evaluateConceptJoin(query: GoldenQuery): {
   needed: boolean;
 } {
   const needed = query.expected_tables.includes('concept');
-  const detected = query.golden_sql
-    .toLowerCase()
-    .includes('omop_vocab.concept');
+  const detected = query.golden_sql.toLowerCase().includes('omop_vocab.concept');
   return { detected, needed };
 }
 
@@ -357,8 +355,7 @@ async function evaluateCase(input: PolicyCase): Promise<BenchmarkCaseResult> {
   state.routing_decision = 'DATA';
 
   const gateResult = await policyGateNode(state);
-  const blockedByGate =
-    gateResult.validation_result?.error === 'UNSUPPORTED_INTENT';
+  const blockedByGate = gateResult.validation_result?.error === 'UNSUPPORTED_INTENT';
   const policyGateActual: PolicyExpectation = blockedByGate ? 'BLOCK' : 'ALLOW';
 
   let sqlPolicyPassed: boolean | undefined;
@@ -402,9 +399,7 @@ export async function evaluateBenchmarkCases(
   const corpusPath = resolve(__dirname, 'corpus/omop_golden_queries.jsonl');
 
   // Run policy gate cases
-  const policyResults = await Promise.all(
-    cases.map((testCase) => evaluateCase(testCase)),
-  );
+  const policyResults = await Promise.all(cases.map((testCase) => evaluateCase(testCase)));
 
   // Run golden corpus static analysis
   let goldenResults: GoldenQueryResult[] = [];
@@ -421,11 +416,7 @@ export async function evaluateBenchmarkCases(
         }
 
         sqlExecutionCases++;
-        const execution = await executeSqlValidation(
-          pool,
-          q.golden_sql,
-          dbSchema,
-        );
+        const execution = await executeSqlValidation(pool, q.golden_sql, dbSchema);
         if (execution.passed) {
           sqlExecutionCorrect++;
         }
@@ -445,22 +436,12 @@ export async function evaluateBenchmarkCases(
     }
   }
 
-  const policyGateCorrect = policyResults.filter(
-    (r) => r.policyGatePassed,
-  ).length;
-  const sqlPolicyCases = policyResults.filter(
-    (r) => typeof r.sqlPolicyPassed === 'boolean',
-  ).length;
-  const sqlPolicyCorrect = policyResults.filter(
-    (r) => r.sqlPolicyPassed,
-  ).length;
+  const policyGateCorrect = policyResults.filter((r) => r.policyGatePassed).length;
+  const sqlPolicyCases = policyResults.filter((r) => typeof r.sqlPolicyPassed === 'boolean').length;
+  const sqlPolicyCorrect = policyResults.filter((r) => r.sqlPolicyPassed).length;
 
-  const tableSelectionCorrect = goldenResults.filter(
-    (r) => r.tableSelectionAccurate,
-  ).length;
-  const conceptJoinCorrect = goldenResults.filter(
-    (r) => r.conceptJoinDetected,
-  ).length;
+  const tableSelectionCorrect = goldenResults.filter((r) => r.tableSelectionAccurate).length;
+  const conceptJoinCorrect = goldenResults.filter((r) => r.conceptJoinDetected).length;
 
   // Per-category breakdown
   const byCategory: Record<string, CategoryAccuracy> = {};
@@ -483,8 +464,7 @@ export async function evaluateBenchmarkCases(
     if (r.sqlExecutionPassed) cat.sqlExecutionCorrect++;
     cat.tableSelectionAccuracy = cat.tableSelectionCorrect / cat.total;
     cat.conceptJoinAccuracy = cat.conceptJoinCorrect / cat.total;
-    cat.sqlExecutionAccuracy =
-      executionMode === 'mode-b' ? cat.sqlExecutionCorrect / cat.total : 0;
+    cat.sqlExecutionAccuracy = executionMode === 'mode-b' ? cat.sqlExecutionCorrect / cat.total : 0;
   }
 
   const summary: BenchmarkSummary = {
@@ -503,21 +483,12 @@ export async function evaluateBenchmarkCases(
       sql_execution_cases: sqlExecutionCases,
     },
     accuracy: {
-      policy_gate:
-        policyResults.length === 0
-          ? 0
-          : policyGateCorrect / policyResults.length,
+      policy_gate: policyResults.length === 0 ? 0 : policyGateCorrect / policyResults.length,
       sql_policy: sqlPolicyCases === 0 ? 0 : sqlPolicyCorrect / sqlPolicyCases,
       table_selection:
-        goldenResults.length === 0
-          ? 0
-          : tableSelectionCorrect / goldenResults.length,
-      concept_join:
-        goldenResults.length === 0
-          ? 0
-          : conceptJoinCorrect / goldenResults.length,
-      sql_execution:
-        sqlExecutionCases === 0 ? 0 : sqlExecutionCorrect / sqlExecutionCases,
+        goldenResults.length === 0 ? 0 : tableSelectionCorrect / goldenResults.length,
+      concept_join: goldenResults.length === 0 ? 0 : conceptJoinCorrect / goldenResults.length,
+      sql_execution: sqlExecutionCases === 0 ? 0 : sqlExecutionCorrect / sqlExecutionCases,
     },
     by_category: byCategory,
     cases: policyResults,
@@ -541,8 +512,7 @@ async function main() {
         : 'mode-a';
 
   const outputPath =
-    positionalArgs[0] ||
-    resolve(process.cwd(), '../docs/reports/guardrail_benchmark_dev.json');
+    positionalArgs[0] || resolve(process.cwd(), '../docs/reports/guardrail_benchmark_dev.json');
 
   const summary = await evaluateBenchmarkCases(devCases, {
     mode: executionMode,

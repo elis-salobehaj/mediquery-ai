@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 test.describe('Thread Management', () => {
   test.beforeEach(async ({ page }) => {
@@ -6,9 +6,7 @@ test.describe('Thread Management', () => {
     await page.goto('/');
 
     // Use guest login
-    await page
-      .getByRole('button', { name: /INITIATE GUEST PROTOCOL/i })
-      .click();
+    await page.getByRole('button', { name: /INITIATE GUEST PROTOCOL/i }).click();
 
     // Wait for the chat interface to be ready
     await expect(page.getByPlaceholder(/Ask Mediquery/i)).toBeVisible({
@@ -16,16 +14,12 @@ test.describe('Thread Management', () => {
     });
   });
 
-  test('should create a new thread when sending a message', async ({
-    page,
-  }) => {
+  test('should create a new thread when sending a message', async ({ page }) => {
     const input = page.getByPlaceholder(/Ask Mediquery/i);
     await input.fill('list people in Texas');
 
     // Wait for the real backend stream to respond
-    const streamDone = page.waitForResponse((resp) =>
-      resp.url().includes('/queries/stream'),
-    );
+    const streamDone = page.waitForResponse((resp) => resp.url().includes('/queries/stream'));
     await input.press('Enter');
     await streamDone;
 
@@ -89,9 +83,7 @@ test.describe('Thread Management', () => {
     await input.fill('Renamed Thread');
     // Register the response listener BEFORE triggering the action
     const getThreadsPromise = page.waitForResponse(
-      (resp) =>
-        resp.url().includes('/api/v1/threads') &&
-        resp.request().method() === 'GET',
+      (resp) => resp.url().includes('/api/v1/threads') && resp.request().method() === 'GET',
     );
     await input.press('Enter');
 

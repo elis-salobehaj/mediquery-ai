@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { eq } from 'drizzle-orm';
-import { DatabaseService } from '@/database/database.service';
-import { users, tokenBlacklist } from '@/database/schema';
 import type { ValidatedUser } from '@/common/types';
+import { DatabaseService } from '@/database/database.service';
+import { tokenBlacklist, users } from '@/database/schema';
 
 @Injectable()
 export class AuthService {
@@ -36,11 +36,7 @@ export class AuthService {
   }
 
   async getUserById(id: string) {
-    const user = await this.db.pg
-      .select()
-      .from(users)
-      .where(eq(users.id, id))
-      .execute();
+    const user = await this.db.pg.select().from(users).where(eq(users.id, id)).execute();
     if (user.length > 0) {
       const { hashedPassword: _hashedPassword, ...result } = user[0];
       return result;
@@ -48,10 +44,7 @@ export class AuthService {
     return null;
   }
 
-  async validateUser(
-    username: string,
-    pass: string,
-  ): Promise<ValidatedUser | null> {
+  async validateUser(username: string, pass: string): Promise<ValidatedUser | null> {
     const user = await this.db.pg
       .select()
       .from(users)

@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ThreadsService } from '@/threads/threads.service';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DatabaseService } from '@/database/database.service';
-import { vi, describe, beforeEach, it, expect } from 'vitest';
+import { ThreadsService } from '@/threads/threads.service';
 
 describe('ThreadsService', () => {
   let service: ThreadsService;
@@ -13,14 +13,7 @@ describe('ThreadsService', () => {
     const chain: Record<string, unknown> = {
       execute: vi.fn().mockResolvedValue(result),
     };
-    for (const m of [
-      'from',
-      'where',
-      'orderBy',
-      'returning',
-      'set',
-      'values',
-    ]) {
+    for (const m of ['from', 'where', 'orderBy', 'returning', 'set', 'values']) {
       chain[m] = vi.fn().mockReturnValue(chain);
     }
     return chain;
@@ -43,10 +36,7 @@ describe('ThreadsService', () => {
     dbService.pg.update.mockReturnValue(makeChain());
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        ThreadsService,
-        { provide: DatabaseService, useValue: dbService },
-      ],
+      providers: [ThreadsService, { provide: DatabaseService, useValue: dbService }],
     }).compile();
 
     service = module.get<ThreadsService>(ThreadsService);

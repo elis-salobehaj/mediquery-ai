@@ -1,19 +1,20 @@
 import {
-  Controller,
-  Get,
-  Query,
-  UseGuards,
-  Request,
-  Put,
-  Param,
   Body,
+  Controller,
   ForbiddenException,
+  Get,
+  Param,
+  Put,
+  Query,
+  Request,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request as ExpressRequest, Response } from 'express';
+import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
+import { getAuthenticatedUser } from '@/common/request-utils';
 import { TokenUsageService } from '@/token-usage/token-usage.service';
 import { TokenUsageEventsService } from '@/token-usage/token-usage-events.service';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 
 @Controller('api/v1/token-usage')
 @UseGuards(JwtAuthGuard)
@@ -25,7 +26,7 @@ export class TokenUsageController {
 
   @Get()
   async getCurrentUsage(@Request() req: ExpressRequest) {
-    return this.tokenUsageService.getUsageStatus(req.user!.id);
+    return this.tokenUsageService.getUsageStatus(getAuthenticatedUser(req).id);
   }
 
   @Get('monthly')
@@ -34,10 +35,11 @@ export class TokenUsageController {
     @Query('start_month') startMonth?: string,
     @Query('end_month') endMonth?: string,
   ) {
+    const authenticatedUser = getAuthenticatedUser(req);
     return {
-      user_id: req.user!.id,
+      user_id: authenticatedUser.id,
       usage: await this.tokenUsageService.getMonthlyUsage(
-        req.user!.id,
+        authenticatedUser.id,
         startMonth,
         endMonth,
       ),
@@ -50,10 +52,11 @@ export class TokenUsageController {
     @Query('start_month') startMonth?: string,
     @Query('end_month') endMonth?: string,
   ) {
+    const authenticatedUser = getAuthenticatedUser(req);
     return {
-      user_id: req.user!.id,
+      user_id: authenticatedUser.id,
       usage: await this.tokenUsageService.getProviderBreakdown(
-        req.user!.id,
+        authenticatedUser.id,
         startMonth,
         endMonth,
       ),
@@ -67,7 +70,7 @@ export class TokenUsageController {
     @Query('end_month') endMonth?: string,
   ) {
     return this.tokenUsageService.getNodeMetrics(
-      req.user!.id,
+      getAuthenticatedUser(req).id,
       startMonth,
       endMonth,
     );
@@ -75,7 +78,7 @@ export class TokenUsageController {
 
   @Get('status')
   async getUsageStatus(@Request() req: ExpressRequest) {
-    const status = await this.tokenUsageService.getUsageStatus(req.user!.id);
+    const status = await this.tokenUsageService.getUsageStatus(getAuthenticatedUser(req).id);
     return {
       ...status,
       thresholds: {
@@ -95,7 +98,7 @@ export class TokenUsageController {
    */
   @Get('events')
   async streamEvents(@Request() req: ExpressRequest, @Res() res: Response) {
-    const userId = req.user!.id;
+    const userId = getAuthenticatedUser(req).id;
     const cleanup = this.eventsService.subscribe(userId, res);
 
     // Send current status immediately on connect
@@ -113,11 +116,8 @@ export class TokenUsageController {
   // --- Admin Endpoints ---
 
   @Get('admin/users')
-  async getAllUsersUsage(
-    @Request() req: ExpressRequest,
-    @Query('month') month?: string,
-  ) {
-    if (req.user!.role !== 'admin') {
+  async getAllUsersUsage(@Request() req: ExpressRequest, @Query('month') month?: string) {
+    if (getAuthenticatedUser(req).role !== 'admin') {
       throw new ForbiddenException('Admin access required');
     }
     return this.tokenUsageService.getAllUsersUsage(month);
@@ -129,7 +129,7 @@ export class TokenUsageController {
     @Param('user_id') targetUserId: string,
     @Body('tokens_limit') tokensLimit: number,
   ) {
-    if (req.user!.role !== 'admin') {
+    if (getAuthenticatedUser(req).role !== 'admin') {
       throw new ForbiddenException('Admin access required');
     }
     return this.tokenUsageService.updateUserQuota(targetUserId, tokensLimit);

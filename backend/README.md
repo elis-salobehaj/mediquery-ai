@@ -37,8 +37,24 @@ Use the root-level scripts to run the whole stack or specific tests:
 # Install dependencies
 pnpm install
 
+# Run Biome + import organization locally
+pnpm check
+
 # Start development mode
 pnpm run start:dev
+```
+
+## Code Quality
+
+```bash
+# Local fix pass
+pnpm check
+
+# CI-safe verification
+pnpm check:ci
+
+# TypeScript validation
+pnpm typecheck
 ```
 
 ## Testing

@@ -1,0 +1,148 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.8/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/coverage",
+      "!**/drizzle",
+      "!**/build",
+      "!**/.vite",
+      "!**/public/mockServiceWorker.js"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf"
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "correctness": {
+        "noUnusedVariables": {
+          "level": "error",
+          "options": {
+            "ignoreRestSiblings": true
+          }
+        },
+        "noUnusedImports": "error",
+        "noUnusedFunctionParameters": "off",
+        "useExhaustiveDependencies": "warn"
+      },
+      "suspicious": {
+        "noExplicitAny": "warn",
+        "noArrayIndexKey": "warn"
+      },
+      "style": {
+        "noNonNullAssertion": "warn",
+        "useImportType": "off"
+      }
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "double",
+      "trailingCommas": "all",
+      "semicolons": "always",
+      "arrowParentheses": "always",
+      "bracketSpacing": true,
+      "bracketSameLine": false
+    },
+    "parser": {
+      "unsafeParameterDecoratorsEnabled": true
+    }
+  },
+  "json": {
+    "formatter": {
+      "enabled": true
+    }
+  },
+  "css": {
+    "parser": {
+      "cssModules": true,
+      "allowWrongLineComments": true,
+      "tailwindDirectives": true
+    },
+    "formatter": {
+      "enabled": true,
+      "indentStyle": "space",
+      "indentWidth": 2,
+      "lineWidth": 100,
+      "lineEnding": "lf"
+    }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "**/*.tsx",
+        "**/*.jsx"
+      ],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "useSortedClasses": {
+              "level": "warn",
+              "fix": "safe",
+              "options": {
+                "attributes": [
+                  "className",
+                  "class"
+                ],
+                "functions": [
+                  "cn",
+                  "clsx",
+                  "twMerge",
+                  "cva",
+                  "tw"
+                ]
+              }
+            }
+          },
+          "a11y": {
+            "useButtonType": "warn",
+            "useKeyWithClickEvents": "warn",
+            "noStaticElementInteractions": "warn",
+            "noLabelWithoutControl": "warn"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "**/*.spec.ts",
+        "**/*.spec.tsx",
+        "**/test/**/*.ts",
+        "**/tests/**/*.ts"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off"
+          },
+          "correctness": {
+            "noUnusedVariables": "warn"
+          }
+        }
+      }
+    }
+  ]
+}

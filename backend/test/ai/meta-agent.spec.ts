@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { metaAgentNode } from '@/ai/agents/meta-agent';
 import { createInitialState } from '@/ai/state';
 
@@ -8,10 +8,7 @@ function buildDeps(content: string) {
       getAllTableNames: vi.fn(async () => ['person', 'visit_occurrence']),
       getTableSchema: vi.fn(async (table: string) => [
         ['person_id', 'varchar'],
-        [
-          table === 'person' ? 'person_source_value' : 'visit_start_date',
-          'text',
-        ],
+        [table === 'person' ? 'person_source_value' : 'visit_start_date', 'text'],
       ]),
     },
     tokenUsageService: {
@@ -44,9 +41,7 @@ describe('metaAgentNode', () => {
 
     expect(result.messages).toBeDefined();
     const messages = result.messages as Array<{ content: string }>;
-    expect(messages[messages.length - 1].content).toContain(
-      'person and visit_occurrence',
-    );
+    expect(messages[messages.length - 1].content).toContain('person and visit_occurrence');
     expect(state.thoughts).toContain(
       '🤖 MetaAgent: Summarized available schema tables for the user.',
     );

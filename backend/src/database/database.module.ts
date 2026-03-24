@@ -1,10 +1,10 @@
-import { Module, Global } from '@nestjs/common';
-import { ConfigModule } from '@/config/config.module';
-import { ConfigService } from '@/config/config.service';
+import { Global, Module } from '@nestjs/common';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import * as schema from './schema';
+import { ConfigModule } from '@/config/config.module';
+import { ConfigService } from '@/config/config.service';
 import { DatabaseService } from './database.service';
+import * as schema from './schema';
 
 export const PG_CONNECTION = 'PG_CONNECTION';
 export const PG_POOL = 'PG_POOL';

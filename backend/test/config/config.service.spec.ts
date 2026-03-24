@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { ConfigService } from '@/config/config.service';
-import { describe, beforeEach, it, expect } from 'vitest';
 
 describe('ConfigService', () => {
   let service: ConfigService;

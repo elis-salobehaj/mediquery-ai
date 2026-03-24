@@ -1,6 +1,6 @@
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/experimental-ct-react';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
 import { frontendTestEnv } from './tests/env';
 
 const __filename = fileURLToPath(import.meta.url);

@@ -12,13 +12,11 @@ export class ThreadMemoryService {
   private readonly ttlMs = 12 * 60 * 60 * 1000;
   private readonly minConfidence = 0.2;
 
-  private applyDecay(
-    memory: ScopedConversationMemory,
-  ): ScopedConversationMemory {
+  private applyDecay(memory: ScopedConversationMemory): ScopedConversationMemory {
     const now = Date.now();
     const updatedAt = new Date(memory.updated_at).getTime();
     const elapsedHours = Math.max(0, (now - updatedAt) / (1000 * 60 * 60));
-    const decayedConfidence = memory.confidence * Math.pow(0.95, elapsedHours);
+    const decayedConfidence = memory.confidence * 0.95 ** elapsedHours;
 
     return {
       ...memory,
@@ -62,15 +60,12 @@ export class ThreadMemoryService {
 
     const merged: ScopedConversationMemory = {
       active_persons: Array.from(
-        new Set([
-          ...(existing?.active_persons || []),
-          ...(incoming.active_persons || []),
-        ]),
+        new Set([...(existing?.active_persons || []), ...(incoming.active_persons || [])]),
       ).slice(0, 10),
       active_timeframe: incoming.active_timeframe || existing?.active_timeframe,
-      active_clinical_intent:
-        incoming.active_clinical_intent || existing?.active_clinical_intent,
-      preferred_clinical_units: incoming.preferred_clinical_units || existing?.preferred_clinical_units,
+      active_clinical_intent: incoming.active_clinical_intent || existing?.active_clinical_intent,
+      preferred_clinical_units:
+        incoming.preferred_clinical_units || existing?.preferred_clinical_units,
       summary: incoming.summary || existing?.summary,
       confidence: Math.max(incoming.confidence, existing?.confidence || 0),
       updated_at: new Date().toISOString(),

@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
-import { AuthService } from './auth.service';
+import type { JwtAlgorithm } from '@/common/types';
 import { ConfigModule } from '@/config/config.module';
 import { ConfigService } from '@/config/config.service';
 import { AuthController } from './auth.controller';
+import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
-import type { JwtAlgorithm } from '@/common/types';
 
 @Module({
   imports: [

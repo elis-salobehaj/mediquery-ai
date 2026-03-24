@@ -173,12 +173,9 @@ export const tokenUsageService = {
     const startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1); // 12 months ago
     const startMonth = startDate.toISOString().slice(0, 7);
 
-    const response = await axios.get(
-      getApiUrl('/token-usage/monthly/breakdown'),
-      {
-        params: { start_month: startMonth, end_month: endMonth },
-      },
-    );
+    const response = await axios.get(getApiUrl('/token-usage/monthly/breakdown'), {
+      params: { start_month: startMonth, end_month: endMonth },
+    });
     const data = response.data;
 
     // Backend returns { user_id, usage: [{ month, provider, total_tokens, ... }] }
@@ -226,10 +223,7 @@ export const tokenUsageService = {
       tokens_limit: data.tokens_limit,
       percentage: data.usage_percentage, // Backend returns usage_percentage
       warning_level: data.warning_level,
-      message: this.getWarningMessage(
-        data.warning_level,
-        data.usage_percentage,
-      ),
+      message: this.getWarningMessage(data.warning_level, data.usage_percentage),
       reset_date: data.reset_date || this.getNextMonthFirstDay(),
     };
   },
@@ -262,10 +256,7 @@ export const tokenUsageService = {
   /**
    * Admin: Update user quota
    */
-  async updateUserQuota(
-    userId: string,
-    quotaUpdate: QuotaUpdate,
-  ): Promise<TokenUsage> {
+  async updateUserQuota(userId: string, quotaUpdate: QuotaUpdate): Promise<TokenUsage> {
     const response = await axios.put(
       getApiUrl(`/token-usage/admin/users/${userId}/quota`),
       quotaUpdate,
@@ -303,7 +294,6 @@ export const getWarningColor = (level: string): string => {
       return 'orange';
     case 'medium':
       return 'yellow';
-    case 'normal':
     default:
       return 'green';
   }
@@ -318,7 +308,7 @@ export const formatNumber = (num: number): string => {
 export const formatDate = (dateString?: string): string => {
   if (!dateString) return 'N/A';
   const date = new Date(dateString);
-  if (isNaN(date.getTime())) return 'Invalid Date';
+  if (Number.isNaN(date.getTime())) return 'Invalid Date';
   return date.toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'short',

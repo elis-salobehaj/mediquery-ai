@@ -1,6 +1,6 @@
-import { TokenUsageEventsService } from '@/token-usage/token-usage-events.service';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { Response } from 'express';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { TokenUsageEventsService } from '@/token-usage/token-usage-events.service';
 
 function makeRes(): Response {
   return {
@@ -22,14 +22,8 @@ describe('TokenUsageEventsService', () => {
     it('sets the correct SSE headers and flushes', () => {
       const res = makeRes();
       service.subscribe('user-1', res);
-      expect(res.setHeader).toHaveBeenCalledWith(
-        'Content-Type',
-        'text/event-stream',
-      );
-      expect(res.setHeader).toHaveBeenCalledWith(
-        'Cache-Control',
-        'no-cache, no-transform',
-      );
+      expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'text/event-stream');
+      expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-cache, no-transform');
       expect(res.flushHeaders).toHaveBeenCalledTimes(1);
     });
 
@@ -64,9 +58,7 @@ describe('TokenUsageEventsService', () => {
   describe('emit()', () => {
     it('is a no-op when the user has no subscribers', () => {
       // Should not throw
-      expect(() =>
-        service.emit('unknown-user', { tokens_used: 0 }),
-      ).not.toThrow();
+      expect(() => service.emit('unknown-user', { tokens_used: 0 })).not.toThrow();
     });
 
     it('serialises the payload as an SSE data frame', () => {

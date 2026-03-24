@@ -1,9 +1,9 @@
+import { HttpException, UnauthorizedException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthController } from '@/auth/auth.controller';
 import { AuthService } from '@/auth/auth.service';
 import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
-import { UnauthorizedException, HttpException } from '@nestjs/common';
-import { vi, describe, beforeEach, it, expect } from 'vitest';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -26,9 +26,7 @@ describe('AuthController', () => {
       validateUser: vi.fn(),
       getUserById: vi.fn(),
       createUser: vi.fn().mockResolvedValue(true),
-      createGuestUser: vi
-        .fn()
-        .mockResolvedValue({ id: 'guest-uuid', username: 'guest_abc123' }),
+      createGuestUser: vi.fn().mockResolvedValue({ id: 'guest-uuid', username: 'guest_abc123' }),
       blacklistToken: vi.fn().mockResolvedValue(undefined),
     };
 
@@ -70,9 +68,9 @@ describe('AuthController', () => {
 
     it('throws UnauthorizedException when credentials are invalid', async () => {
       service.validateUser.mockResolvedValue(null);
-      await expect(
-        controller.login({ username: 'bad', password: 'wrong' }),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(controller.login({ username: 'bad', password: 'wrong' })).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
@@ -90,27 +88,22 @@ describe('AuthController', () => {
         password: 'pass',
       });
       expect(result).toHaveProperty('access_token');
-      expect(service.createUser).toHaveBeenCalledWith(
-        'newuser',
-        'pass',
-        undefined,
-        undefined,
-      );
+      expect(service.createUser).toHaveBeenCalledWith('newuser', 'pass', undefined, undefined);
     });
 
     it('throws HttpException (400) when username is already registered', async () => {
       service.createUser.mockResolvedValue(false);
-      await expect(
-        controller.register({ username: 'existing', password: 'pass' }),
-      ).rejects.toThrow(HttpException);
+      await expect(controller.register({ username: 'existing', password: 'pass' })).rejects.toThrow(
+        HttpException,
+      );
     });
 
     it('throws HttpException (500) when validateUser returns null after successful creation', async () => {
       service.createUser.mockResolvedValue(true);
       service.validateUser.mockResolvedValue(null);
-      await expect(
-        controller.register({ username: 'new', password: 'pass' }),
-      ).rejects.toThrow(HttpException);
+      await expect(controller.register({ username: 'new', password: 'pass' })).rejects.toThrow(
+        HttpException,
+      );
     });
   });
 
@@ -137,10 +130,7 @@ describe('AuthController', () => {
       } as unknown as import('express').Request;
       const result = await controller.logout(req);
       expect(result).toHaveProperty('message');
-      expect(service.blacklistToken).toHaveBeenCalledWith(
-        'my-jwt-token',
-        expect.any(Date),
-      );
+      expect(service.blacklistToken).toHaveBeenCalledWith('my-jwt-token', expect.any(Date));
     });
 
     it('throws UnauthorizedException when Authorization header is missing', async () => {
@@ -148,9 +138,7 @@ describe('AuthController', () => {
         headers: {},
         user: { id: 'u1' },
       } as unknown as import('express').Request;
-      await expect(controller.logout(req)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(controller.logout(req)).rejects.toThrow(UnauthorizedException);
     });
   });
 
@@ -181,9 +169,7 @@ describe('AuthController', () => {
       const req = {
         user: { id: 'ghost' },
       } as unknown as import('express').Request;
-      await expect(controller.getMe(req)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(controller.getMe(req)).rejects.toThrow(UnauthorizedException);
     });
 
     it('returns full_name as null when fullName is absent', async () => {

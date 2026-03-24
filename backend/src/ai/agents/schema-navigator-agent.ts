@@ -1,18 +1,14 @@
+import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { Logger } from '@nestjs/common';
-import { HumanMessage, AIMessage } from '@langchain/core/messages';
-import { GraphState } from '@/ai/state';
 import { addThought } from '@/ai/common';
 import { QuotaExceededException } from '@/ai/exceptions';
-import {
-  TokenUsageService,
-  Provider,
-  AgentRole,
-} from '@/token-usage/token-usage.service';
-import type { LangChainLLMResponse } from '@/common/types';
 import { LLMService } from '@/ai/llm.service';
 import { PromptService } from '@/ai/prompt.service';
-import { DatabaseService } from '@/database/database.service';
+import { GraphState } from '@/ai/state';
+import type { LangChainLLMResponse } from '@/common/types';
 import { ConfigService } from '@/config/config.service';
+import { DatabaseService } from '@/database/database.service';
+import { AgentRole, Provider, TokenUsageService } from '@/token-usage/token-usage.service';
 
 const logger = new Logger('SchemaNavigatorNode');
 
@@ -57,11 +53,7 @@ function parseNavigatorContract(content: string): {
   notes: string;
   thought?: string;
 } | null {
-  const candidates = [
-    content.trim(),
-    unwrapCodeFence(content),
-    extractJsonCandidate(content),
-  ]
+  const candidates = [content.trim(), unwrapCodeFence(content), extractJsonCandidate(content)]
     .filter((candidate): candidate is string => Boolean(candidate))
     .map((candidate) => candidate.trim())
     .filter((candidate, index, array) => array.indexOf(candidate) === index);
@@ -83,11 +75,9 @@ function parseNavigatorContract(content: string): {
         joinPlan: Array.isArray(parsed?.join_plan)
           ? parsed.join_plan.map((item) => String(item))
           : [],
-        confidence:
-          typeof parsed?.confidence === 'number' ? parsed.confidence : 0,
+        confidence: typeof parsed?.confidence === 'number' ? parsed.confidence : 0,
         notes: typeof parsed?.notes === 'string' ? parsed.notes : '',
-        thought:
-          typeof parsed?.thought === 'string' ? parsed.thought : undefined,
+        thought: typeof parsed?.thought === 'string' ? parsed.thought : undefined,
       };
     } catch {
       // Try next candidate
@@ -104,9 +94,7 @@ function extractJsonLikeTableList(content: string): string[] {
   }
 
   const tableNames: string[] = [];
-  const tableRegex = /"([a-zA-Z0-9_]+)"/g;
-  let tableMatch: RegExpExecArray | null;
-  while ((tableMatch = tableRegex.exec(match[1])) !== null) {
+  for (const tableMatch of match[1].matchAll(/"([a-zA-Z0-9_]+)"/g)) {
     tableNames.push(tableMatch[1]);
   }
   return tableNames;
@@ -156,9 +144,7 @@ function computeTableScore(
   tableSchemaRows: Array<[string, string]>,
 ): number {
   const nameTokens = new Set(tokenize(tableName));
-  const columnTokens = new Set(
-    tableSchemaRows.flatMap(([columnName]) => tokenize(columnName)),
-  );
+  const columnTokens = new Set(tableSchemaRows.flatMap(([columnName]) => tokenize(columnName)));
 
   let score = 0;
   for (const token of queryTokens) {
@@ -192,18 +178,11 @@ function requiresConceptTable(tables: string[]): boolean {
   return tables.some((table) => OMOP_FACT_TABLES.has(table));
 }
 
-function enforceConceptTableSelection(
-  selectedTables: string[],
-  allTables: string[],
-): string[] {
+function enforceConceptTableSelection(selectedTables: string[], allTables: string[]): string[] {
   const unique = Array.from(new Set(selectedTables));
   const conceptAvailable = allTables.includes('concept');
 
-  if (
-    conceptAvailable &&
-    requiresConceptTable(unique) &&
-    !unique.includes('concept')
-  ) {
+  if (conceptAvailable && requiresConceptTable(unique) && !unique.includes('concept')) {
     unique.push('concept');
   }
 
@@ -245,9 +224,7 @@ async function retrieveCandidateTables(
 
   const minCandidates = Math.min(4, allTables.length);
   const maxCandidates = Math.min(8, allTables.length);
-  const positive = scored
-    .filter((entry) => entry.score > 0)
-    .slice(0, maxCandidates);
+  const positive = scored.filter((entry) => entry.score > 0).slice(0, maxCandidates);
   if (positive.length >= minCandidates) {
     return positive.map((entry) => entry.tableName);
   }
@@ -310,9 +287,7 @@ function parseNavigatorSelection(
     };
   }
 
-  const selected = allTables.filter((table) =>
-    new RegExp(`\\b${table}\\b`, 'i').test(content),
-  );
+  const selected = allTables.filter((table) => new RegExp(`\\b${table}\\b`, 'i').test(content));
 
   return {
     contract: {
@@ -341,10 +316,7 @@ export async function schemaNavigatorNode(
     return {};
   }
 
-  addThought(
-    state,
-    '🗺️  Schema Navigator: Analyzing query and selecting tables...',
-  );
+  addThought(state, '🗺️  Schema Navigator: Analyzing query and selecting tables...');
   logger.log(
     `[NAVIGATOR] request_id=${state.request_id || 'n/a'} query_len=${state.original_query.length}`,
   );
@@ -352,17 +324,18 @@ export async function schemaNavigatorNode(
   try {
     // 1. Semantic retrieval (Skipped for now, using LLM-based fallback)
     // 2. LLM-based table selection
-    const { selectedTables, contract, candidateTables } =
-      await llmTableSelection(state, deps, overrides);
+    const { selectedTables, contract, candidateTables } = await llmTableSelection(
+      state,
+      deps,
+      overrides,
+    );
 
     // 3. Get schemas for selected tables
     const tableSchemas: Record<string, string> = {};
     for (const tableName of selectedTables) {
       const schema = await deps.dbService.getTableSchema(tableName);
       if (schema.length > 0) {
-        const columnsStr = schema
-          .map(([col, dtype]) => `${col} ${dtype}`)
-          .join(', ');
+        const columnsStr = schema.map(([col, dtype]) => `${col} ${dtype}`).join(', ');
         tableSchemas[tableName] = `CREATE TABLE ${tableName} (${columnsStr})`;
       }
     }
@@ -436,26 +409,18 @@ async function llmTableSelection(
 
   // 1. Quota check
   if (userId) {
-    const [canProceed, used, limit] =
-      await deps.tokenUsageService.checkMonthlyLimit(userId);
+    const [canProceed, used, limit] = await deps.tokenUsageService.checkMonthlyLimit(userId);
     if (!canProceed) {
       const currentMonth = new Date().toISOString().slice(0, 7);
       throw new QuotaExceededException(userId, used, limit, currentMonth);
     }
   }
 
-  const llm = deps.llmService.createChatModel(
-    overrides?.model || 'navigator',
-    overrides?.provider,
-  );
+  const llm = deps.llmService.createChatModel(overrides?.model || 'navigator', overrides?.provider);
   const allTables = await deps.dbService.getAllTableNames();
   let candidateTables = allTables;
   try {
-    candidateTables = await retrieveCandidateTables(
-      state.original_query,
-      allTables,
-      deps,
-    );
+    candidateTables = await retrieveCandidateTables(state.original_query, allTables, deps);
   } catch (err) {
     logger.warn(
       `[NAVIGATOR] request_id=${state.request_id || 'n/a'} candidate_retrieval_fallback=${err instanceof Error ? err.message : String(err)}`,
@@ -464,8 +429,7 @@ async function llmTableSelection(
   const navigatorConfig = deps.promptService.getPrompt('schema_navigator');
 
   const role = navigatorConfig?.role || 'Schema Navigator';
-  const instructions =
-    navigatorConfig?.instructions || 'Select relevant tables';
+  const instructions = navigatorConfig?.instructions || 'Select relevant tables';
   let llmDurationMs = 0;
 
   const prompt = `${role}
@@ -491,9 +455,7 @@ Return strict JSON only:
     const response = await llm.invoke([new HumanMessage(prompt)]);
     llmDurationMs = Date.now() - llmStartMs;
     const content = (
-      typeof response.content === 'string'
-        ? response.content
-        : JSON.stringify(response.content)
+      typeof response.content === 'string' ? response.content : JSON.stringify(response.content)
     ).trim();
 
     logger.log(
@@ -507,11 +469,9 @@ Return strict JSON only:
     // 3. Track Usage
     const usage = (response as LangChainLLMResponse).usage_metadata;
     if (userId && usage) {
-      const provider = (overrides?.provider ||
-        deps.config.getActiveProvider()) as Provider;
+      const provider = (overrides?.provider || deps.config.getActiveProvider()) as Provider;
       const model =
-        overrides?.model ||
-        deps.config.getActiveModelForRole('navigator', overrides?.provider);
+        overrides?.model || deps.config.getActiveModelForRole('navigator', overrides?.provider);
 
       await deps.tokenUsageService.logTokenUsage(
         userId,
@@ -541,9 +501,7 @@ Return strict JSON only:
         isClinicalQuery(state.original_query) &&
         !enforcedSelection.some((table) => isClinicalTable(table))
       ) {
-        const clinicalCandidates = candidateTables.filter((table) =>
-          isClinicalTable(table),
-        );
+        const clinicalCandidates = candidateTables.filter((table) => isClinicalTable(table));
         if (clinicalCandidates.length > 0) {
           enforcedSelection = enforceConceptTableSelection(
             clinicalCandidates.slice(0, 3),
@@ -570,17 +528,13 @@ Return strict JSON only:
       };
     }
   } catch (err) {
-    logger.error(
-      `LLM table selection failed: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    logger.error(`LLM table selection failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   // Final fallback: return only supported available tables
   if (allTables.includes('person') && allTables.includes('visit_occurrence')) {
     const fallbackTables = enforceConceptTableSelection(
-      ['person', 'visit_occurrence'].filter((table) =>
-        allTables.includes(table),
-      ),
+      ['person', 'visit_occurrence'].filter((table) => allTables.includes(table)),
       allTables,
     );
     return {
@@ -611,10 +565,7 @@ Return strict JSON only:
   }
 
   const minimalFallback = allTables.slice(0, 1);
-  const enforcedMinimalFallback = enforceConceptTableSelection(
-    minimalFallback,
-    allTables,
-  );
+  const enforcedMinimalFallback = enforceConceptTableSelection(minimalFallback, allTables);
   return {
     selectedTables: enforcedMinimalFallback,
     candidateTables,

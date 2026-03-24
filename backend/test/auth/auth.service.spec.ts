@@ -1,8 +1,8 @@
+import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '@/auth/auth.service';
 import { DatabaseService } from '@/database/database.service';
-import { JwtService } from '@nestjs/jwt';
-import { vi, describe, beforeEach, it, expect } from 'vitest';
 
 // Mock argon2 so we don't do real password hashing in unit tests
 vi.mock('argon2', () => ({
@@ -128,7 +128,7 @@ describe('AuthService', () => {
       vi.mocked(argon2.verify).mockResolvedValueOnce(true);
       const result = await service.validateUser('admin', 'correctpass');
       expect(result).not.toBeNull();
-      expect(result!.username).toBe('admin');
+      expect(result?.username).toBe('admin');
       expect(result).not.toHaveProperty('hashedPassword');
     });
   });
@@ -140,7 +140,7 @@ describe('AuthService', () => {
       dbService.pg.select.mockReturnValue(makeSelectChain([dbUser]));
       const result = await service.getUserById('u1');
       expect(result).not.toBeNull();
-      expect(result!.username).toBe('admin');
+      expect(result?.username).toBe('admin');
       expect(result).not.toHaveProperty('hashedPassword');
     });
 
@@ -154,12 +154,7 @@ describe('AuthService', () => {
 
   describe('createUser', () => {
     it('returns true when user is created successfully', async () => {
-      const success = await service.createUser(
-        'newuser',
-        'pass',
-        'New User',
-        'new@test.com',
-      );
+      const success = await service.createUser('newuser', 'pass', 'New User', 'new@test.com');
       expect(success).toBe(true);
       expect(dbService.pg.insert).toHaveBeenCalled();
     });
@@ -167,9 +162,7 @@ describe('AuthService', () => {
     it('returns false when the DB throws (e.g. duplicate username)', async () => {
       dbService.pg.insert.mockReturnValueOnce({
         values: vi.fn().mockReturnValue({
-          execute: vi
-            .fn()
-            .mockRejectedValue(new Error('unique constraint violation')),
+          execute: vi.fn().mockRejectedValue(new Error('unique constraint violation')),
         }),
       });
       const success = await service.createUser('existing', 'pass');
@@ -187,9 +180,7 @@ describe('AuthService', () => {
 
     it('returns true when token exists in the blacklist', async () => {
       dbService.pg.select.mockReturnValue(
-        makeSelectChain([
-          { token: 'blacklisted-token', expiresAt: new Date().toISOString() },
-        ]),
+        makeSelectChain([{ token: 'blacklisted-token', expiresAt: new Date().toISOString() }]),
       );
       const result = await service.isTokenBlacklisted('blacklisted-token');
       expect(result).toBe(true);
@@ -201,9 +192,7 @@ describe('AuthService', () => {
   describe('blacklistToken', () => {
     it('inserts token without throwing', async () => {
       const expiresAt = new Date(Date.now() + 3600_000);
-      await expect(
-        service.blacklistToken('some-token', expiresAt),
-      ).resolves.not.toThrow();
+      await expect(service.blacklistToken('some-token', expiresAt)).resolves.not.toThrow();
       expect(dbService.pg.insert).toHaveBeenCalled();
     });
 
@@ -215,9 +204,7 @@ describe('AuthService', () => {
           }),
         }),
       });
-      await expect(
-        service.blacklistToken('tok', new Date()),
-      ).resolves.not.toThrow();
+      await expect(service.blacklistToken('tok', new Date())).resolves.not.toThrow();
     });
   });
 

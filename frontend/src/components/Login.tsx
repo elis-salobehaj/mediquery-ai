@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
 import axios from 'axios';
-import { getApiUrl } from '../config/api';
+import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { getApiUrl } from '../config/api';
 
 interface LoginProps {
   onLogin: (token: string, username: string, role?: string) => void;
@@ -39,11 +39,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           }),
           { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
         );
-        onLogin(
-          res.data.access_token,
-          res.data.username || username,
-          res.data.role,
-        );
+        onLogin(res.data.access_token, res.data.username || username, res.data.role);
       } else {
         const res = await axios.post(
           getApiUrl('/auth/token'),
@@ -54,19 +50,13 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           }),
           { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
         );
-        onLogin(
-          res.data.access_token,
-          res.data.username || username,
-          res.data.role,
-        );
+        onLogin(res.data.access_token, res.data.username || username, res.data.role);
       }
     } catch (err: unknown) {
       const apiErr = err as { response?: { data?: { detail?: string; message?: string } } };
       if (apiErr.response) {
         setError(
-          apiErr.response.data?.message ||
-            apiErr.response.data?.detail ||
-            'Authentication failed',
+          apiErr.response.data?.message || apiErr.response.data?.detail || 'Authentication failed',
         );
       } else {
         setError('Network error. Please try again.');
@@ -80,11 +70,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     setLoading(true);
     try {
       const res = await axios.post(getApiUrl('/auth/guest'));
-      onLogin(
-        res.data.access_token,
-        res.data.username || 'Guest',
-        res.data.role,
-      );
+      onLogin(res.data.access_token, res.data.username || 'Guest', res.data.role);
     } catch {
       setError('Guest Login Failed');
     } finally {
@@ -97,27 +83,27 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       <div className="absolute inset-0 bg-(--bg-primary)/80 backdrop-blur-sm"></div>
 
       {/* Login Card - Responsive with Container Queries */}
-      <Card className="relative w-[90%] border-(--accent-primary)/30 bg-(--bg-secondary)/90 p-6 shadow-xl backdrop-blur-md @sm:w-100 @sm:p-8">
+      <Card className="relative @sm:w-100 w-[90%] border-(--accent-primary)/30 bg-(--bg-secondary)/90 @sm:p-8 p-6 shadow-xl backdrop-blur-md">
         {/* Header */}
         <div className="mb-8 text-center">
-          <h1 className="font-heading mb-1 text-2xl font-bold tracking-widest text-(--text-primary) @sm:text-3xl">
+          <h1 className="mb-1 font-bold font-heading @sm:text-3xl text-(--text-primary) text-2xl tracking-widest">
             MEDIQUERY<span className="text-(--accent-primary)">.AI</span>
           </h1>
           <div className="my-2 h-px w-full bg-linear-to-r from-transparent via-(--accent-primary)/50 to-transparent"></div>
-          <h2 className="font-mono text-xs tracking-[0.3em] text-(--accent-primary) @sm:text-sm">
+          <h2 className="font-mono @sm:text-sm text-(--accent-primary) text-xs tracking-[0.3em]">
             {isRegistering ? 'INITIALIZE IDENTITY' : 'IDENTITY VERIFICATION'}
           </h2>
         </div>
 
         {error && (
-          <div className="border-destructive/50 bg-destructive/20 text-destructive-foreground mb-6 border p-2 text-center font-mono text-xs">
+          <div className="mb-6 border border-destructive/50 bg-destructive/20 p-2 text-center font-mono text-destructive-foreground text-xs">
             [ ALERT: {error} ]
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="group space-y-2">
-            <Label className="font-mono text-[10px] tracking-wider text-(--accent-primary)/60 transition-colors group-focus-within:text-(--accent-primary)">
+            <Label className="font-mono text-(--accent-primary)/60 text-[10px] tracking-wider transition-colors group-focus-within:text-(--accent-primary)">
               USER_ID
             </Label>
             <Input
@@ -131,7 +117,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             />
           </div>
           <div className="group space-y-2">
-            <Label className="font-mono text-[10px] tracking-wider text-(--accent-primary)/60 transition-colors group-focus-within:text-(--accent-primary)">
+            <Label className="font-mono text-(--accent-primary)/60 text-[10px] tracking-wider transition-colors group-focus-within:text-(--accent-primary)">
               ACCESS_CODE
             </Label>
             <Input
@@ -148,29 +134,24 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <Button
             type="submit"
             disabled={loading}
-            className="font-heading mt-6 w-full bg-(--accent-primary) py-6 text-base font-bold tracking-widest text-white uppercase hover:bg-(--accent-hover) hover:shadow-lg @sm:text-lg"
+            className="mt-6 w-full bg-(--accent-primary) py-6 font-bold font-heading @sm:text-lg text-base text-white uppercase tracking-widest hover:bg-(--accent-hover) hover:shadow-lg"
           >
-            {loading
-              ? 'PROCESSING...'
-              : isRegistering
-                ? 'ESTABLISH LINK'
-                : 'AUTHENTICATE'}
+            {loading ? 'PROCESSING...' : isRegistering ? 'ESTABLISH LINK' : 'AUTHENTICATE'}
           </Button>
         </form>
 
         <div className="mt-8 flex w-full flex-col items-center gap-4">
           <button
+            type="button"
             onClick={() => setIsRegistering(!isRegistering)}
-            className="cursor-pointer border-b border-(--accent-primary)/30 pb-1 font-mono text-sm tracking-wider text-(--accent-primary) transition-colors hover:text-(--accent-hover)"
+            className="cursor-pointer border-(--accent-primary)/30 border-b pb-1 font-mono text-(--accent-primary) text-sm tracking-wider transition-colors hover:text-(--accent-hover)"
           >
             {isRegistering ? '<< RETURN TO LOGIN' : '>> CREATE NEW IDENTITY'}
           </button>
 
           <div className="my-2 flex w-full items-center gap-4">
             <Separator className="flex-1 bg-(--border-subtle)" />
-            <div className="font-mono text-[10px] text-(--text-tertiary)">
-              OR
-            </div>
+            <div className="font-mono text-(--text-tertiary) text-[10px]">OR</div>
             <Separator className="flex-1 bg-(--border-subtle)" />
           </div>
 
@@ -179,7 +160,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             variant="outline"
             onClick={handleGuestLogin}
             disabled={loading}
-            className="font-heading w-full border-(--accent-primary) bg-transparent py-6 text-sm tracking-widest text-(--accent-primary) hover:bg-(--accent-primary)/10 hover:shadow-md"
+            className="w-full border-(--accent-primary) bg-transparent py-6 font-heading text-(--accent-primary) text-sm tracking-widest hover:bg-(--accent-primary)/10 hover:shadow-md"
           >
             INITIATE GUEST PROTOCOL
           </Button>
@@ -187,14 +168,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
         {/* Footer / SSO Placeholders */}
         <div className="mt-6 text-center">
-          <div className="mb-2 font-mono text-[10px] tracking-widest text-(--text-tertiary)">
+          <div className="mb-2 font-mono text-(--text-tertiary) text-[10px] tracking-widest">
             - SECURE WAIT_TIME -
           </div>
           <div className="flex justify-center gap-3 opacity-50">
-            <span className="rounded border border-(--border-subtle) px-2 py-1 text-[10px] text-(--text-tertiary)">
+            <span className="rounded border border-(--border-subtle) px-2 py-1 text-(--text-tertiary) text-[10px]">
               ENTRA
             </span>
-            <span className="rounded border border-(--border-subtle) px-2 py-1 text-[10px] text-(--text-tertiary)">
+            <span className="rounded border border-(--border-subtle) px-2 py-1 text-(--text-tertiary) text-[10px]">
               AWS
             </span>
           </div>

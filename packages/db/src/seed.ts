@@ -1,11 +1,11 @@
-import { Pool } from 'pg';
-import * as dotenv from 'dotenv';
-import * as path from 'path';
+import * as path from 'node:path';
 import * as argon2 from 'argon2';
-import { drizzle } from 'drizzle-orm/node-postgres';
+import * as dotenv from 'dotenv';
 import { eq } from 'drizzle-orm';
-import * as schema from './schema';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
 import { loadDbEnv } from './env';
+import * as schema from './schema';
 
 // Use same config as migration script
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });

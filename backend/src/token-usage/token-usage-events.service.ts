@@ -33,10 +33,13 @@ export class TokenUsageEventsService {
     if (!this.subscribers.has(userId)) {
       this.subscribers.set(userId, new Set());
     }
-    this.subscribers.get(userId)!.add(res);
-    this.logger.debug(
-      `SSE client connected for user ${userId} (total: ${this.subscribers.get(userId)!.size})`,
-    );
+    const subscriberSet = this.subscribers.get(userId);
+    if (!subscriberSet) {
+      throw new Error(`Failed to initialize subscribers for user ${userId}`);
+    }
+
+    subscriberSet.add(res);
+    this.logger.debug(`SSE client connected for user ${userId} (total: ${subscriberSet.size})`);
 
     const cleanup = () => {
       const set = this.subscribers.get(userId);

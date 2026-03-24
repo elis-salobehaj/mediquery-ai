@@ -1,13 +1,17 @@
+import type { ColumnDef } from '@tanstack/react-table';
+import type { Data, Layout } from 'plotly.js';
 import React, { useMemo, useState } from 'react';
 import Plot from 'react-plotly.js';
-import type { ColumnDef } from '@tanstack/react-table';
 import { useChartColors } from '../../hooks/useChartColors';
 import { DataTable } from '../ui/data-table';
 import { DataTableColumnHeader } from '../ui/data-table-column-header';
 
+type VisualizationValue = string | number | boolean | null;
+type VisualizationRow = Record<string, VisualizationValue>;
+
 interface VisualizationData {
   columns: string[];
-  data: any[];
+  data: VisualizationRow[];
   row_count: number;
 }
 
@@ -24,17 +28,13 @@ interface PlotlyVisualizerProps {
    * Parent can use this to render its own chart-type selector in a toolbar.
    * Receives: (compatibleTypes, currentType, setType)
    */
-  onChartTypesReady?: (
-    types: string[],
-    current: string,
-    setCurrent: (t: string) => void,
-  ) => void;
+  onChartTypesReady?: (types: string[], current: string, setCurrent: (t: string) => void) => void;
 }
 
 // Helper function to determine compatible chart types based on data structure
 const getCompatibleChartTypes = (
   columns: string[],
-  rows: any[],
+  rows: VisualizationRow[],
   rowCount: number,
 ): string[] => {
   const compatible: string[] = ['table']; // Table always works
@@ -98,9 +98,7 @@ const getCompatibleChartTypes = (
 
   if (
     columns.some(
-      (col) =>
-        col.toLowerCase().includes('state') ||
-        col.toLowerCase().includes('country'),
+      (col) => col.toLowerCase().includes('state') || col.toLowerCase().includes('country'),
     )
   ) {
     compatible.push('choropleth');
@@ -149,24 +147,14 @@ const METRIC_KEYWORDS = [
   'min',
   'max',
 ];
-const DIMENSION_KEYWORDS = [
-  'age',
-  'year',
-  'month',
-  'day',
-  'id',
-  'zip',
-  'code',
-  'lat',
-  'lon',
-];
+const DIMENSION_KEYWORDS = ['age', 'year', 'month', 'day', 'id', 'zip', 'code', 'lat', 'lon'];
 
 const isMetricColumn = (colName: string) =>
   METRIC_KEYWORDS.some((kw) => colName.toLowerCase().includes(kw));
 const isDimensionColumn = (colName: string) =>
   DIMENSION_KEYWORDS.some((kw) => colName.toLowerCase().includes(kw));
 
-const getBestValueColumn = (columns: string[], rows: any[]): string | null => {
+const getBestValueColumn = (columns: string[], rows: VisualizationRow[]): string | null => {
   const numericCols = columns.filter((col) => typeof rows[0][col] === 'number');
   if (numericCols.length === 0) return null;
 
@@ -192,8 +180,7 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
   onVisualizationTypeChange,
   onChartTypesReady,
 }) => {
-  const [selectedChartType, setSelectedChartType] =
-    useState<string>(visualizationType);
+  const [selectedChartType, setSelectedChartType] = useState<string>(visualizationType);
 
   // Get theme-aware colors from CSS variables
   const colors = useChartColors();
@@ -218,7 +205,7 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
   // in their own header/toolbar — must be above the early return (Rules of Hooks).
   const prevTypesRef = React.useRef<string>('');
   React.useEffect(() => {
-    const key = compatibleChartTypes.join(',') + ':' + selectedChartType;
+    const key = `${compatibleChartTypes.join(',')}:${selectedChartType}`;
     if (onChartTypesReady && key !== prevTypesRef.current) {
       prevTypesRef.current = key;
       onChartTypesReady(compatibleChartTypes, selectedChartType, (t) => {
@@ -226,21 +213,13 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
         onVisualizationTypeChange?.(t);
       });
     }
-  }, [
-    compatibleChartTypes,
-    selectedChartType,
-    onChartTypesReady,
-    onVisualizationTypeChange,
-  ]);
+  }, [compatibleChartTypes, selectedChartType, onChartTypesReady, onVisualizationTypeChange]);
 
   // Map-type charts: disable scrollZoom in expanded mode so the user can
   // drag/pan the map without page-scroll interference.
-  const isMapChart = [
-    'scattermapbox',
-    'choropleth',
-    'map',
-    'scattergeo',
-  ].includes(selectedChartType);
+  const isMapChart = ['scattermapbox', 'choropleth', 'map', 'scattergeo'].includes(
+    selectedChartType,
+  );
 
   const { plotData, layout, isTable, tableColumns } = useMemo(() => {
     if (!data || !data.columns || !data.data || data.data.length === 0) {
@@ -251,7 +230,7 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
     const rows = data.data;
 
     // Theme Configuration using OKLCH colors from hook
-    const baseLayout: Record<string, any> = {
+    const baseLayout = {
       // Re-layout/Preserve Zoom on updates
       uirevision: 'true', // Keeps zoom state when data/theme updates
       paper_bgcolor: 'transparent', // Let CSS handle background
@@ -275,8 +254,12 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
 
     // Helper to extract column data
 
-    const getColumn = (colName: string): any[] =>
-      rows.map((row: any) => row[colName]);
+    const getColumn = (colName: string): VisualizationValue[] =>
+      rows.map((row: VisualizationRow) => row[colName]);
+    const getNumericColumn = (colName: string): number[] =>
+      rows.map((row: VisualizationRow) => Number(row[colName]) || 0);
+    const getStringColumn = (colName: string): string[] =>
+      rows.map((row: VisualizationRow) => String(row[colName] ?? ''));
 
     // Determine chart type and generate appropriate data
     switch (selectedChartType) {
@@ -294,7 +277,7 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
 
         if (uniqueX.size < rows.length) {
           const aggMap = new Map<string, number>();
-          rows.forEach((row: any) => {
+          rows.forEach((row: VisualizationRow) => {
             const key = String(row[xCol]);
             const val = useCount ? 1 : Number(row[bestValueCol]) || 0;
             aggMap.set(key, (aggMap.get(key) || 0) + val);
@@ -352,7 +335,7 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
         const useCount = shouldUseRowCount(bestValueCol);
 
         const aggMap = new Map<string, number>();
-        rows.forEach((row: any) => {
+        rows.forEach((row: VisualizationRow) => {
           const key = String(row[labelCol]);
           const val = useCount ? 1 : Number(row[bestValueCol]) || 0;
           aggMap.set(key, (aggMap.get(key) || 0) + val);
@@ -455,9 +438,7 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
 
       // ===== STATISTICAL CHARTS =====
       case 'box': {
-        const yCol =
-          columns.find((col: string) => typeof rows[0][col] === 'number') ||
-          columns[0];
+        const yCol = columns.find((col: string) => typeof rows[0][col] === 'number') || columns[0];
         return {
           plotData: [
             {
@@ -476,9 +457,7 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
       }
 
       case 'violin': {
-        const yCol =
-          columns.find((col: string) => typeof rows[0][col] === 'number') ||
-          columns[0];
+        const yCol = columns.find((col: string) => typeof rows[0][col] === 'number') || columns[0];
         return {
           plotData: [
             {
@@ -497,9 +476,7 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
       }
 
       case 'histogram': {
-        const xCol =
-          columns.find((col: string) => typeof rows[0][col] === 'number') ||
-          columns[0];
+        const xCol = columns.find((col: string) => typeof rows[0][col] === 'number') || columns[0];
         return {
           plotData: [
             {
@@ -521,33 +498,22 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
       }
 
       case 'heatmap': {
-        const numericCols = columns.filter(
-          (col: string) => typeof rows[0][col] === 'number',
-        );
+        const numericCols = columns.filter((col: string) => typeof rows[0][col] === 'number');
         const matrix = numericCols.map((col1: string) =>
           numericCols.map((col2: string) => {
-            const data1 = getColumn(col1);
-            const data2 = getColumn(col2);
-            const mean1 =
-              data1.reduce((a: number, b: number) => a + b, 0) / data1.length;
-            const mean2 =
-              data2.reduce((a: number, b: number) => a + b, 0) / data2.length;
+            const data1 = getNumericColumn(col1);
+            const data2 = getNumericColumn(col2);
+            const mean1 = data1.reduce((a: number, b: number) => a + b, 0) / data1.length;
+            const mean2 = data2.reduce((a: number, b: number) => a + b, 0) / data2.length;
             const num = data1.reduce(
-              (sum: number, val: number, i: number) =>
-                sum + (val - mean1) * (data2[i] - mean2),
+              (sum: number, val: number, i: number) => sum + (val - mean1) * (data2[i] - mean2),
               0,
             );
             const den1 = Math.sqrt(
-              data1.reduce(
-                (sum: number, val: number) => sum + Math.pow(val - mean1, 2),
-                0,
-              ),
+              data1.reduce((sum: number, val: number) => sum + (val - mean1) ** 2, 0),
             );
             const den2 = Math.sqrt(
-              data2.reduce(
-                (sum: number, val: number) => sum + Math.pow(val - mean2, 2),
-                0,
-              ),
+              data2.reduce((sum: number, val: number) => sum + (val - mean2) ** 2, 0),
             );
             return num / (den1 * den2);
           }),
@@ -706,21 +672,17 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
 
       // ===== HIERARCHICAL CHARTS =====
       case 'sunburst': {
-        const categoricalCols = columns.filter(
-          (col) => typeof rows[0][col] === 'string',
-        );
+        const categoricalCols = columns.filter((col) => typeof rows[0][col] === 'string');
         const bestValueCol = getBestValueColumn(columns, rows);
         const useCount = shouldUseRowCount(bestValueCol);
 
-        const getValue = (row: any) =>
-          useCount ? 1 : Number(row[bestValueCol]) || 1;
+        const getValue = (row: VisualizationRow) =>
+          useCount ? 1 : Number(row[bestValueCol ?? columns[0]]) || 1;
 
         if (categoricalCols.length >= 2) {
           const labels: string[] = ['Total'];
           const parents: string[] = [''];
-          const values: number[] = [
-            rows.reduce((sum, row) => sum + getValue(row), 0),
-          ];
+          const values: number[] = [rows.reduce((sum, row) => sum + getValue(row), 0)];
 
           const level1Map = new Map<string, number>();
           rows.forEach((row) => {
@@ -785,21 +747,17 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
       }
 
       case 'treemap': {
-        const categoricalCols = columns.filter(
-          (col) => typeof rows[0][col] === 'string',
-        );
+        const categoricalCols = columns.filter((col) => typeof rows[0][col] === 'string');
         const bestValueCol = getBestValueColumn(columns, rows);
         const useCount = shouldUseRowCount(bestValueCol);
 
-        const getValue = (row: any) =>
-          useCount ? 1 : Number(row[bestValueCol]) || 1;
+        const getValue = (row: VisualizationRow) =>
+          useCount ? 1 : Number(row[bestValueCol ?? columns[0]]) || 1;
 
         if (categoricalCols.length >= 2) {
           const labels: string[] = ['Total'];
           const parents: string[] = [''];
-          const values: number[] = [
-            rows.reduce((sum, row) => sum + getValue(row), 0),
-          ];
+          const values: number[] = [rows.reduce((sum, row) => sum + getValue(row), 0)];
 
           const level1Map = new Map<string, number>();
           rows.forEach((row) => {
@@ -872,12 +830,7 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
             {
               type: 'sankey',
               node: {
-                label: [
-                  ...new Set([
-                    ...getColumn(sourceCol),
-                    ...getColumn(targetCol),
-                  ]),
-                ],
+                label: [...new Set([...getColumn(sourceCol), ...getColumn(targetCol)])],
                 color: colors.brand,
                 pad: 15,
                 thickness: 20,
@@ -885,20 +838,10 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
               },
               link: {
                 source: getColumn(sourceCol).map((s: string) =>
-                  [
-                    ...new Set([
-                      ...getColumn(sourceCol),
-                      ...getColumn(targetCol),
-                    ]),
-                  ].indexOf(s),
+                  [...new Set([...getColumn(sourceCol), ...getColumn(targetCol)])].indexOf(s),
                 ),
                 target: getColumn(targetCol).map((t: string) =>
-                  [
-                    ...new Set([
-                      ...getColumn(sourceCol),
-                      ...getColumn(targetCol),
-                    ]),
-                  ].indexOf(t),
+                  [...new Set([...getColumn(sourceCol), ...getColumn(targetCol)])].indexOf(t),
                 ),
                 value: getColumn(valueCol),
                 color: `${colors.accent2}66`, // 66 = 40% opacity
@@ -927,8 +870,7 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
           'median',
         ];
         const shouldAverage =
-          bestValueCol &&
-          IS_AVG_KEYWORD.some((kw) => bestValueCol.toLowerCase().includes(kw));
+          bestValueCol && IS_AVG_KEYWORD.some((kw) => bestValueCol.toLowerCase().includes(kw));
 
         let value = 0;
         let prefix = '';
@@ -939,7 +881,7 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
         } else {
           // Calculate Sum first
           const sum = rows.reduce(
-            (a: number, r: any) => a + (Number(r[bestValueCol]) || 0),
+            (a: number, r: VisualizationRow) => a + (Number(r[bestValueCol ?? columns[0]]) || 0),
             0,
           );
 
@@ -981,9 +923,8 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
           value = rows.length;
           axisRange = value * 1.5;
         } else {
-          const values = getColumn(bestValueCol);
-          value =
-            values.reduce((a: number, b: number) => a + b, 0) / values.length;
+          const values = getNumericColumn(bestValueCol ?? columns[0]);
+          value = values.reduce((a: number, b: number) => a + b, 0) / values.length;
           axisRange = Math.max(...values);
         }
 
@@ -1018,9 +959,7 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
       }
 
       case 'parcoords': {
-        const numericCols = columns.filter(
-          (col: string) => typeof rows[0][col] === 'number',
-        );
+        const numericCols = columns.filter((col: string) => typeof rows[0][col] === 'number');
         const dimensions = numericCols.map((col: string) => ({
           label: col,
           values: getColumn(col),
@@ -1072,15 +1011,14 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
       case 'choropleth':
       case 'map': {
         const locationCol =
-          columns.find((col: string) => col.toLowerCase().includes('state')) ||
-          columns[0];
+          columns.find((col: string) => col.toLowerCase().includes('state')) || columns[0];
         const bestValueCol = getBestValueColumn(columns, rows);
         const useCount = shouldUseRowCount(bestValueCol);
 
         const stateMap = new Map<string, number>();
-        rows.forEach((row: any) => {
-          const loc = row[locationCol];
-          const val = useCount ? 1 : Number(row[bestValueCol]) || 0;
+        rows.forEach((row: VisualizationRow) => {
+          const loc = String(row[locationCol] ?? '');
+          const val = useCount ? 1 : Number(row[bestValueCol ?? columns[0]]) || 0;
           stateMap.set(loc, (stateMap.get(loc) || 0) + val);
         });
 
@@ -1134,9 +1072,7 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
           // Lat/Lon based map (scattermapbox for Raster Tiles)
           const nameCol =
             columns.find(
-              (col) =>
-                col.toLowerCase().includes('patient') ||
-                col.toLowerCase().includes('name'),
+              (col) => col.toLowerCase().includes('patient') || col.toLowerCase().includes('name'),
             ) || columns[0];
 
           return {
@@ -1172,21 +1108,18 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
 
         // State/Country based map fallback
         const locationCol =
-          columns.find((col: string) => col.toLowerCase().includes('state')) ||
-          columns[0];
+          columns.find((col: string) => col.toLowerCase().includes('state')) || columns[0];
         const bestValueCol = getBestValueColumn(columns, rows);
         const useCount = shouldUseRowCount(bestValueCol);
-        const numericCols = columns.filter(
-          (col: string) => typeof rows[0][col] === 'number',
-        );
+        const numericCols = columns.filter((col: string) => typeof rows[0][col] === 'number');
 
         if (numericCols.length > 0) {
           return {
             plotData: [
               {
                 type: 'choropleth',
-                locations: getColumn(locationCol),
-                z: getColumn(numericCols[0]),
+                locations: getStringColumn(locationCol),
+                z: getNumericColumn(numericCols[0]),
                 locationmode: 'country names',
                 colorscale: 'Viridis',
                 colorbar: {
@@ -1214,9 +1147,9 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
         }
 
         const stateMap = new Map<string, number>();
-        rows.forEach((row: any) => {
-          const loc = row[locationCol];
-          const val = useCount ? 1 : Number(row[bestValueCol]) || 0;
+        rows.forEach((row: VisualizationRow) => {
+          const loc = String(row[locationCol] ?? '');
+          const val = useCount ? 1 : Number(row[bestValueCol ?? columns[0]]) || 0;
           stateMap.set(loc, (stateMap.get(loc) || 0) + val);
         });
 
@@ -1261,14 +1194,11 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
       }
 
       // ===== TABLE (Shadcn + TanStack) =====
-      case 'table':
       default: {
-        const dynamicColumns: ColumnDef<any>[] = columns.map((col) => ({
+        const dynamicColumns: ColumnDef<VisualizationRow>[] = columns.map((col) => ({
           id: col, // Use id to avoid issues with dots in accessorKey
           accessorFn: (row) => row[col],
-          header: ({ column }) => (
-            <DataTableColumnHeader column={column} title={col} />
-          ),
+          header: ({ column }) => <DataTableColumnHeader column={column} title={col} />,
           cell: ({ row }) => {
             const value = row.getValue(col);
             if (value === null || value === undefined) return '';
@@ -1315,9 +1245,9 @@ const PlotlyVisualizer: React.FC<PlotlyVisualizerProps> = ({
       ) : (
         <Plot
           key={`${theme}-${selectedChartType}`}
-          data={plotData as any[]}
+          data={plotData as Data[]}
           layout={{
-            ...(layout as any),
+            ...(layout as Partial<Layout>),
             autosize: true,
             height: expandedMode ? Math.floor(window.innerHeight * 0.75) : 500,
             modebar: { bgcolor: 'transparent' },

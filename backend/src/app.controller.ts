@@ -1,9 +1,9 @@
 import { Controller, Get, Inject } from '@nestjs/common';
-import { AppService } from './app.service';
-import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { sql } from 'drizzle-orm';
-import * as schema from '@/database/schema';
+import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { PG_CONNECTION } from '@/database/database.module';
+import * as schema from '@/database/schema';
+import { AppService } from './app.service';
 
 @Controller('api/v1')
 export class AppController {

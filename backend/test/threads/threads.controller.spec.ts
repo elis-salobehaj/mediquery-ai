@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
 import { ThreadsController } from '@/threads/threads.controller';
 import { ThreadsService } from '@/threads/threads.service';
-import { JwtAuthGuard } from '@/auth/jwt-auth.guard';
-import { vi, describe, beforeEach, it, expect } from 'vitest';
 
 describe('ThreadsController', () => {
   let controller: ThreadsController;
@@ -130,11 +130,7 @@ describe('ThreadsController', () => {
         title: 'Updated Title',
       });
       expect(result).toEqual({ status: 'success' });
-      expect(service.updateThread).toHaveBeenCalledWith(
-        'thread-1',
-        'Updated Title',
-        undefined,
-      );
+      expect(service.updateThread).toHaveBeenCalledWith('thread-1', 'Updated Title', undefined);
     });
 
     it('updates thread pinned status and returns status success', async () => {
@@ -142,21 +138,13 @@ describe('ThreadsController', () => {
         pinned: true,
       });
       expect(result).toEqual({ status: 'success' });
-      expect(service.updateThread).toHaveBeenCalledWith(
-        'thread-1',
-        undefined,
-        true,
-      );
+      expect(service.updateThread).toHaveBeenCalledWith('thread-1', undefined, true);
     });
 
     it('updates thread without a title (empty DTO)', async () => {
       const result = await controller.updateThread('thread-1', {});
       expect(result).toEqual({ status: 'success' });
-      expect(service.updateThread).toHaveBeenCalledWith(
-        'thread-1',
-        undefined,
-        undefined,
-      );
+      expect(service.updateThread).toHaveBeenCalledWith('thread-1', undefined, undefined);
     });
   });
 });

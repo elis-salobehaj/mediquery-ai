@@ -1,6 +1,6 @@
-import { z } from 'zod';
+import * as path from 'node:path';
 import * as dotenv from 'dotenv';
-import * as path from 'path';
+import { z } from 'zod';
 
 // Load .env explicitly in case it hasn't been handled yet
 dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
@@ -66,15 +66,9 @@ const ConfigSchema = z.object({
   AWS_EC2_METADATA_DISABLED: booleanString.default(true),
   AWS_BEARER_TOKEN_BEDROCK: z.string().optional(),
   BEDROCK_BASE_MODEL: z.string().default('global.anthropic.claude-sonnet-4-6'),
-  BEDROCK_SQL_WRITER_MODEL: z
-    .string()
-    .default('global.anthropic.claude-sonnet-4-6'),
-  BEDROCK_NAVIGATOR_MODEL: z
-    .string()
-    .default('global.anthropic.claude-sonnet-4-6'),
-  BEDROCK_CRITIC_MODEL: z
-    .string()
-    .default('global.anthropic.claude-sonnet-4-6'),
+  BEDROCK_SQL_WRITER_MODEL: z.string().default('global.anthropic.claude-sonnet-4-6'),
+  BEDROCK_NAVIGATOR_MODEL: z.string().default('global.anthropic.claude-sonnet-4-6'),
+  BEDROCK_CRITIC_MODEL: z.string().default('global.anthropic.claude-sonnet-4-6'),
 
   // Gemini Models
   GEMINI_BASE_MODEL: z.string().default('gemini-1.5-flash'),

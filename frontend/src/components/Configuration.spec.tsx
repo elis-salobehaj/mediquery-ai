@@ -1,10 +1,10 @@
-import { test, expect } from '@playwright/experimental-ct-react';
+import { expect, test } from '@playwright/experimental-ct-react';
 import Configuration from './Configuration';
 
 test.use({ viewport: { width: 500, height: 500 } });
 
 test('renders configuration form with api key', async ({ mount }) => {
-  const component = await mount(<Configuration apiKey="test-key" setApiKey={() => { }} />);
+  const component = await mount(<Configuration apiKey="test-key" setApiKey={() => {}} />);
 
   // Use heading locator
   await expect(component.getByRole('heading', { name: 'Configuration' })).toBeVisible();
@@ -16,7 +16,7 @@ test('renders configuration form with api key', async ({ mount }) => {
 });
 
 test('updates api key check', async ({ mount }) => {
-  const component = await mount(<Configuration apiKey="" setApiKey={() => { }} />);
+  const component = await mount(<Configuration apiKey="" setApiKey={() => {}} />);
   const input = component.locator('input[type="password"]');
   await expect(input).toBeVisible();
 });

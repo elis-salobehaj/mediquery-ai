@@ -1,12 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  TokenUsageService,
-  Provider,
-  AgentRole,
-} from '@/token-usage/token-usage.service';
-import { TokenUsageEventsService } from '@/token-usage/token-usage-events.service';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DatabaseService } from '@/database/database.service';
-import { vi, describe, beforeEach, it, expect } from 'vitest';
+import { AgentRole, Provider, TokenUsageService } from '@/token-usage/token-usage.service';
+import { TokenUsageEventsService } from '@/token-usage/token-usage-events.service';
 
 // ─── Helper: fluent Drizzle ORM chain mock ───────────────────────────────────
 // Every method in the chain returns the same object, so any combination of
@@ -80,26 +76,15 @@ describe('TokenUsageService', () => {
   // ─── calculateCost ───────────────────────────────────────────────────────────
 
   describe('calculateCost (private)', () => {
-
     it('calculates bedrock sonnet cost by alias', () => {
-      expect(
-        (service as any).calculateCost(
-          Provider.BEDROCK,
-          'sonnet',
-          1_000_000,
-          1_000_000,
-        ),
-      ).toBe(18);
+      expect((service as any).calculateCost(Provider.BEDROCK, 'sonnet', 1_000_000, 1_000_000)).toBe(
+        18,
+      );
     });
 
     it('calculates bedrock haiku cost by alias', () => {
       expect(
-        (service as any).calculateCost(
-          Provider.BEDROCK,
-          'haiku',
-          1_000_000,
-          1_000_000,
-        ),
+        (service as any).calculateCost(Provider.BEDROCK, 'haiku', 1_000_000, 1_000_000),
       ).toBeCloseTo(4.8);
     });
 
@@ -116,52 +101,28 @@ describe('TokenUsageService', () => {
 
     it('calculates openai gpt cost by alias', () => {
       expect(
-        (service as any).calculateCost(
-          Provider.OPENAI,
-          'gpt',
-          1_000_000,
-          1_000_000,
-        ),
+        (service as any).calculateCost(Provider.OPENAI, 'gpt', 1_000_000, 1_000_000),
       ).toBeCloseTo(12.5);
     });
 
     it('calculates openai o3 cost by alias', () => {
       expect(
-        (service as any).calculateCost(
-          Provider.OPENAI,
-          'o3',
-          1_000_000,
-          1_000_000,
-        ),
+        (service as any).calculateCost(Provider.OPENAI, 'o3', 1_000_000, 1_000_000),
       ).toBeCloseTo(10);
     });
 
     it('calculates openai cost via model id gpt-4.1', () => {
-      expect(
-        (service as any).calculateCost(
-          Provider.OPENAI,
-          'gpt-4.1',
-          1_000_000,
-          0,
-        ),
-      ).toBe(2);
+      expect((service as any).calculateCost(Provider.OPENAI, 'gpt-4.1', 1_000_000, 0)).toBe(2);
     });
 
     it('returns 0 for unknown provider (gemini, no pricing table)', () => {
       expect(
-        (service as any).calculateCost(
-          Provider.GEMINI,
-          'gemini-pro',
-          1_000_000,
-          1_000_000,
-        ),
+        (service as any).calculateCost(Provider.GEMINI, 'gemini-pro', 1_000_000, 1_000_000),
       ).toBe(0);
     });
 
     it('returns 0 for local/ollama provider', () => {
-      expect(
-        (service as any).calculateCost(Provider.LOCAL, 'llama', 100, 100),
-      ).toBe(0);
+      expect((service as any).calculateCost(Provider.LOCAL, 'llama', 100, 100)).toBe(0);
     });
   });
 
@@ -170,8 +131,7 @@ describe('TokenUsageService', () => {
   describe('checkMonthlyLimit', () => {
     it('returns [false, 0, 0] when user not found', async () => {
       db.pg.select.mockReturnValue(makeChain([]));
-      const [canProceed, used, limit] =
-        await service.checkMonthlyLimit('nonexistent');
+      const [canProceed, used, limit] = await service.checkMonthlyLimit('nonexistent');
       expect(canProceed).toBe(false);
       expect(used).toBe(0);
       expect(limit).toBe(0);
@@ -316,11 +276,7 @@ describe('TokenUsageService', () => {
 
     it('returns empty array when no data', async () => {
       db.pg.select.mockReturnValue(makeChain([]));
-      const result = await service.getProviderBreakdown(
-        'u1',
-        '2026-01',
-        '2026-02',
-      );
+      const result = await service.getProviderBreakdown('u1', '2026-01', '2026-02');
       expect(result).toEqual([]);
     });
   });
@@ -392,9 +348,7 @@ describe('TokenUsageService', () => {
   describe('updateUserQuota', () => {
     it('updates quota and returns new quota info', async () => {
       db.pg.update.mockReturnValue(makeChain());
-      db.pg.select.mockReturnValue(
-        makeChain([{ ...mockUser, monthlyTokenLimit: 20000 }]),
-      );
+      db.pg.select.mockReturnValue(makeChain([{ ...mockUser, monthlyTokenLimit: 20000 }]));
       const result = await service.updateUserQuota('u1', 20000);
       expect(result).toMatchObject({ user_id: 'u1', new_limit: 20000 });
       expect(db.pg.update).toHaveBeenCalled();
@@ -411,14 +365,7 @@ describe('TokenUsageService', () => {
         .mockReturnValueOnce(makeChain([mockUser]))
         .mockReturnValueOnce(makeChain([{ total: '600' }]));
 
-      await service.logTokenUsage(
-        'u1',
-        Provider.BEDROCK,
-        'sonnet',
-        100,
-        50,
-        AgentRole.ROUTER,
-      );
+      await service.logTokenUsage('u1', Provider.BEDROCK, 'sonnet', 100, 50, AgentRole.ROUTER);
 
       expect(db.pg.insert).toHaveBeenCalled();
       expect(eventsService.emit).toHaveBeenCalled();
@@ -431,16 +378,7 @@ describe('TokenUsageService', () => {
         .mockReturnValueOnce(makeChain([{ total: '100' }]));
       // Should not throw even when a specific request id is passed
       await expect(
-        service.logTokenUsage(
-          'u1',
-          Provider.OPENAI,
-          'gpt-4.1',
-          10,
-          10,
-          undefined,
-          {},
-          'req-123',
-        ),
+        service.logTokenUsage('u1', Provider.OPENAI, 'gpt-4.1', 10, 10, undefined, {}, 'req-123'),
       ).resolves.not.toThrow();
     });
 

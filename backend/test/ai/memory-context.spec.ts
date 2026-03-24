@@ -1,27 +1,22 @@
-import { describe, it, expect } from 'vitest';
-import {
-  deriveScopedMemory,
-  formatMemoryContext,
-  formatMemoryThought,
-} from '@/ai/memory-context';
+import { describe, expect, it } from 'vitest';
+import { deriveScopedMemory, formatMemoryContext, formatMemoryThought } from '@/ai/memory-context';
 
 describe('memory-context', () => {
   it('derives scoped memory from OMOP clinical messages and query', () => {
     const memory = deriveScopedMemory(
       'show top diagnoses for patient alpha-12 with mmHg above 140 this month',
       [
-        { role: 'user', text: 'focus on person alpha-12 and condition occurrences' },
+        {
+          role: 'user',
+          text: 'focus on person alpha-12 and condition occurrences',
+        },
         { role: 'assistant', text: 'Try filtering by [specific person name]' },
         { role: 'user', text: 'also include last 30 days trend' },
       ],
     );
 
-    expect(memory.active_persons).toEqual(
-      expect.arrayContaining(['ALPHA-12']),
-    );
-    expect(memory.active_persons).not.toEqual(
-      expect.arrayContaining(['SPECIFIC']),
-    );
+    expect(memory.active_persons).toEqual(expect.arrayContaining(['ALPHA-12']));
+    expect(memory.active_persons).not.toEqual(expect.arrayContaining(['SPECIFIC']));
     expect(memory.active_clinical_intent).toBe('Condition occurrence');
     expect(memory.preferred_clinical_units?.toLowerCase()).toContain('mmhg');
     expect(memory.active_timeframe?.toLowerCase()).toContain('this month');
@@ -39,24 +34,16 @@ describe('memory-context', () => {
   });
 
   it('extracts clinical intent for measurement queries', () => {
-    const memory = deriveScopedMemory(
-      'show latest lab results with values in mg/dL',
-      [],
-    );
+    const memory = deriveScopedMemory('show latest lab results with values in mg/dL', []);
 
     expect(memory.active_clinical_intent).toBe('Measurement analysis');
     expect(memory.preferred_clinical_units).toContain('mg/dL');
   });
 
   it('extracts person_id references from OMOP-style queries', () => {
-    const memory = deriveScopedMemory(
-      'show visit history where person_id = 42',
-      [],
-    );
+    const memory = deriveScopedMemory('show visit history where person_id = 42', []);
 
-    expect(memory.active_persons).toEqual(
-      expect.arrayContaining(['PERSON_42']),
-    );
+    expect(memory.active_persons).toEqual(expect.arrayContaining(['PERSON_42']));
   });
 
   it('formats scoped memory for prompt context using OMOP field names', () => {

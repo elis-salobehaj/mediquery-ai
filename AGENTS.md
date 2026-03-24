@@ -9,6 +9,7 @@ Text-to-SQL platform for medical KPI analysis using natural language.
 - **Node Engine**: 24.13.1 (managed via `nvm` / `.nvmrc`)
 - **Package Managers**: `pnpm` (Frontend + TS Backend), `uv` (Data Pipeline)
 - **Database**: PostgreSQL 18.3 (App Data via Drizzle + OMOP v5.4 Tenant Clinical Data) (Docker)
+- **Linter / Formatter**: [Biome](https://biomejs.dev/) (`@biomejs/biome` with a shared root `biome.json`)
 - **Data Standard**: OMOP CDM v5.4 (Standardized Medical Domain Model)
 
 ## 🚨 Critical Rules
@@ -25,13 +26,19 @@ Text-to-SQL platform for medical KPI analysis using natural language.
    - Use `pnpm <script>` for package.json scripts.
    - Use `pnpm exec <bin>` to run binaries from local node_modules.
    - Use `pnpm dlx <package>` for one-off remote executions (equivalent to npx).
-3. **Always use configuration abstractions**: Use the centralized `ConfigService` in NestJS (backed by Zod validation). Never use `process.env` directly in business logic. For the data-pipeline, import from `data-pipeline/config.py`.
-4. **Never edit DB schema manually**: Use Drizzle ORM (TS) or SQLAlchemy + Alembic (Python). For TypeScript, treat `packages/db` as the source of truth for app-data schema and migrations.
-5. **Never commit real data**: Sanitize SQL dump artifacts (e.g., OMOP golden dumps).
-6. **Agent file naming convention**: All LangGraph agent node files must live under `backend/src/ai/agents/` and use the `*-agent.ts` suffix (e.g., `router-agent.ts`, `sql-writer-agent.ts`).
-7. **Benchmark queries must target OMOP Golden Dataset**: All entries in `backend/src/ai/benchmarks/corpus/omop_golden_queries.jsonl` must reference OMOP v5.4 tables (`person`, `condition_occurrence`, `drug_exposure`, `measurement`, `visit_occurrence`, `omop_vocab.concept`, etc.).
-8. **Update Plans**: Check off tasks in `docs/plans/active/*.md` as you complete them.
-9. **Update Index**: Update `docs/README.md` when plans change status.
+3. **Linting & Formatting**: Use **Biome** for all TypeScript/JavaScript packages. The canonical config lives in the repo-root `biome.json`.
+   - `pnpm check` — preferred local command; runs Biome checks with writes enabled
+   - `pnpm check:ci` — CI-safe verification with no writes
+   - `pnpm lint` / `pnpm format` — package-specific convenience scripts where they exist (for example `packages/db`)
+   - `pnpm typecheck` — run TypeScript checking where the package exposes it
+   - **Do NOT install or configure ESLint or Prettier** — Biome is the active JS/TS toolchain.
+4. **Always use configuration abstractions**: Use the centralized `ConfigService` in NestJS (backed by Zod validation). Never use `process.env` directly in business logic. For the data-pipeline, import from `data-pipeline/config.py`.
+5. **Never edit DB schema manually**: Use Drizzle ORM (TS) or SQLAlchemy + Alembic (Python). For TypeScript, treat `packages/db` as the source of truth for app-data schema and migrations.
+6. **Never commit real data**: Sanitize SQL dump artifacts (e.g., OMOP golden dumps).
+7. **Agent file naming convention**: All LangGraph agent node files must live under `backend/src/ai/agents/` and use the `*-agent.ts` suffix (e.g., `router-agent.ts`, `sql-writer-agent.ts`).
+8. **Benchmark queries must target OMOP Golden Dataset**: All entries in `backend/src/ai/benchmarks/corpus/omop_golden_queries.jsonl` must reference OMOP v5.4 tables (`person`, `condition_occurrence`, `drug_exposure`, `measurement`, `visit_occurrence`, `omop_vocab.concept`, etc.).
+9. **Update Plans**: Check off tasks in `docs/plans/active/*.md` as you complete them.
+10. **Update Index**: Update `docs/README.md` when plans change status.
 
 ## 📖 Guides
 

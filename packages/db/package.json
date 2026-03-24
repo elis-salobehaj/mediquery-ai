@@ -10,20 +10,25 @@
     "db:migrate:runtime": "pnpm node dist/migrate.js",
     "db:seed": "pnpm run build && pnpm node dist/seed.js",
     "db:pull": "drizzle-kit pull",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "format": "biome format --write ./src",
+    "lint": "biome lint --write ./src",
+    "check:ci": "biome ci ./src",
+    "check": "biome check --write ./src"
   },
   "dependencies": {
     "argon2": "^0.44.0",
     "dotenv": "^17.3.1",
-    "drizzle-kit": "^0.31.9",
+    "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.1",
-    "pg": "^8.18.0",
+    "pg": "^8.20.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/node": "^22.10.7",
-    "@types/pg": "^8.16.0",
-    "typescript": "^5.7.3"
+    "@biomejs/biome": "^2.4.8",
+    "@types/node": "^22.19.15",
+    "@types/pg": "^8.20.0",
+    "typescript": "^5.9.3"
   },
-  "packageManager": "pnpm@10.30.3+sha512.c961d1e0a2d8e354ecaa5166b822516668b7f44cb5bd95122d590dd81922f606f5473b6d23ec4a5be05e7fcd18e8488d47d978bbe981872f1145d06e9a740017"
+  "packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be"
 }

@@ -1,21 +1,8 @@
-import { useEffect, useState } from 'react';
 import axios from 'axios';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { useEffect, useState } from 'react';
+import { FiClock, FiCpu, FiSliders } from 'react-icons/fi';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -24,9 +11,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { getApiUrl } from '@/config/api';
-import { FiCpu, FiClock, FiSliders } from 'react-icons/fi';
 
 type AgentMode = 'fast' | 'multi-agent';
 
@@ -59,8 +53,7 @@ const UserPreferences: React.FC<UserPreferencesProps> = ({
   setAgentMode,
 }) => {
   const [preferredUnits, setPreferredUnits] = useState(DEFAULT_UNITS);
-  const [preferredChartStyle, setPreferredChartStyle] =
-    useState(DEFAULT_CHART_STYLE);
+  const [preferredChartStyle, setPreferredChartStyle] = useState(DEFAULT_CHART_STYLE);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isClearingMemory, setIsClearingMemory] = useState(false);
 
@@ -71,13 +64,9 @@ const UserPreferences: React.FC<UserPreferencesProps> = ({
         const data = res.data as MemoryPreferencesResponse;
 
         setPreferredUnits(
-          isClinicalUnitSystem(data.preferred_units)
-            ? data.preferred_units
-            : DEFAULT_UNITS,
+          isClinicalUnitSystem(data.preferred_units) ? data.preferred_units : DEFAULT_UNITS,
         );
-        setPreferredChartStyle(
-          data.preferred_chart_style || DEFAULT_CHART_STYLE,
-        );
+        setPreferredChartStyle(data.preferred_chart_style || DEFAULT_CHART_STYLE);
       } catch (error) {
         console.warn('Failed to load user preferences', error);
       }
@@ -98,11 +87,11 @@ const UserPreferences: React.FC<UserPreferencesProps> = ({
   };
 
   return (
-    <div className="bg-background h-full overflow-auto p-6">
+    <div className="h-full overflow-auto bg-background p-6">
       <div className="mx-auto max-w-6xl space-y-6">
         <div>
-          <h1 className="font-heading text-3xl font-bold">User Preferences</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
+          <h1 className="font-bold font-heading text-3xl">User Preferences</h1>
+          <p className="mt-1 text-muted-foreground text-sm">
             Manage your default AI behavior and long-lived memory preferences.
           </p>
         </div>
@@ -111,9 +100,7 @@ const UserPreferences: React.FC<UserPreferencesProps> = ({
           <CardHeader className="flex flex-row items-center gap-2 p-4">
             <FiClock size={20} className="text-(--accent-primary)" />
             <div>
-              <CardTitle className="font-heading text-xl font-semibold">
-                Memory
-              </CardTitle>
+              <CardTitle className="font-heading font-semibold text-xl">Memory</CardTitle>
               <CardDescription className="mt-1">
                 Configure how memory is used for your requests.
               </CardDescription>
@@ -122,12 +109,9 @@ const UserPreferences: React.FC<UserPreferencesProps> = ({
           <CardContent className="space-y-4 p-4">
             <div className="flex items-center justify-between rounded-md border border-(--border-subtle) p-4">
               <div className="space-y-1">
-                <Label className="text-sm font-medium">
-                  Enable Thread Memory
-                </Label>
+                <Label className="font-medium text-sm">Enable Thread Memory</Label>
                 <p className="text-muted-foreground text-xs">
-                  When disabled, each request starts without previous thread
-                  context.
+                  When disabled, each request starts without previous thread context.
                 </p>
               </div>
               <Switch
@@ -139,7 +123,7 @@ const UserPreferences: React.FC<UserPreferencesProps> = ({
 
             <div className="flex items-center justify-between rounded-md border border-(--border-subtle) p-4">
               <div className="space-y-1">
-                <Label className="text-sm font-medium">Clear Memory</Label>
+                <Label className="font-medium text-sm">Clear Memory</Label>
                 <p className="text-muted-foreground text-xs">
                   Delete all memory from previous threads and saved preferences.
                 </p>
@@ -159,7 +143,7 @@ const UserPreferences: React.FC<UserPreferencesProps> = ({
           <CardHeader className="flex flex-row items-center gap-2 p-4">
             <FiSliders size={20} className="text-(--accent-primary)" />
             <div>
-              <CardTitle className="font-heading text-xl font-semibold">
+              <CardTitle className="font-heading font-semibold text-xl">
                 Long-lived Preferences
               </CardTitle>
               <CardDescription className="mt-1">
@@ -182,17 +166,13 @@ const UserPreferences: React.FC<UserPreferencesProps> = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="SI">SI (e.g., mmol/L, kg, cm)</SelectItem>
-                  <SelectItem value="conventional">
-                    Conventional (e.g., mg/dL)
-                  </SelectItem>
+                  <SelectItem value="conventional">Conventional (e.g., mg/dL)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2 rounded-md border border-(--border-subtle) p-4">
-              <Label htmlFor="preferred-chart-style">
-                Preferred Chart Style
-              </Label>
+              <Label htmlFor="preferred-chart-style">Preferred Chart Style</Label>
               <Select
                 value={preferredChartStyle}
                 onValueChange={async (value) => {
@@ -217,9 +197,7 @@ const UserPreferences: React.FC<UserPreferencesProps> = ({
           <CardHeader className="flex flex-row items-center gap-2 p-4">
             <FiCpu size={20} className="text-(--accent-primary)" />
             <div>
-              <CardTitle className="font-heading text-xl font-semibold">
-                Query Experience
-              </CardTitle>
+              <CardTitle className="font-heading font-semibold text-xl">Query Experience</CardTitle>
               <CardDescription className="mt-1">
                 Choose your default assistant operating mode.
               </CardDescription>
@@ -227,10 +205,7 @@ const UserPreferences: React.FC<UserPreferencesProps> = ({
           </CardHeader>
           <CardContent className="space-y-2 p-4">
             <Label htmlFor="default-agent-mode">Default Agent Mode</Label>
-            <Select
-              value={agentMode}
-              onValueChange={(value) => setAgentMode(value as AgentMode)}
-            >
+            <Select value={agentMode} onValueChange={(value) => setAgentMode(value as AgentMode)}>
               <SelectTrigger id="default-agent-mode" className="w-full">
                 <SelectValue placeholder="Select default mode" />
               </SelectTrigger>
@@ -248,9 +223,8 @@ const UserPreferences: React.FC<UserPreferencesProps> = ({
           <DialogHeader>
             <DialogTitle>Clear Memory?</DialogTitle>
             <DialogDescription>
-              This will delete all memory from previous threads. New
-              interactions will start with no memory of previous interactions.
-              Do you want to proceed?
+              This will delete all memory from previous threads. New interactions will start with no
+              memory of previous interactions. Do you want to proceed?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

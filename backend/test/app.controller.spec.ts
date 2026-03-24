@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppController } from '@/app.controller';
 import { AppService } from '@/app.service';
 import { PG_CONNECTION } from '@/database/database.module';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 describe('AppController', () => {
   let appController: AppController;

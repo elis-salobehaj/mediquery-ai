@@ -1,11 +1,11 @@
+import { ChatAnthropic } from '@langchain/anthropic';
+import { ChatBedrockConverse } from '@langchain/aws';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ChatOllama } from '@langchain/ollama';
+import { ChatOpenAI } from '@langchain/openai';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@/config/config.service';
-import { ChatBedrockConverse } from '@langchain/aws';
-import { ChatOpenAI } from '@langchain/openai';
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
-import { ChatAnthropic } from '@langchain/anthropic';
-import { ChatOllama } from '@langchain/ollama';
-import { BaseChatModel } from '@langchain/core/language_models/chat_models';
 
 @Injectable()
 export class LLMService {
@@ -20,25 +20,19 @@ export class LLMService {
    * @param providerOverride  When provided, overrides which SDK/provider is used
    *                          (e.g. 'openai' to use ChatOpenAI regardless of env flags).
    */
-  createChatModel(
-    roleOrModel?: string,
-    providerOverride?: string,
-  ): BaseChatModel {
+  createChatModel(roleOrModel?: string, providerOverride?: string): BaseChatModel {
     const provider = providerOverride || this.getActiveProvider();
+    const roleName = roleOrModel || '';
 
     // Determine model ID: if roleOrModel is a known role, get its model, otherwise treat as model ID or use default
     let modelId = '';
-    if (
-      ['navigator', 'sql_writer', 'critic', 'base'].includes(roleOrModel || '')
-    ) {
-      modelId = this.getModelForRole(provider, roleOrModel!);
+    if (['navigator', 'sql_writer', 'critic', 'base'].includes(roleName)) {
+      modelId = this.getModelForRole(provider, roleName);
     } else {
       modelId = roleOrModel || this.getDefaultModelForProvider(provider);
     }
 
-    this.logger.log(
-      `Initializing LLM: ${provider}/${modelId} (role: ${roleOrModel || 'default'})`,
-    );
+    this.logger.log(`Initializing LLM: ${provider}/${modelId} (role: ${roleOrModel || 'default'})`);
 
     switch (provider) {
       case 'bedrock':
@@ -88,14 +82,10 @@ export class LLMService {
   private getModelForRole(provider: string, role: string): string {
     const p = provider.toUpperCase();
     const r = role.toUpperCase();
-    const key =
-      `${p}_${r}_MODEL` as keyof import('../config/env.config').AppConfig;
+    const key = `${p}_${r}_MODEL` as keyof import('../config/env.config').AppConfig;
 
     try {
-      return (
-        (this.config.all[key] as string) ||
-        this.getDefaultModelForProvider(provider)
-      );
+      return (this.config.all[key] as string) || this.getDefaultModelForProvider(provider);
     } catch {
       return this.getDefaultModelForProvider(provider);
     }

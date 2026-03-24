@@ -1,71 +1,56 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 // Theme type definition to match usage
 export type ThemeMode = 'light' | 'dark' | 'clinical-slate' | 'system';
 
+const resolveCssVariableColor = (varName: string) => {
+  const temp = document.createElement('div');
+  temp.style.display = 'none';
+  temp.style.color = `var(${varName})`;
+  document.body.appendChild(temp);
+  const computed = getComputedStyle(temp).color;
+  document.body.removeChild(temp);
+  return computed;
+};
+
+const getColorsFromDOM = () => ({
+  accent1: resolveCssVariableColor('--color-chart-accent-1'),
+  accent2: resolveCssVariableColor('--color-chart-accent-2'),
+  accent3: resolveCssVariableColor('--color-chart-accent-3'),
+  accent4: resolveCssVariableColor('--color-chart-accent-4'),
+  accent5: resolveCssVariableColor('--color-chart-accent-5'),
+  accent6: resolveCssVariableColor('--color-chart-accent-6'),
+  brand: resolveCssVariableColor('--color-brand'),
+  surface: resolveCssVariableColor('--color-surface'),
+  surfaceElevated: resolveCssVariableColor('--color-surface-elevated'),
+  text: resolveCssVariableColor('--color-table-text'),
+  textMuted: resolveCssVariableColor('--color-text-muted'),
+  border: resolveCssVariableColor('--color-border'),
+  borderSubtle: resolveCssVariableColor('--color-border-subtle'),
+  success: resolveCssVariableColor('--color-success'),
+  warning: resolveCssVariableColor('--color-warning'),
+  error: resolveCssVariableColor('--color-error'),
+  info: resolveCssVariableColor('--color-info'),
+  accents: [
+    resolveCssVariableColor('--color-chart-accent-1'),
+    resolveCssVariableColor('--color-chart-accent-2'),
+    resolveCssVariableColor('--color-chart-accent-3'),
+    resolveCssVariableColor('--color-chart-accent-4'),
+    resolveCssVariableColor('--color-chart-accent-5'),
+    resolveCssVariableColor('--color-chart-accent-6'),
+  ],
+  mapLand: resolveCssVariableColor('--map-land'),
+  mapOcean: resolveCssVariableColor('--map-ocean'),
+  mapLake: resolveCssVariableColor('--map-lake'),
+  mapBorder: resolveCssVariableColor('--map-border'),
+  mapCoastline: resolveCssVariableColor('--map-coastline'),
+  tableHeaderBg: resolveCssVariableColor('--table-header-bg'),
+  tableCellRowOdd: resolveCssVariableColor('--table-cell-row-odd'),
+  tableCellRowEven: resolveCssVariableColor('--table-cell-row-even'),
+  tableBorderColor: resolveCssVariableColor('--table-border-color'),
+});
+
 export const useChartColors = () => {
-  // Helper: Resolve CSS variable to RGB using browser's native computation
-  // This is required because Plotly/SVG doesn't fully support 'oklch()' strings yet
-  const getColorsFromDOM = () => {
-    const getColor = (varName: string) => {
-      const temp = document.createElement('div');
-      temp.style.display = 'none';
-      temp.style.color = `var(${varName})`;
-      document.body.appendChild(temp);
-      const computed = getComputedStyle(temp).color;
-      document.body.removeChild(temp);
-      return computed;
-    };
-
-    return {
-      // Chart accent colors (6-color palette)
-      accent1: getColor('--color-chart-accent-1'),
-      accent2: getColor('--color-chart-accent-2'),
-      accent3: getColor('--color-chart-accent-3'),
-      accent4: getColor('--color-chart-accent-4'),
-      accent5: getColor('--color-chart-accent-5'),
-      accent6: getColor('--color-chart-accent-6'),
-
-      // Semantic colors
-      brand: getColor('--color-brand'),
-      surface: getColor('--color-surface'),
-      surfaceElevated: getColor('--color-surface-elevated'),
-      text: getColor('--color-table-text'),
-      textMuted: getColor('--color-text-muted'),
-      border: getColor('--color-border'),
-      borderSubtle: getColor('--color-border-subtle'),
-
-      // Status colors
-      success: getColor('--color-success'),
-      warning: getColor('--color-warning'),
-      error: getColor('--color-error'),
-      info: getColor('--color-info'),
-
-      // Helper: Get all accent colors as array
-      accents: [
-        getColor('--color-chart-accent-1'),
-        getColor('--color-chart-accent-2'),
-        getColor('--color-chart-accent-3'),
-        getColor('--color-chart-accent-4'),
-        getColor('--color-chart-accent-5'),
-        getColor('--color-chart-accent-6'),
-      ],
-
-      // Map Palette
-      mapLand: getColor('--map-land'),
-      mapOcean: getColor('--map-ocean'),
-      mapLake: getColor('--map-lake'),
-      mapBorder: getColor('--map-border'),
-      mapCoastline: getColor('--map-coastline'),
-
-      // Table Palette
-      tableHeaderBg: getColor('--table-header-bg'),
-      tableCellRowOdd: getColor('--table-cell-row-odd'),
-      tableCellRowEven: getColor('--table-cell-row-even'),
-      tableBorderColor: getColor('--table-border-color'),
-    };
-  };
-
   // Initialize with current state of DOM
   const [colors, setColors] = useState(getColorsFromDOM);
 
@@ -78,8 +63,7 @@ export const useChartColors = () => {
       for (const mutation of mutations) {
         if (
           mutation.type === 'attributes' &&
-          (mutation.attributeName === 'data-theme' ||
-            mutation.attributeName === 'class')
+          (mutation.attributeName === 'data-theme' || mutation.attributeName === 'class')
         ) {
           update();
         }

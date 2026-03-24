@@ -1,31 +1,25 @@
-import { useState, useEffect } from 'react';
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Navigate,
-  useNavigate,
-} from 'react-router-dom';
 import axios from 'axios';
-import Layout from './components/Layout/Layout';
+import { useCallback, useEffect, useState } from 'react';
+import { BrowserRouter, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import ChatInterface from './components/Chat/ChatInterface';
 import InputBar from './components/Chat/InputBar';
+import Layout from './components/Layout/Layout';
 import Login from './components/Login';
-import UsageDashboard from './pages/UsageDashboard';
-import AdminQuotaManagement from './pages/AdminQuotaManagement';
-import UserPreferences from './pages/UserPreferences';
-import UsageNotifications from './components/Usage/UsageNotifications';
 import ProtectedRoute from './components/ProtectedRoute';
+import UsageNotifications from './components/Usage/UsageNotifications';
 import { getApiUrl } from './config/api';
-import { isAdmin, clearAuth, isTokenExpired } from './utils/auth';
 import { TokenUsageProvider } from './contexts/TokenUsageContext';
+import AdminQuotaManagement from './pages/AdminQuotaManagement';
+import UsageDashboard from './pages/UsageDashboard';
+import UserPreferences from './pages/UserPreferences';
+import { clearAuth, isAdmin, isTokenExpired } from './utils/auth';
 
 // Initialise axios auth header synchronously from localStorage on module load.
 // This prevents a race where useEffects (fetchModels, fetchThreads) fire on mount
 // before the auth-headers effect runs, causing spurious 401s → login redirect loop.
 const _initialToken = localStorage.getItem('mediquery_token');
 if (_initialToken) {
-  axios.defaults.headers.common['Authorization'] = `Bearer ${_initialToken}`;
+  axios.defaults.headers.common.Authorization = `Bearer ${_initialToken}`;
 }
 
 export interface Thread {
@@ -75,12 +69,8 @@ function AppContent() {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [token, setToken] = useState<string | null>(
-    localStorage.getItem('mediquery_token'),
-  );
-  const [, setUser] = useState<string | null>(
-    localStorage.getItem('mediquery_user'),
-  );
+  const [token, setToken] = useState<string | null>(localStorage.getItem('mediquery_token'));
+  const [, setUser] = useState<string | null>(localStorage.getItem('mediquery_user'));
   const [isLoading, setIsLoading] = useState(false);
 
   // Check if user is admin using role-based authorization
@@ -138,16 +128,11 @@ function AppContent() {
   // Persistence
   useEffect(() => localStorage.setItem('theme', theme), [theme]);
   useEffect(() => localStorage.setItem('agentMode', agentMode), [agentMode]);
-  useEffect(
-    () => localStorage.setItem('enable_memory', String(enable_memory)),
-    [enable_memory],
-  );
+  useEffect(() => localStorage.setItem('enable_memory', String(enable_memory)), [enable_memory]);
 
   // Apply Theme
   useEffect(() => {
-    const applyTheme = (
-      themeName: 'light' | 'dark' | 'clinical-slate' | 'system',
-    ) => {
+    const applyTheme = (themeName: 'light' | 'dark' | 'clinical-slate' | 'system') => {
       const effectiveTheme: 'light' | 'dark' | 'clinical-slate' =
         themeName === 'system'
           ? window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -185,9 +170,9 @@ function AppContent() {
   // Auth Headers
   useEffect(() => {
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axios.defaults.headers.common.Authorization = `Bearer ${token}`;
     } else {
-      delete axios.defaults.headers.common['Authorization'];
+      delete axios.defaults.headers.common.Authorization;
     }
   }, [token]);
 
@@ -199,7 +184,7 @@ function AppContent() {
       setUser(null);
       clearAuth();
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- Run once on mount
+  }, [token]);
 
   // Setup axios interceptor for 401 and 429 errors
   useEffect(() => {
@@ -213,9 +198,7 @@ function AppContent() {
             error.config?.url?.includes('/auth/register');
 
           if (!isAuthEndpoint) {
-            console.warn(
-              '401 Unauthorized - clearing auth and redirecting to login',
-            );
+            console.warn('401 Unauthorized - clearing auth and redirecting to login');
             clearAuth();
             setToken(null);
             setUser(null);
@@ -236,7 +219,7 @@ function AppContent() {
   }, []);
 
   // API Utils
-  const fetchThreads = async () => {
+  const fetchThreads = useCallback(async () => {
     if (!token) return;
     try {
       const res = await axios.get(getApiUrl('/threads'));
@@ -244,9 +227,9 @@ function AppContent() {
     } catch (err) {
       console.error('Failed to fetch threads', err);
     }
-  };
+  }, [token]);
 
-  const fetchMessages = async (threadId: string) => {
+  const fetchMessages = useCallback(async (threadId: string) => {
     try {
       const res = await axios.get(getApiUrl(`/threads/${threadId}/messages`));
       const rawMessages = (res.data.messages || []) as RawMessage[];
@@ -268,12 +251,12 @@ function AppContent() {
     } catch (err) {
       console.error('Failed to fetch messages', err);
     }
-  };
+  }, []);
 
   // Effects
   useEffect(() => {
     if (token) fetchThreads();
-  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps -- fetchThreads recreated each render; token is the correct trigger
+  }, [token, fetchThreads]);
 
   useEffect(() => {
     if (currentThreadId && !isLoading) {
@@ -281,12 +264,12 @@ function AppContent() {
     } else if (!currentThreadId && !isLoading) {
       setMessages([]);
     }
-  }, [currentThreadId, isLoading]);
+  }, [currentThreadId, isLoading, fetchMessages]);
 
   // Handlers
   const handleLogin = (newToken: string, username: string, role?: string) => {
     // Set auth header immediately so it is ready before any React effects fire.
-    axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+    axios.defaults.headers.common.Authorization = `Bearer ${newToken}`;
     setToken(newToken);
     setUser(username);
     localStorage.setItem('mediquery_token', newToken);
@@ -429,9 +412,7 @@ function AppContent() {
               accumulatedThoughts.push(event.content);
               setMessages((prev) =>
                 prev.map((msg) =>
-                  msg.id === botId
-                    ? { ...msg, thoughts: [...accumulatedThoughts] }
-                    : msg,
+                  msg.id === botId ? { ...msg, thoughts: [...accumulatedThoughts] } : msg,
                 ),
               );
             } else if (event.type === 'result') {
@@ -448,10 +429,7 @@ function AppContent() {
                   msg.id === botId
                     ? {
                         ...msg,
-                        text:
-                          resData.answer ||
-                          resData.insight ||
-                          'Analysis complete.',
+                        text: resData.answer || resData.insight || 'Analysis complete.',
                         data: safeData,
                         sql: resData.sql,
                         visualization_type: 'table',
@@ -474,10 +452,7 @@ function AppContent() {
                     ? {
                         ...msg,
                         text: `Error: ${event.content}`,
-                        thoughts: [
-                          ...accumulatedThoughts,
-                          'Error encountered.',
-                        ],
+                        thoughts: [...accumulatedThoughts, 'Error encountered.'],
                       }
                     : msg,
                 ),
@@ -515,12 +490,10 @@ function AppContent() {
             <div className="flex h-screen flex-col items-center justify-center bg-(--bg-primary) p-4">
               <div className="w-full max-w-md rounded-2xl border border-(--border-subtle) bg-(--bg-secondary) p-8 shadow-lg">
                 <div className="mb-8 text-center">
-                  <h1 className="font-heading mb-2 text-2xl font-bold text-(--accent-primary)">
+                  <h1 className="mb-2 font-bold font-heading text-(--accent-primary) text-2xl">
                     {import.meta.env.VITE_APP_TITLE || 'Mediquery'}
                   </h1>
-                  <p className="text-(--text-secondary)">
-                    Please sign in to continue
-                  </p>
+                  <p className="text-(--text-secondary)">Please sign in to continue</p>
                 </div>
                 <Login onLogin={handleLogin} />
               </div>
@@ -608,11 +581,7 @@ function AppContent() {
         <Route
           path="/admin"
           element={
-            <ProtectedRoute
-              isAuthenticated={!!token}
-              requireAdmin={true}
-              isAdmin={userIsAdmin}
-            >
+            <ProtectedRoute isAuthenticated={!!token} requireAdmin={true} isAdmin={userIsAdmin}>
               <Layout
                 onNewChat={handleNewChat}
                 onLogout={handleLogout}

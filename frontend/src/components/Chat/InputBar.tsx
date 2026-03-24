@@ -1,8 +1,7 @@
-import React, { useState, useRef, type KeyboardEvent } from 'react';
+import { Cpu, Loader2, Zap } from 'lucide-react';
+import React, { type KeyboardEvent, useRef, useState } from 'react';
 import { FiSend } from 'react-icons/fi';
-import { Loader2, Zap, Cpu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -10,13 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 interface InputBarProps {
@@ -90,7 +86,7 @@ const InputBar: React.FC<InputBarProps> = ({
       {/* Input container */}
       <div
         className={cn(
-          'bg-card flex flex-col gap-2 rounded-2xl px-5 py-3 shadow-sm',
+          'flex flex-col gap-2 rounded-2xl bg-card px-5 py-3 shadow-sm',
           isLoading && 'opacity-80',
         )}
       >
@@ -104,7 +100,7 @@ const InputBar: React.FC<InputBarProps> = ({
           rows={1}
           className={cn(
             'max-h-50 min-h-7 resize-none border-none bg-inherit shadow-none',
-            'text-foreground placeholder:text-muted-foreground p-1 text-base focus-visible:ring-0',
+            'p-1 text-base text-foreground placeholder:text-muted-foreground focus-visible:ring-0',
           )}
           style={{ height: 'auto', background: 'inherit' }}
         />
@@ -116,7 +112,7 @@ const InputBar: React.FC<InputBarProps> = ({
             {/* Model selector */}
             {models.length > 0 && (
               <Select value={selectedModel} onValueChange={setSelectedModel}>
-                <SelectTrigger className="text-muted-foreground hover:bg-primary/20 hover:text-foreground h-7 w-auto max-w-40 cursor-pointer rounded-full border-none pl-4 text-xs font-medium shadow-none transition-colors focus:ring-0">
+                <SelectTrigger className="h-7 w-auto max-w-40 cursor-pointer rounded-full border-none pl-4 font-medium text-muted-foreground text-xs shadow-none transition-colors hover:bg-primary/20 hover:text-foreground focus:ring-0">
                   <SelectValue placeholder="Select model" />
                 </SelectTrigger>
                 <SelectContent>
@@ -148,20 +144,16 @@ const InputBar: React.FC<InputBarProps> = ({
                       value={value}
                       aria-label={label}
                       className={cn(
-                        'text-muted-foreground hover:bg-primary/20 hover:text-foreground h-7',
+                        'h-7 text-muted-foreground hover:bg-primary/20 hover:text-foreground',
                         'cursor-pointer bg-transparent px-2 text-xs transition-colors',
-                        agentMode === value &&
-                          'bg-primary/20 text-primary ring-primary/20 ring-1',
+                        agentMode === value && 'bg-primary/20 text-primary ring-1 ring-primary/20',
                       )}
                     >
                       {emoji}
                       {label}
                     </ToggleGroupItem>
                   </TooltipTrigger>
-                  <TooltipContent
-                    side="top"
-                    className="max-w-50 text-center text-xs"
-                  >
+                  <TooltipContent side="top" className="max-w-50 text-center text-xs">
                     {tooltip}
                   </TooltipContent>
                 </Tooltip>
@@ -176,23 +168,17 @@ const InputBar: React.FC<InputBarProps> = ({
             size="icon"
             className={cn(
               'h-8 w-8 cursor-pointer rounded-full',
-              input.trim() && !isLoading
-                ? 'shadow-md hover:scale-105'
-                : 'opacity-50',
+              input.trim() && !isLoading ? 'shadow-md hover:scale-105' : 'opacity-50',
             )}
             aria-label="Send message"
           >
-            {isLoading ? (
-              <Loader2 size={15} className="animate-spin" />
-            ) : (
-              <FiSend size={15} />
-            )}
+            {isLoading ? <Loader2 size={15} className="animate-spin" /> : <FiSend size={15} />}
           </Button>
         </div>
       </div>
 
       {/* Footer */}
-      <p className="text-muted-foreground mt-2 text-center text-[10px]">
+      <p className="mt-2 text-center text-[10px] text-muted-foreground">
         Mediquery can make mistakes. Use with professional verification.
       </p>
     </div>

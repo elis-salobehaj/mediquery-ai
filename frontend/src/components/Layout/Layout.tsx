@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import Sidebar from './Sidebar';
-import UsageIndicator from '../Usage/UsageIndicator';
 import { Separator } from '@/components/ui/separator';
 import type { Thread } from '../../App';
+import UsageIndicator from '../Usage/UsageIndicator';
+import Sidebar from './Sidebar';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -38,7 +38,7 @@ const Layout: React.FC<LayoutProps> = ({
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   return (
-    <div className="bg-background flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -60,7 +60,7 @@ const Layout: React.FC<LayoutProps> = ({
 
       <main className="relative flex h-full flex-1 flex-col overflow-hidden">
         {/* Top header bar with usage indicator */}
-        <div className="bg-card flex items-center justify-end px-4 py-2">
+        <div className="flex items-center justify-end bg-card px-4 py-2">
           <UsageIndicator />
         </div>
         <Separator />

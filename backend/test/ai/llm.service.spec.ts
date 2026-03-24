@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { describe, expect, it, vi } from 'vitest';
 import { LLMService } from '@/ai/llm.service';
 import { ConfigService } from '@/config/config.service';
-import { describe, it, expect, vi } from 'vitest';
 
 /**
  * Factory that builds a ConfigService mock whose get() returns values from

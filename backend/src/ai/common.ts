@@ -43,14 +43,7 @@ export function cleanSql(rawSql: string): string {
   sql = sql.replace(/;$/, '');
 
   // Find first SQL keyword
-  const sqlKeywords = [
-    'SELECT',
-    'WITH',
-    'INSERT',
-    'UPDATE',
-    'DELETE',
-    'CREATE',
-  ];
+  const sqlKeywords = ['SELECT', 'WITH', 'INSERT', 'UPDATE', 'DELETE', 'CREATE'];
   let firstKeywordPos = Infinity;
   for (const keyword of sqlKeywords) {
     const pos = sql.toUpperCase().indexOf(keyword);
@@ -154,23 +147,16 @@ export function normalizeOmopDomainIdLiterals(sql: string): string {
 /**
  * Extract table names used in SQL query.
  */
-export function extractTablesFromSql(
-  sql: string,
-  validTables: Set<string>,
-): Set<string> {
+export function extractTablesFromSql(sql: string, validTables: Set<string>): Set<string> {
   const tablesInSql = new Set<string>();
   const words = sql.split(/\s+/);
-  const lowerValidTables = new Set(
-    [...validTables].map((t) => t.toLowerCase()),
-  );
+  const lowerValidTables = new Set([...validTables].map((t) => t.toLowerCase()));
 
   for (const word of words) {
     const wordClean = word.replace(/[(),;]/g, '').toLowerCase();
     if (lowerValidTables.has(wordClean)) {
       // Find the original casing
-      const original = [...validTables].find(
-        (t) => t.toLowerCase() === wordClean,
-      );
+      const original = [...validTables].find((t) => t.toLowerCase() === wordClean);
       if (original) tablesInSql.add(original);
     }
   }
@@ -180,10 +166,7 @@ export function extractTablesFromSql(
 /**
  * Add a thought to state for UI transparency.
  */
-export function addThought(
-  state: GraphState | Partial<GraphState>,
-  message: string,
-): void {
+export function addThought(state: GraphState | Partial<GraphState>, message: string): void {
   if (!state.thoughts) {
     state.thoughts = [];
   }

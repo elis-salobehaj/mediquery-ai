@@ -48,6 +48,7 @@ For first-time local (hybrid) setup see [docs/guides/GETTING_STARTED.md](docs/gu
 | **Database** | PostgreSQL 18.3 — app data (Drizzle ORM) + OMOP CDM v5.4 tenant |
 | **AI** | AWS Bedrock / Google Gemini / OpenAI / Anthropic / Ollama |
 | **Data Pipeline** | Python + Polars + Alembic — Synthea → OMOP Bronze→Silver→Gold ETL |
+| **Code Quality** | Biome (shared repo-root `biome.json`) |
 | **Infrastructure** | Docker Compose, Nginx |
 
 ---

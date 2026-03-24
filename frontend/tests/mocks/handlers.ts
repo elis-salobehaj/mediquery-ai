@@ -1,4 +1,4 @@
-import { http, HttpResponse } from 'msw';
+import { HttpResponse, http } from 'msw';
 
 export const handlers = [
   // Mock login endpoint
@@ -6,17 +6,17 @@ export const handlers = [
     return HttpResponse.json({
       access_token: 'mock-access-token',
       token_type: 'bearer',
-      expires_in: 3600
+      expires_in: 3600,
     });
   }),
-  
+
   // Mock user profile endpoint
   http.get('/api/v1/auth/me', () => {
     return HttpResponse.json({
       id: 1,
       email: 'guest@example.com',
       is_active: true,
-      role: 'guest'
+      role: 'guest',
     });
   }),
 
